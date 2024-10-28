@@ -64,6 +64,13 @@ func (ah *authHandler) SignUp(c echo.Context, rado dto.ReqAuthDogOwnerDto) (dto.
 		return dto.ResDogOwnerDto{}, wrErr
 	}
 
+	// sessionIDの生成
+	sessionID, wrErr := createSessionID(c, 15)
+
+	if wrErr != nil {
+		return dto.ResDogOwnerDto{}, wrErr
+	}
+
 	// requestからDogOwnerの構造体に詰め替え
 	dogOwnerCredential := model.DogOwnerCredential{
 		Email:       wrUtil.NewSqlNullString(rado.Email),
@@ -71,6 +78,7 @@ func (ah *authHandler) SignUp(c echo.Context, rado dto.ReqAuthDogOwnerDto) (dto.
 		Password:    wrUtil.NewSqlNullString(string(hash)),
 		GrantType:   wrUtil.NewSqlNullString(model.PASSWORD_GRANT_TYPE), // Password認証
 		AuthDogOwner: model.AuthDogOwner{
+			SessionID: wrUtil.NewSqlNullString(sessionID),
 			DogOwner: model.DogOwner{
 				Name: wrUtil.NewSqlNullString(rado.DogOwnerName),
 			},
@@ -86,17 +94,10 @@ func (ah *authHandler) SignUp(c echo.Context, rado dto.ReqAuthDogOwnerDto) (dto.
 		return dto.ResDogOwnerDto{}, wrErr
 	}
 
-	// sessionIDの生成
-	sessionID, wrErr := createSessionID(c, 15)
-
-	if wrErr != nil {
-		return dto.ResDogOwnerDto{}, wrErr
-	}
-
 	// 作成したDogOwnerの情報をdto詰め替え
 	resDogOwnerDetail := dto.ResDogOwnerDto{
 		DogOwnerID: uint64(result.AuthDogOwner.DogOwnerID.Int64),
-		SessionID:  sessionID,
+		SessionID:  result.AuthDogOwner.SessionID.String,
 	}
 
 	logger.Infof("resDogOwnerDetail: %v", resDogOwnerDetail)
