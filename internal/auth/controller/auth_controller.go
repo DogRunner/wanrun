@@ -1,22 +1,13 @@
 package controller
 
 import (
-	"net/http"
-	"strconv"
-	"time"
-
-	"github.com/golang-jwt/jwt/v4"
 	"github.com/labstack/echo/v4"
-	"github.com/wanrun-develop/wanrun/configs"
 	"github.com/wanrun-develop/wanrun/internal/auth/core/dto"
 	"github.com/wanrun-develop/wanrun/internal/auth/core/handler"
-	"github.com/wanrun-develop/wanrun/internal/models/types"
 	_ "github.com/wanrun-develop/wanrun/internal/models/types"
 	"github.com/wanrun-develop/wanrun/pkg/errors"
 	_ "github.com/wanrun-develop/wanrun/pkg/errors"
-	wrErrors "github.com/wanrun-develop/wanrun/pkg/errors"
 	"github.com/wanrun-develop/wanrun/pkg/log"
-	"github.com/wanrun-develop/wanrun/pkg/success"
 )
 
 type IAuthController interface {
@@ -80,9 +71,13 @@ GoogleのOAuth認証
 // 	return jwtProcessing(c, resDogOwner)
 // }
 
-/*
-パスワード認証
-*/
+// SignUp: Password認証
+//
+// args:
+//   - echo.Context: c Echoのコンテキスト。リクエストやレスポンスにアクセスするために使用。
+//
+// return:
+//   - error情報
 func (ac *authController) SignUp(c echo.Context) error {
 	logger := log.GetLogger(c).Sugar()
 
@@ -102,76 +97,7 @@ func (ac *authController) SignUp(c echo.Context) error {
 	}
 
 	// jwt処理
-	return jwtProcessing(c, resDogOwner)
-}
-
-/*
-jwt処理
-*/
-func jwtProcessing(c echo.Context, rdo dto.ResDogOwnerDto) error {
-	logger := log.GetLogger(c).Sugar()
-
-	// 秘密鍵取得
-	secretKey := configs.FetchCondigStr("jwt.os.secret.key")
-	jwtExpTime := configs.FetchCondigInt("jwt.exp.time")
-
-	// jwt token生成
-	signedToken, err := createToken(secretKey, uint64(rdo.DogOwnerID), jwtExpTime)
-	if err != nil {
-		logger.Error(err)
-		return err
-	}
-	return c.JSON(http.StatusCreated, success.SuccessResponse{
-		Code:    http.StatusCreated,
-		Message: "dog owner successfully created",
-		Token:   signedToken,
-	})
-}
-
-/*
-jwtのトークン生成
-*/
-func createToken(secretKey string, resAuthDogOwnerID uint64, expTime int) (string, error) {
-	// JWTのペイロード
-	claims := &dto.AccountClaims{
-		ID: strconv.FormatUint(uint64(resAuthDogOwnerID), 10), // stringにコンバート
-		RegisteredClaims: jwt.RegisteredClaims{
-			ExpiresAt: jwt.NewNumericDate(time.Now().Add(time.Hour * time.Duration(expTime))), // 有効時間
-		},
-	}
-
-	// token生成
-	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
-
-	// tokenに署名
-	signedToken, err := token.SignedString([]byte(secretKey))
-	if err != nil {
-		return "", err
-	}
-
-	return signedToken, nil
-}
-
-/*
-GrantTypeの作成
-*/
-func createGrantType(c echo.Context, ih types.GrantType, pgh types.GrantType) (types.GrantType, error) {
-	logger := log.GetLogger(c).Sugar()
-
-	// GrantTypeヘッダーを取得
-	grantTypeHeader := c.Request().Header.Get(string(ih))
-
-	// GrantTypeヘッダーのバリデーション
-	if err := dto.ValidateGrantTypeHeader(grantTypeHeader, string(pgh)); err != nil {
-		err = wrErrors.NewWRError(err, "ヘッダー情報が異なります。", wrErrors.NewDogrunClientErrorEType())
-		return "", err
-	}
-
-	// GrantTypeに型変換
-	grantType := types.GrantType(grantTypeHeader)
-	logger.Infof("grantTypeHeader: %v, Type: %T", grantType, grantType)
-
-	return grantType, nil
+	return ac.ah.JwtProcessing(c, resDogOwner)
 }
 
 // func (ac *authController) LogIn(c echo.Context) error {
@@ -217,3 +143,26 @@ func createGrantType(c echo.Context, ih types.GrantType, pgh types.GrantType) (t
 // }
 
 func (ac *authController) LogOut(c echo.Context) error { return nil }
+
+// /*
+// OAuthのクエリパラメータのバリデーション
+// */
+// func ValidateOAuthResCode(authorizationCode string, oauthErrorCode string) error {
+// 	// "error" パラメータがある場合はエラーレスポンスを返す
+// 	if oauthErrorCode != "" {
+// 		wrErr := wrErrors.NewWRError(
+// 			errOAuthFailed,
+// 			"認証に失敗しました。",
+// 			wrErrors.NewDogownerClientErrorEType(),
+// 		)
+// 		return wrErr
+// 	}
+
+// 	// "code" パラメータがある場合はそのまま処理
+// 	if authorizationCode != "" {
+// 		return nil
+// 	}
+
+// 	// どちらのパラメータもない場合は不正なリクエストとしてエラーを返す
+// 	return errOAuthInvalidReq
+// }

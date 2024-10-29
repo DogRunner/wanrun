@@ -82,6 +82,18 @@ go install golang.org/x/tools/cmd/godoc@latest
 godoc -http=:6060
 ```
 
+### internalなどの部分の閲覧方法
+`/cmd`, `/internal`, `/pkg`
+などは、下記のパスを参考にすること
+
+> As mentioned in this documentation, using m=all parameter in URL will list internal packages.
+
+
+ex) 
+`http://localhost:6060/pkg/github.com/wanrun-develop/wanrun/internal/auth/core/handler/?m=all`
+
+FYI: https://stackoverflow.com/questions/67185294/cant-godoc-create-documentation-for-packages-within-internal-folder
+
 ## Folder Hierarchy
 https://github.com/golang-standards/project-layout
 

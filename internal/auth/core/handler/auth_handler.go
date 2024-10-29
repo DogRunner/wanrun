@@ -3,14 +3,20 @@ package handler
 import (
 	_ "context"
 	_ "errors"
+	"net/http"
+	"strconv"
+	"time"
 	_ "time"
 
+	"github.com/golang-jwt/jwt/v4"
 	"github.com/labstack/echo/v4"
+	"github.com/wanrun-develop/wanrun/configs"
 	"github.com/wanrun-develop/wanrun/internal/auth/adapters/repository"
 	"github.com/wanrun-develop/wanrun/internal/auth/core/dto"
 	model "github.com/wanrun-develop/wanrun/internal/models"
 	_ "github.com/wanrun-develop/wanrun/internal/models/types"
 	wrErrors "github.com/wanrun-develop/wanrun/pkg/errors"
+	"github.com/wanrun-develop/wanrun/pkg/success"
 
 	// _ wrErrors "github.com/wanrun-develop/wanrun/pkg/errors"
 	"github.com/wanrun-develop/wanrun/pkg/log"
@@ -21,6 +27,7 @@ import (
 
 type IAuthHandler interface {
 	SignUp(c echo.Context, reqADOD dto.ReqAuthDogOwnerDto) (dto.ResDogOwnerDto, error)
+	JwtProcessing(c echo.Context, rdo dto.ResDogOwnerDto) error
 	// LogIn(c echo.Context, reqADOD dto.ReqAuthDogOwnerDto) (dto.ResDogOwnerDto, error)
 	// LogOut() error
 	// GoogleOAuth(c echo.Context, authorizationCode string, grantType types.GrantType) (dto.ResDogOwnerDto, error)
@@ -46,17 +53,17 @@ func (ah *authHandler) SignUp(c echo.Context, rado dto.ReqAuthDogOwnerDto) (dto.
 	hash, err := bcrypt.GenerateFromPassword([]byte(rado.Password), bcrypt.DefaultCost) // 一旦costをデフォルト値
 
 	if err != nil {
-		logger.Error(err)
 		wrErr := wrErrors.NewWRError(
 			err,
 			"パスワードに不正な文字列が入っております。",
 			wrErrors.NewDogownerClientErrorEType(),
 		)
+		logger.Error(wrErr)
 		return dto.ResDogOwnerDto{}, wrErr
 	}
 
 	// EmailとPhoneNumberのバリデーション
-	if wrErr := validateEmailOrPhoneNumber(rado.Email, rado.PhoneNumber); wrErr != nil {
+	if wrErr := validateEmailOrPhoneNumber(rado); wrErr != nil {
 		logger.Error(wrErr)
 		return dto.ResDogOwnerDto{}, wrErr
 	}
@@ -77,13 +84,13 @@ func (ah *authHandler) SignUp(c echo.Context, rado dto.ReqAuthDogOwnerDto) (dto.
 	logger.Debugf("dogOwnerCredential %v, Type: %T", dogOwnerCredential, dogOwnerCredential)
 
 	// ドッグのオーナー作成
-	result, err := ah.ar.CreateDogOwner(c, &dogOwnerCredential)
+	result, wrErr := ah.ar.CreateDogOwner(c, &dogOwnerCredential)
 
-	if err != nil {
-		return dto.ResDogOwnerDto{}, err
+	if wrErr != nil {
+		return dto.ResDogOwnerDto{}, wrErr
 	}
 
-	// 作成したDogOwnerの情報を詰め替え
+	// 作成したDogOwnerの情報をdto詰め替え
 	resDogOwnerDetail := dto.ResDogOwnerDto{
 		DogOwnerID: uint64(result.AuthDogOwner.DogOwnerID.Int64),
 	}
@@ -195,13 +202,16 @@ Google OAuth認証
 // 	return resDogOwner, nil
 // }
 
-/*
-EmailかPhoneNumberの識別バリデーション
-パスワード認証は、EmailかPhoneNumberで登録するための
-*/
-func validateEmailOrPhoneNumber(email string, phoneNumber string) error {
+// validateEmailOrPhoneNumber: EmailかPhoneNumberの識別バリデーション。パスワード認証は、EmailかPhoneNumberで登録するため
+//
+// args:
+//   - dto.ReqAuthDogOwnerDto: Response用のAuthDogOwnerのDTO
+//
+// return:
+//   - error: err
+func validateEmailOrPhoneNumber(rado dto.ReqAuthDogOwnerDto) error {
 	// 両方が空の場合はエラー
-	if email == "" && phoneNumber == "" {
+	if rado.Email == "" && rado.PhoneNumber == "" {
 		wrErr := wrErrors.NewWRError(
 			nil,
 			"Emailと電話番号のどちらも空です",
@@ -211,7 +221,7 @@ func validateEmailOrPhoneNumber(email string, phoneNumber string) error {
 	}
 
 	// 両方に値が入っている場合もエラー
-	if email != "" && phoneNumber != "" {
+	if rado.Email != "" && rado.PhoneNumber != "" {
 		wrErr := wrErrors.NewWRError(
 			nil,
 			"Emailと電話番号のどちらも値が入っています",
@@ -222,4 +232,73 @@ func validateEmailOrPhoneNumber(email string, phoneNumber string) error {
 
 	// どちらか片方だけが入力されている場合は正常
 	return nil
+}
+
+/*
+jwt処理
+*/
+// JwtProcessing: jwtの生成等を行う
+//
+// args:
+//   - echo.Context: c   Echoのコンテキスト。リクエストやレスポンスにアクセスするために使用されます。
+//   - dto.ResDogOwnerDto: rdo フロントに返す飼い主情報
+//
+// return:
+//  - error: error情報
+
+func (ah *authHandler) JwtProcessing(c echo.Context, rdo dto.ResDogOwnerDto) error {
+	// 秘密鍵取得
+	secretKey := configs.FetchCondigStr("jwt.os.secret.key")
+	jwtExpTime := configs.FetchCondigInt("jwt.exp.time")
+
+	// jwt token生成
+	signedToken, wrErr := createToken(c, secretKey, uint64(rdo.DogOwnerID), jwtExpTime)
+
+	if wrErr != nil {
+		return wrErr
+	}
+
+	return c.JSON(http.StatusCreated, success.SuccessResponse{
+		Message: "飼い主の登録完了しました。",
+		Token:   signedToken,
+	})
+}
+
+// createToken: 指定された秘密鍵を使用して認証用のJWTトークンを生成します。
+//
+// args:
+//   - echo.Context: c   Echoのコンテキスト。リクエストやレスポンスにアクセスするために使用されます。
+//   - string: secretKey   トークンの署名に使用する秘密鍵を表す文字列。
+//   - uint64: resAuthDogOwnerID トークンを生成する対象となる犬の飼い主のID。
+//   - int: expTime トークンの有効期限を秒単位で指定。
+//
+// return:
+//   - string: 生成されたJWTトークンを表す文字列。
+//   - error: トークンの生成中に問題が発生した場合にはエラーを返します。
+func createToken(c echo.Context, secretKey string, resAuthDogOwnerID uint64, expTime int) (string, error) {
+	logger := log.GetLogger(c).Sugar()
+	// JWTのペイロード
+	claims := &dto.AccountClaims{
+		ID: strconv.FormatUint(uint64(resAuthDogOwnerID), 10), // stringにコンバート
+		RegisteredClaims: jwt.RegisteredClaims{
+			ExpiresAt: jwt.NewNumericDate(time.Now().Add(time.Hour * time.Duration(expTime))), // 有効時間
+		},
+	}
+
+	// token生成
+	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
+
+	// tokenに署名
+	signedToken, err := token.SignedString([]byte(secretKey))
+	if err != nil {
+		wrErr := wrErrors.NewWRError(
+			err,
+			"パスワードに不正な文字列が入っています。",
+			wrErrors.NewDogownerClientErrorEType(),
+		)
+		logger.Error(wrErr)
+		return "", err
+	}
+
+	return signedToken, nil
 }

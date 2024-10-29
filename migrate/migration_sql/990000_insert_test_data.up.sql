@@ -1,9 +1,24 @@
 -- dog_owners テーブルに追加のテストデータを挿入
-INSERT INTO dog_owners (name, email, image, sex, reg_at, upd_at) VALUES
-('Emily Davis', 'emily@example.com', 'https://example.com/images/emily.jpg', 'F', NOW(), NOW()),
-('James Wilson', 'james@example.com', 'https://example.com/images/james.jpg', 'M', NOW(), NOW()),
-('Olivia Martinez', 'olivia@example.com', NULL, 'F', NOW(), NOW()),
-('William Taylor', 'william@example.com', 'https://example.com/images/william.jpg', 'M', NOW(), NOW());
+INSERT INTO dog_owners (name, image, sex, reg_at, upd_at) VALUES
+('Emily Davis', 'https://example.com/images/emily.jpg', 'F', NOW(), NOW()),
+('James Wilson', 'https://example.com/images/james.jpg', 'M', NOW(), NOW()),
+('Olivia Martinez', NULL, 'F', NOW(), NOW()),
+('William Taylor', 'https://example.com/images/william.jpg', 'M', NOW(), NOW());
+
+-- auth_dog_ownersテーブルにデータを挿入
+INSERT INTO auth_dog_owners (dog_owner_id, access_token, refresh_token, access_token_expiration, refresh_token_expiration, session_id, si_refresh_token, login_at) VALUES
+(1, 'access_token_1', 'refresh_token_1', NOW() + INTERVAL '1 hour', NOW() + INTERVAL '7 days', 'session1', 'si_refresh_token_1', NOW()),
+(2, NULL, NULL, NULL, NULL, 'session2', 'si_refresh_token_2', NOW()),
+(3, NULL, NULL, NULL, NULL, 'session3', 'si_refresh_token_3', NOW()),
+(4, 'access_token_4', 'refresh_token_4', NOW() + INTERVAL '1 hour', NOW() + INTERVAL '7 days', 'session4', 'si_refresh_token_4', NOW());
+
+-- dog_owner_credentialsテーブルにデータを挿入
+INSERT INTO dog_owner_credentials (auth_dog_owner_id, provider_name, grant_type, email, phone_number, provider_user_id, password, login_at) VALUES
+(1, 'google', 'oauth', 'emily@example.com', NULL, 'google_user_1', NULL, NOW()),
+(1, 'facebook', 'oauth', 'emily@example.com', NULL, 'facebook_user_2', NULL, NOW()),
+(2, NULL, 'password', 'olivia@example.com', NULL, NULL, 'password_hash_2', NOW()),
+(3, NULL, 'password', NULL, '0987654321', NULL, 'password_hash_3', NOW()),
+(4, 'google', 'oauth', 'dev@example.com', NULL, 'google_user_4', NULL, NOW());
 
 -- dog_type_mst テーブルにテストデータを挿入
 INSERT INTO dog_type_mst (name) VALUES

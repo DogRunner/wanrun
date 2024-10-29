@@ -68,7 +68,7 @@ func (ar *authRepository) CreateDogOwner(c echo.Context, dogOC *model.DogOwnerCr
 	if err != nil {
 		wrErr := wrErrors.NewWRError(
 			err,
-			"transaction failed",
+			"DBへの登録が失敗しました。",
 			wrErrors.NewDogownerServerErrorEType())
 
 		logger.Errorf("Transaction failed error: %v", wrErr)
@@ -80,21 +80,7 @@ func (ar *authRepository) CreateDogOwner(c echo.Context, dogOC *model.DogOwnerCr
 	logger.Infof("Created AuthDogOwner Detail: %v", dogOC.AuthDogOwner)
 	logger.Infof("Created DogOwnerCredential Detail: %v", dogOC)
 
-	// レスポンス用にDogOwnerのクレデンシャル取得
-	var result model.DogOwnerCredential
-	if err = ar.db.Preload("AuthDogOwner").Preload("AuthDogOwner.DogOwner").First(&result, dogOC.CredentialID).Error; err != nil {
-		wrErr := wrErrors.NewWRError(
-			err,
-			"failed to create dog owner",
-			wrErrors.NewDogownerServerErrorEType())
-
-		logger.Errorf("Failed to create dog owner error: %v", wrErr)
-
-		return nil, wrErr
-	}
-
-	logger.Infof("Created DogOwnerCredential Detail: %v", result)
-	return &result, nil
+	return dogOC, nil
 }
 
 /*
@@ -214,7 +200,7 @@ func (ar *authRepository) checkDuplicate(c echo.Context, field string, value sql
 	if existingCount > 0 {
 		wrErr := wrErrors.NewWRError(
 			nil,
-			fmt.Sprintf("%sの%vが以前に登録されております。", field, value),
+			fmt.Sprintf("%sの%sが既に登録されています。", field, value.String),
 			wrErrors.NewDogownerClientErrorEType(),
 		)
 
