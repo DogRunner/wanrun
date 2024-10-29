@@ -74,7 +74,7 @@ GoogleのOAuth認証
 // SignUp: Password認証
 //
 // args:
-//   - echo.Context: c Echoのコンテキスト。リクエストやレスポンスにアクセスするために使用されます。
+//   - echo.Context: c Echoのコンテキスト。リクエストやレスポンスにアクセスするために使用。
 //
 // return:
 //   - error情報

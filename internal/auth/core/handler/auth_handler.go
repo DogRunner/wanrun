@@ -63,7 +63,7 @@ func (ah *authHandler) SignUp(c echo.Context, rado dto.ReqAuthDogOwnerDto) (dto.
 	}
 
 	// EmailとPhoneNumberのバリデーション
-	if wrErr := validateEmailOrPhoneNumber(rado.Email, rado.PhoneNumber); wrErr != nil {
+	if wrErr := validateEmailOrPhoneNumber(rado); wrErr != nil {
 		logger.Error(wrErr)
 		return dto.ResDogOwnerDto{}, wrErr
 	}
@@ -205,14 +205,13 @@ Google OAuth認証
 // validateEmailOrPhoneNumber: EmailかPhoneNumberの識別バリデーション。パスワード認証は、EmailかPhoneNumberで登録するため
 //
 // args:
-//   - string: email Email
-//   - string: phoneNumber 電話番号
+//   - dto.ReqAuthDogOwnerDto: Response用のAuthDogOwnerのDTO
 //
 // return:
 //   - error: err
-func validateEmailOrPhoneNumber(email string, phoneNumber string) error {
+func validateEmailOrPhoneNumber(rado dto.ReqAuthDogOwnerDto) error {
 	// 両方が空の場合はエラー
-	if email == "" && phoneNumber == "" {
+	if rado.Email == "" && rado.PhoneNumber == "" {
 		wrErr := wrErrors.NewWRError(
 			nil,
 			"Emailと電話番号のどちらも空です",
@@ -222,7 +221,7 @@ func validateEmailOrPhoneNumber(email string, phoneNumber string) error {
 	}
 
 	// 両方に値が入っている場合もエラー
-	if email != "" && phoneNumber != "" {
+	if rado.Email != "" && rado.PhoneNumber != "" {
 		wrErr := wrErrors.NewWRError(
 			nil,
 			"Emailと電話番号のどちらも値が入っています",
@@ -260,7 +259,6 @@ func (ah *authHandler) JwtProcessing(c echo.Context, rdo dto.ResDogOwnerDto) err
 	}
 
 	return c.JSON(http.StatusCreated, success.SuccessResponse{
-		Code:    http.StatusCreated,
 		Message: "飼い主の登録完了しました。",
 		Token:   signedToken,
 	})
@@ -295,7 +293,7 @@ func createToken(c echo.Context, secretKey string, resAuthDogOwnerID uint64, exp
 	if err != nil {
 		wrErr := wrErrors.NewWRError(
 			err,
-			"パスワードに不正な文字列が入っております。",
+			"パスワードに不正な文字列が入っています。",
 			wrErrors.NewDogownerClientErrorEType(),
 		)
 		logger.Error(wrErr)
