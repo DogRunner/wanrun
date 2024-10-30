@@ -64,8 +64,8 @@ func (ah *authHandler) SignUp(c echo.Context, rado dto.ReqAuthDogOwnerDto) (dto.
 		return dto.ResDogOwnerDto{}, wrErr
 	}
 
-	// sessionIDの生成
-	sessionID, wrErr := createSessionID(c, 15)
+	// JTIの生成
+	jti, wrErr := createJTI(c, 15)
 
 	if wrErr != nil {
 		return dto.ResDogOwnerDto{}, wrErr
@@ -78,7 +78,7 @@ func (ah *authHandler) SignUp(c echo.Context, rado dto.ReqAuthDogOwnerDto) (dto.
 		Password:    wrUtil.NewSqlNullString(string(hash)),
 		GrantType:   wrUtil.NewSqlNullString(model.PASSWORD_GRANT_TYPE), // Password認証
 		AuthDogOwner: model.AuthDogOwner{
-			SessionID: wrUtil.NewSqlNullString(sessionID),
+			SessionID: wrUtil.NewSqlNullString(jti),
 			DogOwner: model.DogOwner{
 				Name: wrUtil.NewSqlNullString(rado.DogOwnerName),
 			},
@@ -97,7 +97,7 @@ func (ah *authHandler) SignUp(c echo.Context, rado dto.ReqAuthDogOwnerDto) (dto.
 	// 作成したDogOwnerの情報をdto詰め替え
 	resDogOwnerDetail := dto.ResDogOwnerDto{
 		DogOwnerID: uint64(result.AuthDogOwner.DogOwnerID.Int64),
-		SessionID:  result.AuthDogOwner.SessionID.String,
+		JTI:        result.AuthDogOwner.SessionID.String,
 	}
 
 	logger.Infof("resDogOwnerDetail: %v", resDogOwnerDetail)
@@ -284,8 +284,8 @@ func createToken(c echo.Context, secretKey string, rdo dto.ResDogOwnerDto, expTi
 	logger := log.GetLogger(c).Sugar()
 	// JWTのペイロード
 	claims := &dto.AccountClaims{
-		ID:        strconv.FormatUint(uint64(rdo.DogOwnerID), 10), // stringにコンバート
-		SessionID: rdo.SessionID,
+		ID:  strconv.FormatUint(uint64(rdo.DogOwnerID), 10), // stringにコンバート
+		JTI: rdo.JTI,
 		RegisteredClaims: jwt.RegisteredClaims{
 			ExpiresAt: jwt.NewNumericDate(time.Now().Add(time.Hour * time.Duration(expTime))), // 有効時間
 		},
@@ -309,7 +309,7 @@ func createToken(c echo.Context, secretKey string, rdo dto.ResDogOwnerDto, expTi
 	return signedToken, nil
 }
 
-// createSessionID: sessionIDの生成。引数の数だけランダムの文字列を生成する
+// createJTI: JTIの生成。引数の数だけランダムの文字列を生成する
 //
 // args:
 //   - int: length 生成したい数
@@ -317,7 +317,7 @@ func createToken(c echo.Context, secretKey string, rdo dto.ResDogOwnerDto, expTi
 // return:
 //   - string:　ランダム文字列
 //   - error:　error情報
-func createSessionID(c echo.Context, length int) (string, error) {
+func createJTI(c echo.Context, length int) (string, error) {
 	logger := log.GetLogger(c).Sugar()
 
 	b := make([]byte, length)
@@ -325,7 +325,7 @@ func createSessionID(c echo.Context, length int) (string, error) {
 	if err != nil {
 		wrErr := wrErrors.NewWRError(
 			err,
-			"SessionID生成に失敗しました。",
+			"JTI生成に失敗しました",
 			wrErrors.NewDogownerServerErrorEType(),
 		)
 		logger.Error(wrErr)
