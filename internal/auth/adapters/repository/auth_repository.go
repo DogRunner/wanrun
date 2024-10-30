@@ -200,7 +200,7 @@ func (ar *authRepository) checkDuplicate(c echo.Context, field string, value sql
 	if existingCount > 0 {
 		wrErr := wrErrors.NewWRError(
 			nil,
-			fmt.Sprintf("%sの%sが以前に登録されております。", field, value.String),
+			fmt.Sprintf("%sの%sが既に登録されています。", field, value.String),
 			wrErrors.NewDogownerClientErrorEType(),
 		)
 
