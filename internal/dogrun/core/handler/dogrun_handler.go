@@ -108,7 +108,7 @@ func (h *dogrunHandler) SearchAroundDogruns(c echo.Context, condition dto.Search
 	logger.Infof("DBから取得数:%d", len(dogrunsD))
 
 	//検索結果からレスポンスを作成
-	dogrunDtos, err := trimAroundDogrunDetailInfo(h, c, dogrunsG, dogrunsD)
+	dogrunDtos, err := h.trimAroundDogrunDetailInfo(c, dogrunsG, dogrunsD)
 	logger.Infof("レスポンス件数:%d", len(dogrunDtos))
 
 	if err != nil {
@@ -485,7 +485,7 @@ func (h *dogrunHandler) searchTextUpToSpecifiedTimes(c echo.Context, payload goo
 検索結果をもとに、レスポンス用のDTOを作成
 placeIdで、両方にあるデータと、DBにのみあるデータ等で分ける
 */
-func trimAroundDogrunDetailInfo(h *dogrunHandler, c echo.Context, dogrunsG []googleplace.BaseResource, dogrunsD []model.Dogrun) ([]dto.DogrunListDto, error) {
+func (h *dogrunHandler) trimAroundDogrunDetailInfo(c echo.Context, dogrunsG []googleplace.BaseResource, dogrunsD []model.Dogrun) ([]dto.DogrunListDto, error) {
 	//google情報からpalceIdをkeyにmapにまとめる
 	dogrunsGWithPlaceID := make(map[string]googleplace.BaseResource, len(dogrunsG))
 	for _, dogrunG := range dogrunsG {
@@ -517,7 +517,7 @@ func trimAroundDogrunDetailInfo(h *dogrunHandler, c echo.Context, dogrunsG []goo
 		} else {
 			//google側にしかない場合
 			//id発行
-			dogrunID, err := persistenceDogrunPlaceId(h, c, placeId)
+			dogrunID, err := h.persistenceDogrunPlaceId(c, placeId)
 			if err != nil {
 				return nil, err
 			}
@@ -680,7 +680,7 @@ func resolvePlacePhotos(dogrunG googleplace.BaseResource) []dto.PhotoInfo {
 // return:
 //   - int:	dogrunテーブルのPK
 //   - error:	エラー
-func persistenceDogrunPlaceId(h *dogrunHandler, c echo.Context, placeId string) (int, error) {
+func (h *dogrunHandler) persistenceDogrunPlaceId(c echo.Context, placeId string) (int, error) {
 	logger := log.GetLogger(c).Sugar()
 
 	logger.Infof("placeId\"%s\"がDBに存在しないため、レコードを作成", placeId)
