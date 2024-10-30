@@ -245,7 +245,7 @@ jwt処理
 // JwtProcessing: jwtの生成等を行う
 //
 // args:
-//   - echo.Context: c   Echoのコンテキスト。リクエストやレスポンスにアクセスするために使用されます。
+//   - echo.Context: c   Echoのコンテキスト。リクエストやレスポンスにアクセスするために使用
 //   - dto.ResDogOwnerDto: rdo フロントに返す飼い主情報
 //
 // return:
@@ -279,7 +279,7 @@ func (ah *authHandler) JwtProcessing(c echo.Context, rdo dto.ResDogOwnerDto) err
 //
 // return:
 //   - string: 生成されたJWTトークンを表す文字列
-//   - error: トークンの生成中に問題が発生した場合にはエラーを返す
+//   - error: トークンの生成中に問題が発生したエラー
 func createToken(c echo.Context, secretKey string, rdo dto.ResDogOwnerDto, expTime int) (string, error) {
 	logger := log.GetLogger(c).Sugar()
 	// JWTのペイロード
@@ -309,7 +309,7 @@ func createToken(c echo.Context, secretKey string, rdo dto.ResDogOwnerDto, expTi
 	return signedToken, nil
 }
 
-// createJwtID: JWT IDの生成。引数の数だけランダムの文字列を生成する
+// createJwtID: JWT IDの生成。引数の数だけランダムの文字列を生成
 //
 // args:
 //   - int: length 生成したい数

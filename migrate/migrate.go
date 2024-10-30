@@ -18,7 +18,7 @@ func main() {
 		os.Getenv("POSTGRES_USER"),
 		os.Getenv("POSTGRES_PASSWORD"),
 		"localhost", // hostOSから実行する想定のため明示的に指定
-		"5432",      // host portを明示的に指定
+		"5555",      // host portを明示的に指定
 		os.Getenv("POSTGRES_DB"))
 	m, err := migrate.New(sqlFilePath, postgresUrl)
 	if err != nil {
