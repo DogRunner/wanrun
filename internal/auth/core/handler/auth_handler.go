@@ -284,8 +284,8 @@ func createToken(c echo.Context, secretKey string, rdo dto.ResDogOwnerDto, expTi
 	logger := log.GetLogger(c).Sugar()
 	// JWTのペイロード
 	claims := &dto.AccountClaims{
-		ID:  strconv.FormatUint(uint64(rdo.DogOwnerID), 10), // stringにコンバート
-		JTI: rdo.JwtID,
+		ID:    strconv.FormatUint(uint64(rdo.DogOwnerID), 10), // stringにコンバート
+		JwtID: rdo.JwtID,
 		RegisteredClaims: jwt.RegisteredClaims{
 			ExpiresAt: jwt.NewNumericDate(time.Now().Add(time.Hour * time.Duration(expTime))), // 有効時間
 		},
