@@ -6,13 +6,15 @@ import (
 	model "github.com/wanrun-develop/wanrun/internal/models"
 	"github.com/wanrun-develop/wanrun/pkg/errors"
 	"github.com/wanrun-develop/wanrun/pkg/log"
+	"github.com/wanrun-develop/wanrun/pkg/util"
 	"gorm.io/gorm"
 )
 
 type IDogrunRepository interface {
-	GetDogrunByPlaceID(c echo.Context, placeID string) (model.Dogrun, error)
-	GetDogrunByID(id string) (model.Dogrun, error)
-	GetDogrunByRectanglePointer(c echo.Context, condition dto.SearchAroudRectangleCondition) ([]model.Dogrun, error)
+	GetDogrunByPlaceID(echo.Context, string) (model.Dogrun, error)
+	GetDogrunByID(string) (model.Dogrun, error)
+	GetDogrunByRectanglePointer(echo.Context, dto.SearchAroudRectangleCondition) ([]model.Dogrun, error)
+	RegistDogrunPlaceId(echo.Context, string) (int, error)
 }
 
 type dogrunRepository struct {
@@ -61,4 +63,27 @@ func (drr *dogrunRepository) GetDogrunByRectanglePointer(c echo.Context, conditi
 		return nil, errors.NewWRError(err, "DBからのデータ取得に失敗", errors.NewDogrunServerErrorEType())
 	}
 	return dogruns, nil
+}
+
+// RegistDogrunPlaceId: placeIdをDBへ保存する
+//
+// args:
+//   - echo.Context: c
+//   - string: placeId	DBへ保存するplaceId
+//
+// return:
+//   - int:	dogrunsテーブルのPK
+//   - error:	エラー
+func (drr *dogrunRepository) RegistDogrunPlaceId(c echo.Context, placeId string) (int, error) {
+	logger := log.GetLogger(c).Sugar()
+	dogrun := model.Dogrun{PlaceId: util.NewSqlNullString(placeId)}
+
+	if err := drr.db.Create(&dogrun).Error; err != nil {
+		logger.Error(err)
+		err := errors.NewWRError(err, "placeIdのDB保存に失敗", errors.NewDogrunServerErrorEType())
+		return 0, err
+	}
+
+	//主キー返す
+	return int(dogrun.DogrunID.Int64), nil
 }
