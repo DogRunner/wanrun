@@ -9,9 +9,9 @@ import (
 
 type IDogRepository interface {
 	GetAllDogs() ([]model.Dog, error)
-	GetDogByID(dogID uint) (model.Dog, error)
+	GetDogByID(int) (model.Dog, error)
 	CreateDog() (model.Dog, error)
-	DeleteDog(dogID uint) error
+	DeleteDog(int) error
 }
 
 type dogRepository struct {
@@ -30,7 +30,7 @@ func (dr *dogRepository) GetAllDogs() ([]model.Dog, error) {
 	return dogs, nil
 }
 
-func (dr *dogRepository) GetDogByID(dogID uint) (model.Dog, error) {
+func (dr *dogRepository) GetDogByID(dogID int) (model.Dog, error) {
 	dog := model.Dog{}
 	if err := dr.db.Where("dog_id=?", dogID).First(&dog).Error; err != nil {
 		return model.Dog{}, err
@@ -46,7 +46,7 @@ func (dr *dogRepository) CreateDog() (model.Dog, error) {
 	return dog, nil
 }
 
-func (dr *dogRepository) DeleteDog(dogID uint) error {
+func (dr *dogRepository) DeleteDog(dogID int) error {
 	result := dr.db.Where("dog_id=?", dogID).Delete(&model.Dog{})
 
 	if result.Error != nil {

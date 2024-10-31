@@ -5,9 +5,9 @@ import (
 	"strconv"
 
 	"github.com/labstack/echo/v4"
-	"github.com/labstack/gommon/log"
 	"github.com/wanrun-develop/wanrun/internal/dog/core/handler"
 	"github.com/wanrun-develop/wanrun/pkg/errors"
+	"github.com/wanrun-develop/wanrun/pkg/log"
 )
 
 type IDogController interface {
@@ -26,72 +26,61 @@ func NewDogController(dh handler.IDogHandler) IDogController {
 }
 
 func (dc *dogController) GetAllDogs(c echo.Context) error {
-	resDogs, err := dc.dh.GetAllDogs()
+	logger := log.GetLogger(c).Sugar()
+	logger.Warn("dogの全検索リクエストを受け取りました。")
+
+	resDogs, err := dc.dh.GetAllDogs(c)
 
 	if err != nil {
-		log.Error(err)
-		return c.JSON(http.StatusInternalServerError, errors.ErrorResponse{
-			Code:    http.StatusInternalServerError,
-			Message: "Failed to retrieve dog information",
-		})
+		return err
 	}
 
 	return c.JSON(http.StatusOK, resDogs)
 }
 
 func (dc *dogController) GetDogByID(c echo.Context) error {
+	logger := log.GetLogger(c).Sugar()
+
 	dogIDStr := c.Param("dogID")
 	dogID, err := strconv.Atoi(dogIDStr)
 	if err != nil {
-		log.Error(err)
-		return c.JSON(http.StatusBadRequest, errors.ErrorResponse{
-			Code:    http.StatusBadRequest,
-			Message: "Invalid dog ID format",
-		})
+		logger.Error(err)
+		err = errors.NewWRError(err, "このリクエストパラメーターには整数のみ指定可能です。", errors.NewDogClientErrorEType())
+		return err
 	}
-	resDog, err := dc.dh.GetDogByID(uint(dogID))
+	resDog, err := dc.dh.GetDogByID(c, dogID)
 	if err != nil {
-		log.Error(err)
-		return c.JSON(http.StatusInternalServerError, errors.ErrorResponse{
-			Code:    http.StatusInternalServerError,
-			Message: "Failed to retrieve dog information",
-		})
+		return err
 	}
 
 	return c.JSON(http.StatusOK, resDog)
 }
 
 func (dc *dogController) CreateDog(c echo.Context) error {
-	resDog, err := dc.dh.CreateDog()
-	if err != nil {
-		log.Error(err)
-		return c.JSON(http.StatusInternalServerError, errors.ErrorResponse{
-			Code:    http.StatusInternalServerError,
-			Message: "Failed to create dog information.",
-		})
-	}
+	logger := log.GetLogger(c).Sugar()
 
+	resDog, err := dc.dh.CreateDog(c)
+	if err != nil {
+		return err
+	}
+	logger.Info("dogの作成が完了")
 	return c.JSON(http.StatusOK, resDog)
 }
 
 func (dc *dogController) DeleteDog(c echo.Context) error {
+	logger := log.GetLogger(c).Sugar()
+
 	dogIDStr := c.Param("dogID")
 	dogID, err := strconv.Atoi(dogIDStr)
 	if err != nil {
-		log.Error(err)
-		return c.JSON(http.StatusBadRequest, errors.ErrorResponse{
-			Code:    http.StatusBadRequest,
-			Message: "Invalid dog ID format",
-		})
+		logger.Error(err)
+		err = errors.NewWRError(err, "このリクエストパラメーターには整数のみ指定可能です。", errors.NewDogClientErrorEType())
+		return err
 	}
-	if err := dc.dh.DeleteDog(uint(dogID)); err != nil {
-		log.Error(err)
-		return c.JSON(http.StatusInternalServerError, errors.ErrorResponse{
-			Code:    http.StatusInternalServerError,
-			Message: "Failed to retrieve dog information",
-		})
+	if err := dc.dh.DeleteDog(c, dogID); err != nil {
+		return err
 	}
-	return c.JSON(http.StatusOK, nil)
+	return c.NoContent(http.StatusNoContent)
 }
 
 // func (dc *dogController) UpdateDog(c echo.Context) error {
