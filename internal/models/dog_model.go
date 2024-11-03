@@ -24,3 +24,8 @@ type DogTypeMst struct {
 	DogTypeID int    `gorm:"primaryKey;column:dog_type_id"`
 	Name      string `gorm:"column:name;not null"`
 }
+
+// GORMにテーブル名を指定
+func (DogTypeMst) TableName() string {
+	return "dog_type_mst"
+}

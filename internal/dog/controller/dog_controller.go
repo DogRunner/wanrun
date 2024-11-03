@@ -38,12 +38,19 @@ func (dc *dogController) GetAllDogs(c echo.Context) error {
 	return c.JSON(http.StatusOK, resDogs)
 }
 
+// GetDogById: 犬の詳細を取得
+//
+// args:
+//   - echo.Context:	コンテキスト
+//
+// return:
+//   - error:	エラー
 func (dc *dogController) GetDogByID(c echo.Context) error {
 	logger := log.GetLogger(c).Sugar()
 
 	dogIDStr := c.Param("dogID")
 	dogID, err := strconv.Atoi(dogIDStr)
-	if err != nil {
+	if err != nil || dogID > 0 {
 		logger.Error(err)
 		err = errors.NewWRError(err, "このリクエストパラメーターには整数のみ指定可能です。", errors.NewDogClientErrorEType())
 		return err

@@ -64,7 +64,7 @@ func newRouter(e *echo.Echo, dbConn *gorm.DB) {
 	dogController := newDog(dbConn)
 	dog := e.Group("dog")
 	dog.GET("/all", dogController.GetAllDogs)
-	dog.GET("/:dogID", dogController.GetDogByID)
+	dog.GET("/detail/:dogID", dogController.GetDogByID)
 	dog.POST("/create", dogController.CreateDog)
 	dog.DELETE("/delete", dogController.DeleteDog)
 	// dog.PUT("/:dogID", dogController.UpdateDog)

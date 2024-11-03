@@ -6,6 +6,7 @@ import (
 	"github.com/wanrun-develop/wanrun/internal/dog/core/dto"
 	"github.com/wanrun-develop/wanrun/pkg/errors"
 	"github.com/wanrun-develop/wanrun/pkg/log"
+	"github.com/wanrun-develop/wanrun/pkg/util"
 )
 
 type IDogHandler interface {
@@ -38,18 +39,30 @@ func (dh *dogHandler) GetAllDogs(c echo.Context) ([]dto.DogListRes, error) {
 
 	for _, d := range dogs {
 		dr := dto.DogListRes{
-			DogID:     d.DogID.Int64,
-			Name:      d.Name.String,
-			DogTypeID: d.DogTypeID.Int64,
-			Weight:    d.Weight.Int64,
-			Sex:       d.Sex.String,
-			Image:     d.Image.String,
+			DogID:  d.DogID.Int64,
+			Name:   d.Name.String,
+			Weight: d.Weight.Int64,
+			Sex:    d.Sex.String,
+			Image:  d.Image.String,
+			DogType: dto.DogTypeRes{
+				DogTypeID: d.DogType.DogTypeID,
+				Name:      d.DogType.Name,
+			},
 		}
 		resDogs = append(resDogs, dr)
 	}
 	return resDogs, nil
 }
 
+// GetDogById: dogの詳細を検索して返す
+//
+// args:
+//   - echo.Context:
+//   - int : 	dogのID
+//
+// return:
+//   - dto.DogDetailsRes:	dogの詳細レスポンス
+//   - error:	エラー
 func (dh *dogHandler) GetDogByID(c echo.Context, dogID int) (dto.DogDetailsRes, error) {
 
 	d, err := dh.dr.GetDogByID(dogID)
@@ -62,12 +75,15 @@ func (dh *dogHandler) GetDogByID(c echo.Context, dogID int) (dto.DogDetailsRes, 
 		DogID:      d.DogID.Int64,
 		DogOwnerID: d.DogOwnerID.Int64,
 		Name:       d.Name.String,
-		DogTypeID:  d.DogTypeID.Int64,
 		Weight:     d.Weight.Int64,
 		Sex:        d.Sex.String,
 		Image:      d.Image.String,
-		CreateAt:   d.CreateAt.Time,
-		UpdateAt:   d.UpdateAt.Time,
+		CreateAt:   util.ConvertToWRTime(d.CreateAt),
+		UpdateAt:   util.ConvertToWRTime(d.UpdateAt),
+		DogType: dto.DogTypeRes{
+			DogTypeID: d.DogType.DogTypeID,
+			Name:      d.DogType.Name,
+		},
 	}
 	return resDog, nil
 }
@@ -83,12 +99,15 @@ func (dh *dogHandler) CreateDog(c echo.Context) (dto.DogDetailsRes, error) {
 		DogID:      d.DogID.Int64,
 		DogOwnerID: d.DogOwnerID.Int64,
 		Name:       d.Name.String,
-		DogTypeID:  d.DogTypeID.Int64,
 		Weight:     d.Weight.Int64,
 		Sex:        d.Sex.String,
 		Image:      d.Image.String,
-		CreateAt:   d.CreateAt.Time,
-		UpdateAt:   d.UpdateAt.Time,
+		CreateAt:   util.ConvertToWRTime(d.CreateAt),
+		UpdateAt:   util.ConvertToWRTime(d.UpdateAt),
+		DogType: dto.DogTypeRes{
+			DogTypeID: d.DogType.DogTypeID,
+			Name:      d.DogType.Name,
+		},
 	}
 	return dogRes, err
 }

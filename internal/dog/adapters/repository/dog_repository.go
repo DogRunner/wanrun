@@ -30,9 +30,17 @@ func (dr *dogRepository) GetAllDogs() ([]model.Dog, error) {
 	return dogs, nil
 }
 
+// GetDogByID: DogIDでdogsのセレクト。dogTypeもロードする
+//
+// args:
+//   - int:	dogId
+//
+// return:
+//   - model.Dog:	dogデータ
+//   - error:	エラー
 func (dr *dogRepository) GetDogByID(dogID int) (model.Dog, error) {
 	dog := model.Dog{}
-	if err := dr.db.Where("dog_id=?", dogID).First(&dog).Error; err != nil {
+	if err := dr.db.Preload("DogType").Where("dog_id=?", dogID).First(&dog).Error; err != nil {
 		return model.Dog{}, err
 	}
 	return dog, nil

@@ -20,13 +20,6 @@ INSERT INTO dog_owner_credentials (auth_dog_owner_id, provider_name, grant_type,
 (3, NULL, 'password', NULL, '0987654321', NULL, 'password_hash_3', NOW()),
 (4, 'google', 'oauth', 'dev@example.com', NULL, 'google_user_4', NULL, NOW());
 
--- dog_type_mst テーブルにテストデータを挿入
-INSERT INTO dog_type_mst (name) VALUES
-('Labrador Retriever'),
-('Beagle'),
-('German Shepherd'),
-('Bulldog');
-
 -- dogs テーブルに追加のテストデータを挿入
 INSERT INTO dogs (dog_owner_id, name, dog_type_id, weight, sex, image, reg_at, upd_at) VALUES
 (1, 'Charlie', 1, 28, 'M', 'https://example.com/images/charlie.jpg', NOW(), NOW()),
