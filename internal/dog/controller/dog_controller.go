@@ -13,23 +13,24 @@ import (
 type IDogController interface {
 	GetAllDogs(c echo.Context) error
 	GetDogByID(c echo.Context) error
+	GetDogByDogOwnerID(c echo.Context) error
 	CreateDog(c echo.Context) error
 	DeleteDog(c echo.Context) error
 }
 
 type dogController struct {
-	dh handler.IDogHandler
+	h handler.IDogHandler
 }
 
-func NewDogController(dh handler.IDogHandler) IDogController {
-	return &dogController{dh}
+func NewDogController(h handler.IDogHandler) IDogController {
+	return &dogController{h}
 }
 
 func (dc *dogController) GetAllDogs(c echo.Context) error {
 	logger := log.GetLogger(c).Sugar()
 	logger.Warn("dogの全検索リクエストを受け取りました。")
 
-	resDogs, err := dc.dh.GetAllDogs(c)
+	resDogs, err := dc.h.GetAllDogs(c)
 
 	if err != nil {
 		return err
@@ -49,13 +50,13 @@ func (dc *dogController) GetDogByID(c echo.Context) error {
 	logger := log.GetLogger(c).Sugar()
 
 	dogIDStr := c.Param("dogID")
-	dogID, err := strconv.Atoi(dogIDStr)
-	if err != nil || dogID > 0 {
+	dogID, err := strconv.ParseInt(dogIDStr, 10, 64)
+	if err != nil || dogID <= 0 {
 		logger.Error(err)
-		err = errors.NewWRError(err, "このリクエストパラメーターには整数のみ指定可能です。", errors.NewDogClientErrorEType())
+		err = errors.NewWRError(err, errors.M_REQUEST_PARAM_MUST_BE_NATURAL, errors.NewDogClientErrorEType())
 		return err
 	}
-	resDog, err := dc.dh.GetDogByID(c, dogID)
+	resDog, err := dc.h.GetDogByID(c, dogID)
 	if err != nil {
 		return err
 	}
@@ -63,10 +64,36 @@ func (dc *dogController) GetDogByID(c echo.Context) error {
 	return c.JSON(http.StatusOK, resDog)
 }
 
+// GetDogByDogOwnerID: dogOwnerより所有している犬の一覧を取得
+//
+// args:
+//   - echo.Context:	コンテキスト
+//
+// return:
+//   - error:	エラー
+func (dc *dogController) GetDogByDogOwnerID(c echo.Context) error {
+	logger := log.GetLogger(c).Sugar()
+
+	dogOwnerIDStr := c.Param("dogOwnerId")
+	dogOwnerID, err := strconv.ParseInt(dogOwnerIDStr, 10, 64)
+	if err != nil || dogOwnerID <= 0 {
+		logger.Error(err)
+		err = errors.NewWRError(err, errors.M_REQUEST_PARAM_MUST_BE_NATURAL, errors.NewDogClientErrorEType())
+		return err
+	}
+
+	dogs, err := dc.h.GetDogByDogOwnerID(c, dogOwnerID)
+	if err != nil {
+		return err
+	}
+
+	return c.JSON(http.StatusOK, dogs)
+}
+
 func (dc *dogController) CreateDog(c echo.Context) error {
 	logger := log.GetLogger(c).Sugar()
 
-	resDog, err := dc.dh.CreateDog(c)
+	resDog, err := dc.h.CreateDog(c)
 	if err != nil {
 		return err
 	}
@@ -84,7 +111,7 @@ func (dc *dogController) DeleteDog(c echo.Context) error {
 		err = errors.NewWRError(err, "このリクエストパラメーターには整数のみ指定可能です。", errors.NewDogClientErrorEType())
 		return err
 	}
-	if err := dc.dh.DeleteDog(c, dogID); err != nil {
+	if err := dc.h.DeleteDog(c, dogID); err != nil {
 		return err
 	}
 	return c.NoContent(http.StatusNoContent)

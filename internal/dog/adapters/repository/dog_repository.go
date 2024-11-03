@@ -9,7 +9,8 @@ import (
 
 type IDogRepository interface {
 	GetAllDogs() ([]model.Dog, error)
-	GetDogByID(int) (model.Dog, error)
+	GetDogByID(int64) (model.Dog, error)
+	GetDogByDogOwnerID(int64) ([]model.Dog, error)
 	CreateDog() (model.Dog, error)
 	DeleteDog(int) error
 }
@@ -33,17 +34,33 @@ func (dr *dogRepository) GetAllDogs() ([]model.Dog, error) {
 // GetDogByID: DogIDでdogsのセレクト。dogTypeもロードする
 //
 // args:
-//   - int:	dogId
+//   - int64:	dogId
 //
 // return:
 //   - model.Dog:	dogデータ
 //   - error:	エラー
-func (dr *dogRepository) GetDogByID(dogID int) (model.Dog, error) {
+func (dr *dogRepository) GetDogByID(dogID int64) (model.Dog, error) {
 	dog := model.Dog{}
 	if err := dr.db.Preload("DogType").Where("dog_id=?", dogID).First(&dog).Error; err != nil {
 		return model.Dog{}, err
 	}
 	return dog, nil
+}
+
+// GetDogByID: DogOwnerIDでdogsのセレクト。dogTypeもロードする
+//
+// args:
+//   - int:	dogId
+//
+// return:
+//   - []model.Dog:	dogデータ
+//   - error:	エラー
+func (dr *dogRepository) GetDogByDogOwnerID(dogOwnerID int64) ([]model.Dog, error) {
+	dogs := []model.Dog{}
+	if err := dr.db.Preload("DogType").Where("dog_owner_id=?", dogOwnerID).Find(&dogs).Error; err != nil {
+		return []model.Dog{}, err
+	}
+	return dogs, nil
 }
 
 func (dr *dogRepository) CreateDog() (model.Dog, error) {
