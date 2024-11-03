@@ -11,7 +11,7 @@ type IDogRepository interface {
 	GetAllDogs() ([]model.Dog, error)
 	GetDogByID(int64) (model.Dog, error)
 	GetDogByDogOwnerID(int64) ([]model.Dog, error)
-	CreateDog() (model.Dog, error)
+	CreateDog(model.Dog) (model.Dog, error)
 	DeleteDog(int) error
 }
 
@@ -31,7 +31,7 @@ func (dr *dogRepository) GetAllDogs() ([]model.Dog, error) {
 	return dogs, nil
 }
 
-// GetDogByID: DogIDでdogsのセレクト。dogTypeもロードする
+// GetDogByID: DBへDogIDでdogsのセレクト。dogTypeもロードする
 //
 // args:
 //   - int64:	dogId
@@ -47,7 +47,7 @@ func (dr *dogRepository) GetDogByID(dogID int64) (model.Dog, error) {
 	return dog, nil
 }
 
-// GetDogByID: DogOwnerIDでdogsのセレクト。dogTypeもロードする
+// GetDogByID: DBへDogOwnerIDでdogsのセレクト。dogTypeもロードする
 //
 // args:
 //   - int:	dogId
@@ -63,8 +63,15 @@ func (dr *dogRepository) GetDogByDogOwnerID(dogOwnerID int64) ([]model.Dog, erro
 	return dogs, nil
 }
 
-func (dr *dogRepository) CreateDog() (model.Dog, error) {
-	dog := model.Dog{}
+// CreateDog: DBへdogのinsert
+//
+// args:
+//   - model.Dog:	登録するdog
+//
+// return:
+//   - model.dog:	登録されたdog
+//   - error:	エラー
+func (dr *dogRepository) CreateDog(dog model.Dog) (model.Dog, error) {
 	if err := dr.db.Create(&dog).Error; err != nil {
 		return model.Dog{}, err
 	}

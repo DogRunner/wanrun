@@ -5,6 +5,7 @@ import (
 	"github.com/wanrun-develop/wanrun/internal/dog/adapters/repository"
 	"github.com/wanrun-develop/wanrun/internal/dog/core/dto"
 	dwRepositoy "github.com/wanrun-develop/wanrun/internal/dogOwner/adapters/repository"
+	model "github.com/wanrun-develop/wanrun/internal/models"
 	"github.com/wanrun-develop/wanrun/pkg/errors"
 	"github.com/wanrun-develop/wanrun/pkg/log"
 	"github.com/wanrun-develop/wanrun/pkg/util"
@@ -14,7 +15,7 @@ type IDogHandler interface {
 	GetAllDogs(echo.Context) ([]dto.DogListRes, error)
 	GetDogByID(echo.Context, int64) (dto.DogDetailsRes, error)
 	GetDogByDogOwnerID(echo.Context, int64) ([]dto.DogListRes, error)
-	CreateDog(echo.Context) (dto.DogDetailsRes, error)
+	CreateDog(echo.Context, dto.DogSaveReq) (int64, error)
 	DeleteDog(echo.Context, int) error
 }
 
@@ -114,7 +115,7 @@ func (h *dogHandler) GetDogByDogOwnerID(c echo.Context, dogOwnerID int64) ([]dto
 	}
 	if dogOwner.IsEmpty() {
 		err = errors.NewWRError(nil, "指定されたdog ownerは存在しません。", errors.NewDogClientErrorEType())
-		logger.Error("不正なdog owner idでの検索")
+		logger.Error("不正なdog owner idでの検索", err)
 		return []dto.DogListRes{}, err
 	}
 
@@ -145,28 +146,52 @@ func (h *dogHandler) GetDogByDogOwnerID(c echo.Context, dogOwnerID int64) ([]dto
 	return resDogs, nil
 }
 
-func (h *dogHandler) CreateDog(c echo.Context) (dto.DogDetailsRes, error) {
-	d, err := h.r.CreateDog()
+// CreateDog: 犬の登録
+//
+//	dogownerの存在チェック
+//
+// args:
+//   - echo.Context:	コンテキスト
+//   - dto.DogSaveRew:	リクエスト内容
+//
+// return:
+//   - int64:	登録したdogId
+//   - error:	エラー
+func (h *dogHandler) CreateDog(c echo.Context, saveReq dto.DogSaveReq) (int64, error) {
+	logger := log.GetLogger(c).Sugar()
 
+	logger.Info("create dog %w", saveReq)
+
+	dogOwnerID := saveReq.DogOwnerID
+	//dogownerの検索（存在チェック)
+	dogOwner, err := h.dwr.GetDogOwnerById(dogOwnerID)
 	if err != nil {
-		return dto.DogDetailsRes{}, err
+		logger.Error(err)
+		err = errors.NewWRError(err, "dogOwner検索で失敗しました。", errors.NewDogServerErrorEType())
+		return 0, err
+	}
+	if dogOwner.IsEmpty() {
+		err = errors.NewWRError(nil, "指定されたdog ownerは存在しません。", errors.NewDogClientErrorEType())
+		logger.Error("不正なdog owner idの指定", err)
+		return 0, err
 	}
 
-	dogRes := dto.DogDetailsRes{
-		DogID:      d.DogID.Int64,
-		DogOwnerID: d.DogOwnerID.Int64,
-		Name:       d.Name.String,
-		Weight:     d.Weight.Int64,
-		Sex:        d.Sex.String,
-		Image:      d.Image.String,
-		CreateAt:   util.ConvertToWRTime(d.CreateAt),
-		UpdateAt:   util.ConvertToWRTime(d.UpdateAt),
-		DogType: dto.DogTypeRes{
-			DogTypeID: d.DogType.DogTypeID,
-			Name:      d.DogType.Name,
-		},
+	dog := model.Dog{
+		DogOwnerID: dogOwner.DogOwnerID,
+		Name:       util.NewSqlNullString(saveReq.Name),
+		DogTypeID:  util.NewSqlNullInt64(saveReq.DogTypeID),
+		Weight:     util.NewSqlNullInt64(saveReq.Weight),
+		Sex:        util.NewSqlNullString(saveReq.Sex),
+		Image:      util.NewSqlNullString(saveReq.Image),
 	}
-	return dogRes, err
+	dog, err = h.r.CreateDog(dog)
+	if err != nil {
+		logger.Error(err)
+		err = errors.NewWRError(err, "dogOwnerの登録処理で失敗しました。", errors.NewDogServerErrorEType())
+		return 0, err
+	}
+
+	return dog.DogID.Int64, err
 }
 
 func (h *dogHandler) DeleteDog(c echo.Context, dogID int) error {
