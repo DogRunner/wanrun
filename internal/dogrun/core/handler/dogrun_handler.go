@@ -22,9 +22,9 @@ const (
 )
 
 type IDogrunHandler interface {
-	GetDogrunDetail(echo.Context, string) (*dto.DogrunDetailDto, error)
+	GetDogrunDetail(echo.Context, string) (*dto.DogrunDetails, error)
 	GetDogrunByID(string)
-	SearchAroundDogruns(echo.Context, dto.SearchAroudRectangleCondition) ([]dto.DogrunListDto, error)
+	SearchAroundDogruns(echo.Context, dto.SearchAroudRectangleCondition) ([]dto.DogrunLists, error)
 	GetDogrunPhotoSrc(echo.Context, string, string, string) (string, error)
 }
 
@@ -37,7 +37,16 @@ func NewDogrunHandler(rest googleplace.IRest, drr repository.IDogrunRepository) 
 	return &dogrunHandler{rest, drr}
 }
 
-func (h *dogrunHandler) GetDogrunDetail(c echo.Context, placeID string) (*dto.DogrunDetailDto, error) {
+// GetDogRunDetailByPlaceId: placeIdでgoogle検索して返す
+//
+// args:
+//   - echo.Context:	コンテキスト
+//   - string:	placeID
+//
+// return:
+//   - dto.DogrunDetails:	詳細DTO
+//   - error:	エラー
+func (h *dogrunHandler) GetDogrunDetail(c echo.Context, placeID string) (*dto.DogrunDetails, error) {
 	logger := log.GetLogger(c).Sugar()
 	//base情報のFieldを使用
 	var baseFiled googleplace.IFieldMask = googleplace.BaseField{}
@@ -76,10 +85,16 @@ func (h *dogrunHandler) GetDogrunByID(id string) {
 	fmt.Println(h.drr.GetDogrunByID(id))
 }
 
-/*
-指定範囲内のドッグラン検索
-*/
-func (h *dogrunHandler) SearchAroundDogruns(c echo.Context, condition dto.SearchAroudRectangleCondition) ([]dto.DogrunListDto, error) {
+// SearchAroundDogruns: 指定内（長方形）のドッグランを検索、DB情報と照合して返す
+//
+// args:
+//   - echo.Context:	コンテキスト
+//   - dto.SearchAroundRectangleCondition:	指定場所条件
+//
+// return:
+//   - []dto.DogrunLists:	リストDTO
+//   - error:	エラー
+func (h *dogrunHandler) SearchAroundDogruns(c echo.Context, condition dto.SearchAroudRectangleCondition) ([]dto.DogrunLists, error) {
 	logger := log.GetLogger(c).Sugar()
 	logger.Debugw("検索条件", "condition", condition)
 
@@ -145,7 +160,7 @@ func (h *dogrunHandler) GetDogrunPhotoSrc(c echo.Context, name, widthPx, heightP
 Google情報とDB情報から、ドッグラン詳細情報を作成
 基本的に、DB情報をドッグランマネージャーからの手動更新がある前提で、優先情報とする
 */
-func resolveDogrunDetail(dogrunG googleplace.BaseResource, dogrunD model.Dogrun) dto.DogrunDetailDto {
+func resolveDogrunDetail(dogrunG googleplace.BaseResource, dogrunD model.Dogrun) dto.DogrunDetails {
 
 	if dogrunD.IsEmpty() && dogrunG.IsNotEmpty() {
 		return resolveDogrunDetailByOnlyGoogle(dogrunG)
@@ -158,7 +173,7 @@ func resolveDogrunDetail(dogrunG googleplace.BaseResource, dogrunD model.Dogrun)
 		dogrunManager = int(dogrunD.DogrunManagerID.Int64)
 	}
 
-	return dto.DogrunDetailDto{
+	return dto.DogrunDetails{
 		DogrunID:        int(dogrunD.DogrunID.Int64),
 		DogrunManagerID: dogrunManager,
 		PlaceId:         dogrunG.ID,
@@ -187,9 +202,9 @@ func resolveDogrunDetail(dogrunG googleplace.BaseResource, dogrunD model.Dogrun)
 /*
 DBにデータがない場合、google情報のみでドッグラン詳細情報を作成する
 */
-func resolveDogrunDetailByOnlyGoogle(dogrunG googleplace.BaseResource) dto.DogrunDetailDto {
+func resolveDogrunDetailByOnlyGoogle(dogrunG googleplace.BaseResource) dto.DogrunDetails {
 	var emptyDogrunD model.Dogrun
-	return dto.DogrunDetailDto{
+	return dto.DogrunDetails{
 		PlaceId: dogrunG.ID,
 		Name:    dogrunG.DisplayName.Text,
 		Address: resolveDogrunAddress(dogrunG, emptyDogrunD),
@@ -209,11 +224,11 @@ func resolveDogrunDetailByOnlyGoogle(dogrunG googleplace.BaseResource) dto.Dogru
 	}
 }
 
-func resolveDogrunDetailByOnlyDB(dogrunD model.Dogrun) dto.DogrunDetailDto {
+func resolveDogrunDetailByOnlyDB(dogrunD model.Dogrun) dto.DogrunDetails {
 
 	var emptyDogrunG googleplace.BaseResource
 
-	return dto.DogrunDetailDto{
+	return dto.DogrunDetails{
 		DogrunID:        int(dogrunD.DogrunID.Int64),
 		DogrunManagerID: int(dogrunD.DogrunManagerID.Int64),
 		PlaceId:         dogrunD.PlaceId.String,
@@ -485,7 +500,7 @@ func (h *dogrunHandler) searchTextUpToSpecifiedTimes(c echo.Context, payload goo
 検索結果をもとに、レスポンス用のDTOを作成
 placeIdで、両方にあるデータと、DBにのみあるデータ等で分ける
 */
-func (h *dogrunHandler) trimAroundDogrunDetailInfo(c echo.Context, dogrunsG []googleplace.BaseResource, dogrunsD []model.Dogrun) ([]dto.DogrunListDto, error) {
+func (h *dogrunHandler) trimAroundDogrunDetailInfo(c echo.Context, dogrunsG []googleplace.BaseResource, dogrunsD []model.Dogrun) ([]dto.DogrunLists, error) {
 	//google情報からpalceIdをkeyにmapにまとめる
 	dogrunsGWithPlaceID := make(map[string]googleplace.BaseResource, len(dogrunsG))
 	for _, dogrunG := range dogrunsG {
@@ -504,14 +519,14 @@ func (h *dogrunHandler) trimAroundDogrunDetailInfo(c echo.Context, dogrunsG []go
 		}
 	}
 
-	var dogrunDetailInfos []dto.DogrunListDto
+	dogrunLists := []dto.DogrunLists{}
 
 	//両方にplaceIdがある情報をDTOにつめる
 	for placeId, dogrunGValue := range dogrunsGWithPlaceID {
 		dogrunDValue, existDogrunD := dogrunsDWithPalceID[placeId]
 		if existDogrunD {
 			//DBにもある場合、両方からデータの選別
-			dogrunDetailInfos = append(dogrunDetailInfos, resolveDogrunList(dogrunGValue, dogrunDValue))
+			dogrunLists = append(dogrunLists, resolveDogrunList(dogrunGValue, dogrunDValue))
 			//DogrunsDから削除
 			delete(dogrunsDWithPalceID, placeId)
 		} else {
@@ -524,29 +539,29 @@ func (h *dogrunHandler) trimAroundDogrunDetailInfo(c echo.Context, dogrunsG []go
 			//レスポンス整形
 			dogrunGDetailInfo := resolveDogrunListByOnlyGoogle(dogrunGValue)
 			dogrunGDetailInfo.DogrunID = dogrunID
-			dogrunDetailInfos = append(dogrunDetailInfos, dogrunGDetailInfo)
+			dogrunLists = append(dogrunLists, dogrunGDetailInfo)
 		}
 	}
 
 	//placeIdはあるが、google側にないものをDTOにつめる
 	for _, dogrunDValue := range dogrunsDWithPalceID {
-		dogrunDetailInfos = append(dogrunDetailInfos, resolveDogrunListByOnlyDB(dogrunDValue))
+		dogrunLists = append(dogrunLists, resolveDogrunListByOnlyDB(dogrunDValue))
 	}
 
 	//placeIdがないDBのみのデータをDTOにつめる
 	for _, dogrunDValue := range dogrunDWithoutPlaceIdS {
-		dogrunDetailInfos = append(dogrunDetailInfos, resolveDogrunListByOnlyDB(dogrunDValue))
+		dogrunLists = append(dogrunLists, resolveDogrunListByOnlyDB(dogrunDValue))
 	}
 
-	return dogrunDetailInfos, nil
+	return dogrunLists, nil
 }
 
 /*
 Google情報とDB情報から、ドッグラン一覧情報を作成
 基本的に、DB情報をドッグランマネージャーからの手動更新がある前提で、優先情報とする
 */
-func resolveDogrunList(dogrunG googleplace.BaseResource, dogrunD model.Dogrun) dto.DogrunListDto {
-	return dto.DogrunListDto{
+func resolveDogrunList(dogrunG googleplace.BaseResource, dogrunD model.Dogrun) dto.DogrunLists {
+	return dto.DogrunLists{
 		DogrunID: int(dogrunD.DogrunID.Int64),
 		PlaceId:  dogrunG.ID,
 		Name:     util.ChooseStringValidValue(dogrunD.Name, dogrunG.DisplayName.Text),
@@ -570,10 +585,10 @@ func resolveDogrunList(dogrunG googleplace.BaseResource, dogrunD model.Dogrun) d
 /*
 DBにデータがない場合、google情報のみでドッグラン一覧情報を作成する
 */
-func resolveDogrunListByOnlyGoogle(dogrunG googleplace.BaseResource) dto.DogrunListDto {
+func resolveDogrunListByOnlyGoogle(dogrunG googleplace.BaseResource) dto.DogrunLists {
 	var emptyDogrunD model.Dogrun
 
-	return dto.DogrunListDto{
+	return dto.DogrunLists{
 		PlaceId: dogrunG.ID,
 		Name:    dogrunG.DisplayName.Text,
 		Address: resolveDogrunAddress(dogrunG, emptyDogrunD),
@@ -595,9 +610,9 @@ func resolveDogrunListByOnlyGoogle(dogrunG googleplace.BaseResource) dto.DogrunL
 /*
 google側にデータがない場合、DB情報のみでドッグラン一覧情報を作成する
 */
-func resolveDogrunListByOnlyDB(dogrunD model.Dogrun) dto.DogrunListDto {
+func resolveDogrunListByOnlyDB(dogrunD model.Dogrun) dto.DogrunLists {
 	var emptyDogrunG googleplace.BaseResource
-	return dto.DogrunListDto{
+	return dto.DogrunLists{
 		DogrunID: int(dogrunD.DogrunID.Int64),
 		Name:     dogrunD.Name.String,
 		Address:  resolveDogrunAddress(emptyDogrunG, dogrunD),
