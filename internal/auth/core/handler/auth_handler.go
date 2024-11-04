@@ -2,11 +2,11 @@ package handler
 
 import (
 	_ "context"
-	_ "errors"
+	"crypto/rand"
+	"encoding/base64"
 	"net/http"
 	"strconv"
 	"time"
-	_ "time"
 
 	"github.com/golang-jwt/jwt/v4"
 	"github.com/labstack/echo/v4"
@@ -14,15 +14,11 @@ import (
 	"github.com/wanrun-develop/wanrun/internal/auth/adapters/repository"
 	"github.com/wanrun-develop/wanrun/internal/auth/core/dto"
 	model "github.com/wanrun-develop/wanrun/internal/models"
-	_ "github.com/wanrun-develop/wanrun/internal/models/types"
 	wrErrors "github.com/wanrun-develop/wanrun/pkg/errors"
-	"github.com/wanrun-develop/wanrun/pkg/success"
-
-	// _ wrErrors "github.com/wanrun-develop/wanrun/pkg/errors"
 	"github.com/wanrun-develop/wanrun/pkg/log"
+	"github.com/wanrun-develop/wanrun/pkg/success"
 	wrUtil "github.com/wanrun-develop/wanrun/pkg/util"
 	"golang.org/x/crypto/bcrypt"
-	_ "golang.org/x/crypto/bcrypt"
 )
 
 type IAuthHandler interface {
@@ -68,6 +64,13 @@ func (ah *authHandler) SignUp(c echo.Context, rado dto.ReqAuthDogOwnerDto) (dto.
 		return dto.ResDogOwnerDto{}, wrErr
 	}
 
+	// JWT IDの生成
+	jwtID, wrErr := createJwtID(c, 15)
+
+	if wrErr != nil {
+		return dto.ResDogOwnerDto{}, wrErr
+	}
+
 	// requestからDogOwnerの構造体に詰め替え
 	dogOwnerCredential := model.DogOwnerCredential{
 		Email:       wrUtil.NewSqlNullString(rado.Email),
@@ -75,6 +78,7 @@ func (ah *authHandler) SignUp(c echo.Context, rado dto.ReqAuthDogOwnerDto) (dto.
 		Password:    wrUtil.NewSqlNullString(string(hash)),
 		GrantType:   wrUtil.NewSqlNullString(model.PASSWORD_GRANT_TYPE), // Password認証
 		AuthDogOwner: model.AuthDogOwner{
+			JwtID: wrUtil.NewSqlNullString(jwtID),
 			DogOwner: model.DogOwner{
 				Name: wrUtil.NewSqlNullString(rado.DogOwnerName),
 			},
@@ -93,6 +97,7 @@ func (ah *authHandler) SignUp(c echo.Context, rado dto.ReqAuthDogOwnerDto) (dto.
 	// 作成したDogOwnerの情報をdto詰め替え
 	resDogOwnerDetail := dto.ResDogOwnerDto{
 		DogOwnerID: uint64(result.AuthDogOwner.DogOwnerID.Int64),
+		JwtID:      result.AuthDogOwner.JwtID.String,
 	}
 
 	logger.Infof("resDogOwnerDetail: %v", resDogOwnerDetail)
@@ -240,7 +245,7 @@ jwt処理
 // JwtProcessing: jwtの生成等を行う
 //
 // args:
-//   - echo.Context: c   Echoのコンテキスト。リクエストやレスポンスにアクセスするために使用されます。
+//   - echo.Context: c   Echoのコンテキスト。リクエストやレスポンスにアクセスするために使用
 //   - dto.ResDogOwnerDto: rdo フロントに返す飼い主情報
 //
 // return:
@@ -252,7 +257,7 @@ func (ah *authHandler) JwtProcessing(c echo.Context, rdo dto.ResDogOwnerDto) err
 	jwtExpTime := configs.FetchCondigInt("jwt.exp.time")
 
 	// jwt token生成
-	signedToken, wrErr := createToken(c, secretKey, uint64(rdo.DogOwnerID), jwtExpTime)
+	signedToken, wrErr := createToken(c, secretKey, rdo, jwtExpTime)
 
 	if wrErr != nil {
 		return wrErr
@@ -264,22 +269,23 @@ func (ah *authHandler) JwtProcessing(c echo.Context, rdo dto.ResDogOwnerDto) err
 	})
 }
 
-// createToken: 指定された秘密鍵を使用して認証用のJWTトークンを生成します。
+// createToken: 指定された秘密鍵を使用して認証用のJWTトークンを生成
 //
 // args:
-//   - echo.Context: c   Echoのコンテキスト。リクエストやレスポンスにアクセスするために使用されます。
-//   - string: secretKey   トークンの署名に使用する秘密鍵を表す文字列。
-//   - uint64: resAuthDogOwnerID トークンを生成する対象となる犬の飼い主のID。
-//   - int: expTime トークンの有効期限を秒単位で指定。
+//   - echo.Context: c   Echoのコンテキスト。リクエストやレスポンスにアクセスするために使用
+//   - string: secretKey   トークンの署名に使用する秘密鍵を表す文字列
+//   - dto.ResDogOwnerDto: rdo 飼い主用のレスポンス情報
+//   - int: expTime トークンの有効期限を秒単位で指定
 //
 // return:
-//   - string: 生成されたJWTトークンを表す文字列。
-//   - error: トークンの生成中に問題が発生した場合にはエラーを返します。
-func createToken(c echo.Context, secretKey string, resAuthDogOwnerID uint64, expTime int) (string, error) {
+//   - string: 生成されたJWTトークンを表す文字列
+//   - error: トークンの生成中に問題が発生したエラー
+func createToken(c echo.Context, secretKey string, rdo dto.ResDogOwnerDto, expTime int) (string, error) {
 	logger := log.GetLogger(c).Sugar()
 	// JWTのペイロード
 	claims := &dto.AccountClaims{
-		ID: strconv.FormatUint(uint64(resAuthDogOwnerID), 10), // stringにコンバート
+		ID:  strconv.FormatUint(uint64(rdo.DogOwnerID), 10), // stringにコンバート
+		JTI: rdo.JwtID,
 		RegisteredClaims: jwt.RegisteredClaims{
 			ExpiresAt: jwt.NewNumericDate(time.Now().Add(time.Hour * time.Duration(expTime))), // 有効時間
 		},
@@ -301,4 +307,29 @@ func createToken(c echo.Context, secretKey string, resAuthDogOwnerID uint64, exp
 	}
 
 	return signedToken, nil
+}
+
+// createJwtID: JWT IDの生成。引数の数だけランダムの文字列を生成
+//
+// args:
+//   - int: length 生成したい数
+//
+// return:
+//   - string:　ランダム文字列
+//   - error:　error情報
+func createJwtID(c echo.Context, length int) (string, error) {
+	logger := log.GetLogger(c).Sugar()
+
+	b := make([]byte, length)
+	_, err := rand.Read(b)
+	if err != nil {
+		wrErr := wrErrors.NewWRError(
+			err,
+			"JWT ID生成に失敗しました",
+			wrErrors.NewDogownerServerErrorEType(),
+		)
+		logger.Error(wrErr)
+		return "", wrErr
+	}
+	return base64.RawURLEncoding.EncodeToString(b)[:length], nil
 }

@@ -6,7 +6,7 @@ INSERT INTO dog_owners (name, image, sex, reg_at, upd_at) VALUES
 ('William Taylor', 'https://example.com/images/william.jpg', 'M', NOW(), NOW());
 
 -- auth_dog_ownersテーブルにデータを挿入
-INSERT INTO auth_dog_owners (dog_owner_id, access_token, refresh_token, access_token_expiration, refresh_token_expiration, session_id, si_refresh_token, login_at) VALUES
+INSERT INTO auth_dog_owners (dog_owner_id, access_token, refresh_token, access_token_expiration, refresh_token_expiration, jwt_id, si_refresh_token, login_at) VALUES
 (1, 'access_token_1', 'refresh_token_1', NOW() + INTERVAL '1 hour', NOW() + INTERVAL '7 days', 'session1', 'si_refresh_token_1', NOW()),
 (2, NULL, NULL, NULL, NULL, 'session2', 'si_refresh_token_2', NOW()),
 (3, NULL, NULL, NULL, NULL, 'session3', 'si_refresh_token_3', NOW()),

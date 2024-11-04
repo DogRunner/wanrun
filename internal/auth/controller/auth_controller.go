@@ -4,9 +4,7 @@ import (
 	"github.com/labstack/echo/v4"
 	"github.com/wanrun-develop/wanrun/internal/auth/core/dto"
 	"github.com/wanrun-develop/wanrun/internal/auth/core/handler"
-	_ "github.com/wanrun-develop/wanrun/internal/models/types"
 	"github.com/wanrun-develop/wanrun/pkg/errors"
-	_ "github.com/wanrun-develop/wanrun/pkg/errors"
 	"github.com/wanrun-develop/wanrun/pkg/log"
 )
 
