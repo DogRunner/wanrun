@@ -59,13 +59,13 @@ func (ah *authHandler) SignUp(c echo.Context, rado dto.ReqAuthDogOwnerDto) (dto.
 	}
 
 	// EmailとPhoneNumberのバリデーション
-	if wrErr := validateEmailOrPhoneNumber(rado.Email, rado.PhoneNumber); wrErr != nil {
+	if wrErr := validateEmailOrPhoneNumber(rado); wrErr != nil {
 		logger.Error(wrErr)
 		return dto.ResDogOwnerDto{}, wrErr
 	}
 
-	// sessionIDの生成
-	sessionID, wrErr := createSessionID(c, 15)
+	// JWT IDの生成
+	jwtID, wrErr := createJwtID(c, 15)
 
 	if wrErr != nil {
 		return dto.ResDogOwnerDto{}, wrErr
@@ -78,7 +78,7 @@ func (ah *authHandler) SignUp(c echo.Context, rado dto.ReqAuthDogOwnerDto) (dto.
 		Password:    wrUtil.NewSqlNullString(string(hash)),
 		GrantType:   wrUtil.NewSqlNullString(model.PASSWORD_GRANT_TYPE), // Password認証
 		AuthDogOwner: model.AuthDogOwner{
-			SessionID: wrUtil.NewSqlNullString(sessionID),
+			JwtID: wrUtil.NewSqlNullString(jwtID),
 			DogOwner: model.DogOwner{
 				Name: wrUtil.NewSqlNullString(rado.DogOwnerName),
 			},
@@ -97,7 +97,7 @@ func (ah *authHandler) SignUp(c echo.Context, rado dto.ReqAuthDogOwnerDto) (dto.
 	// 作成したDogOwnerの情報をdto詰め替え
 	resDogOwnerDetail := dto.ResDogOwnerDto{
 		DogOwnerID: uint64(result.AuthDogOwner.DogOwnerID.Int64),
-		SessionID:  result.AuthDogOwner.SessionID.String,
+		JwtID:      result.AuthDogOwner.JwtID.String,
 	}
 
 	logger.Infof("resDogOwnerDetail: %v", resDogOwnerDetail)
@@ -210,14 +210,13 @@ Google OAuth認証
 // validateEmailOrPhoneNumber: EmailかPhoneNumberの識別バリデーション。パスワード認証は、EmailかPhoneNumberで登録するため
 //
 // args:
-//   - string: email Email
-//   - string: phoneNumber 電話番号
+//   - dto.ReqAuthDogOwnerDto: Response用のAuthDogOwnerのDTO
 //
 // return:
 //   - error: err
-func validateEmailOrPhoneNumber(email string, phoneNumber string) error {
+func validateEmailOrPhoneNumber(rado dto.ReqAuthDogOwnerDto) error {
 	// 両方が空の場合はエラー
-	if email == "" && phoneNumber == "" {
+	if rado.Email == "" && rado.PhoneNumber == "" {
 		wrErr := wrErrors.NewWRError(
 			nil,
 			"Emailと電話番号のどちらも空です",
@@ -227,7 +226,7 @@ func validateEmailOrPhoneNumber(email string, phoneNumber string) error {
 	}
 
 	// 両方に値が入っている場合もエラー
-	if email != "" && phoneNumber != "" {
+	if rado.Email != "" && rado.PhoneNumber != "" {
 		wrErr := wrErrors.NewWRError(
 			nil,
 			"Emailと電話番号のどちらも値が入っています",
@@ -246,7 +245,7 @@ jwt処理
 // JwtProcessing: jwtの生成等を行う
 //
 // args:
-//   - echo.Context: c   Echoのコンテキスト。リクエストやレスポンスにアクセスするために使用されます。
+//   - echo.Context: c   Echoのコンテキスト。リクエストやレスポンスにアクセスするために使用
 //   - dto.ResDogOwnerDto: rdo フロントに返す飼い主情報
 //
 // return:
@@ -265,29 +264,28 @@ func (ah *authHandler) JwtProcessing(c echo.Context, rdo dto.ResDogOwnerDto) err
 	}
 
 	return c.JSON(http.StatusCreated, success.SuccessResponse{
-		Code:    http.StatusCreated,
 		Message: "飼い主の登録完了しました。",
 		Token:   signedToken,
 	})
 }
 
-// createToken: 指定された秘密鍵を使用して認証用のJWTトークンを生成します。
+// createToken: 指定された秘密鍵を使用して認証用のJWTトークンを生成
 //
 // args:
-//   - echo.Context: c   Echoのコンテキスト。リクエストやレスポンスにアクセスするために使用されます
+//   - echo.Context: c   Echoのコンテキスト。リクエストやレスポンスにアクセスするために使用
 //   - string: secretKey   トークンの署名に使用する秘密鍵を表す文字列
 //   - dto.ResDogOwnerDto: rdo 飼い主用のレスポンス情報
 //   - int: expTime トークンの有効期限を秒単位で指定
 //
 // return:
-//   - string: 生成されたJWTトークンを表す文字列。
-//   - error: トークンの生成中に問題が発生した場合にはエラーを返します。
+//   - string: 生成されたJWTトークンを表す文字列
+//   - error: トークンの生成中に問題が発生したエラー
 func createToken(c echo.Context, secretKey string, rdo dto.ResDogOwnerDto, expTime int) (string, error) {
 	logger := log.GetLogger(c).Sugar()
 	// JWTのペイロード
 	claims := &dto.AccountClaims{
-		ID:        strconv.FormatUint(uint64(rdo.DogOwnerID), 10), // stringにコンバート
-		SessionID: rdo.SessionID,
+		ID:  strconv.FormatUint(uint64(rdo.DogOwnerID), 10), // stringにコンバート
+		JTI: rdo.JwtID,
 		RegisteredClaims: jwt.RegisteredClaims{
 			ExpiresAt: jwt.NewNumericDate(time.Now().Add(time.Hour * time.Duration(expTime))), // 有効時間
 		},
@@ -301,7 +299,7 @@ func createToken(c echo.Context, secretKey string, rdo dto.ResDogOwnerDto, expTi
 	if err != nil {
 		wrErr := wrErrors.NewWRError(
 			err,
-			"パスワードに不正な文字列が入っております。",
+			"パスワードに不正な文字列が入っています。",
 			wrErrors.NewDogownerClientErrorEType(),
 		)
 		logger.Error(wrErr)
@@ -311,7 +309,7 @@ func createToken(c echo.Context, secretKey string, rdo dto.ResDogOwnerDto, expTi
 	return signedToken, nil
 }
 
-// createSessionID: sessionIDの生成。引数の数だけランダムの文字列を生成する
+// createJwtID: JWT IDの生成。引数の数だけランダムの文字列を生成
 //
 // args:
 //   - int: length 生成したい数
@@ -319,7 +317,7 @@ func createToken(c echo.Context, secretKey string, rdo dto.ResDogOwnerDto, expTi
 // return:
 //   - string:　ランダム文字列
 //   - error:　error情報
-func createSessionID(c echo.Context, length int) (string, error) {
+func createJwtID(c echo.Context, length int) (string, error) {
 	logger := log.GetLogger(c).Sugar()
 
 	b := make([]byte, length)
@@ -327,7 +325,7 @@ func createSessionID(c echo.Context, length int) (string, error) {
 	if err != nil {
 		wrErr := wrErrors.NewWRError(
 			err,
-			"SessionID生成に失敗しました。",
+			"JWT ID生成に失敗しました",
 			wrErrors.NewDogownerServerErrorEType(),
 		)
 		logger.Error(wrErr)

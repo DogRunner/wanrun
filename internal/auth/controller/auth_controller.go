@@ -69,13 +69,9 @@ GoogleのOAuth認証
 // 	return jwtProcessing(c, resDogOwner)
 // }
 
-// SignUp: Password認証
-//
-// args:
-//   - echo.Context: c Echoのコンテキスト。リクエストやレスポンスにアクセスするために使用されます。
-//
-// return:
-//   - error情報
+/*
+パスワード認証
+*/
 func (ac *authController) SignUp(c echo.Context) error {
 	logger := log.GetLogger(c).Sugar()
 

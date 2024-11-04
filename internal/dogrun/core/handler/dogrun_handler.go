@@ -107,7 +107,15 @@ func (h *dogrunHandler) SearchAroundDogruns(c echo.Context, condition dto.Search
 	}
 	logger.Infof("DBから取得数:%d", len(dogrunsD))
 
-	return trimAroundDogrunDetailInfo(dogrunsG, dogrunsD), nil
+	//検索結果からレスポンスを作成
+	dogrunDtos, err := h.trimAroundDogrunDetailInfo(c, dogrunsG, dogrunsD)
+	logger.Infof("レスポンス件数:%d", len(dogrunDtos))
+
+	if err != nil {
+		return nil, err
+	}
+
+	return dogrunDtos, nil
 }
 
 /*
@@ -477,11 +485,11 @@ func (h *dogrunHandler) searchTextUpToSpecifiedTimes(c echo.Context, payload goo
 検索結果をもとに、レスポンス用のDTOを作成
 placeIdで、両方にあるデータと、DBにのみあるデータ等で分ける
 */
-func trimAroundDogrunDetailInfo(dogrunsG []googleplace.BaseResource, dogrunsD []model.Dogrun) []dto.DogrunListDto {
+func (h *dogrunHandler) trimAroundDogrunDetailInfo(c echo.Context, dogrunsG []googleplace.BaseResource, dogrunsD []model.Dogrun) ([]dto.DogrunListDto, error) {
 	//google情報からpalceIdをkeyにmapにまとめる
-	dogrunsGWithPalceID := make(map[string]googleplace.BaseResource, len(dogrunsG))
+	dogrunsGWithPlaceID := make(map[string]googleplace.BaseResource, len(dogrunsG))
 	for _, dogrunG := range dogrunsG {
-		dogrunsGWithPalceID[dogrunG.ID] = dogrunG
+		dogrunsGWithPlaceID[dogrunG.ID] = dogrunG
 	}
 
 	//DB情報からpalceIdがあるデータのみ、mapにまとめる
@@ -499,7 +507,7 @@ func trimAroundDogrunDetailInfo(dogrunsG []googleplace.BaseResource, dogrunsD []
 	var dogrunDetailInfos []dto.DogrunListDto
 
 	//両方にplaceIdがある情報をDTOにつめる
-	for placeId, dogrunGValue := range dogrunsGWithPalceID {
+	for placeId, dogrunGValue := range dogrunsGWithPlaceID {
 		dogrunDValue, existDogrunD := dogrunsDWithPalceID[placeId]
 		if existDogrunD {
 			//DBにもある場合、両方からデータの選別
@@ -508,7 +516,15 @@ func trimAroundDogrunDetailInfo(dogrunsG []googleplace.BaseResource, dogrunsD []
 			delete(dogrunsDWithPalceID, placeId)
 		} else {
 			//google側にしかない場合
-			dogrunDetailInfos = append(dogrunDetailInfos, resolveDogrunListByOnlyGoogle(dogrunGValue))
+			//id発行
+			dogrunID, err := h.persistenceDogrunPlaceId(c, placeId)
+			if err != nil {
+				return nil, err
+			}
+			//レスポンス整形
+			dogrunGDetailInfo := resolveDogrunListByOnlyGoogle(dogrunGValue)
+			dogrunGDetailInfo.DogrunID = dogrunID
+			dogrunDetailInfos = append(dogrunDetailInfos, dogrunGDetailInfo)
 		}
 	}
 
@@ -522,7 +538,7 @@ func trimAroundDogrunDetailInfo(dogrunsG []googleplace.BaseResource, dogrunsD []
 		dogrunDetailInfos = append(dogrunDetailInfos, resolveDogrunListByOnlyDB(dogrunDValue))
 	}
 
-	return dogrunDetailInfos
+	return dogrunDetailInfos, nil
 }
 
 /*
@@ -652,4 +668,28 @@ func resolvePlacePhotos(dogrunG googleplace.BaseResource) []dto.PhotoInfo {
 	}
 
 	return photos
+}
+
+// persistenceDogrunPlaceId: DBにないplaceIdをDBへ保存して、PKを発行させる
+//
+// args:
+//   - *dogrunHandler: h handler
+//   - echo.Context: c	echo.Context
+//   - string: placeId	DBへ登録するplaceId
+//
+// return:
+//   - int:	dogrunテーブルのPK
+//   - error:	エラー
+func (h *dogrunHandler) persistenceDogrunPlaceId(c echo.Context, placeId string) (int, error) {
+	logger := log.GetLogger(c).Sugar()
+
+	logger.Infof("placeId\"%s\"がDBに存在しないため、レコードを作成", placeId)
+	id, err := h.drr.RegistDogrunPlaceId(c, placeId)
+	if err != nil {
+		logger.Error(err)
+		err := errors.NewWRError(err, "placeIdのDB保存処理に失敗", errors.NewDogrunServerErrorEType())
+		return 0, err
+	}
+	logger.Infof("PKの生成  %s->%s", placeId, id)
+	return id, nil
 }
