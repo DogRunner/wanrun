@@ -21,7 +21,7 @@ type Dogrun struct {
 	Longitude       sql.NullFloat64 `gorm:"column:longitude"`
 	Description     sql.NullString  `gorm:"type:text;column:description"`
 	CreateAt        sql.NullTime    `gorm:"column:reg_at;not null;autoCreateTime"`
-	UpdateAt        sql.NullTime    `gorm:"column:upd_at;not null;autoCreateTime"`
+	UpdateAt        sql.NullTime    `gorm:"column:upd_at;not null;autoUpdateTime"`
 
 	//リレーション
 	DogrunTags           []DogrunTag           `gorm:"foreignKey:DogrunID;references:DogrunID"`

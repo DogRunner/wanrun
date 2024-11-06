@@ -3,6 +3,8 @@ package util
 import (
 	"database/sql"
 	"time"
+
+	"github.com/wanrun-develop/wanrun/common"
 )
 
 /*
@@ -120,6 +122,18 @@ sql.NullTime型の値をCustomTimeに変換
 */
 func NewCustomTimeFromNullTime(nullTime sql.NullTime) CustomTime {
 	return CustomTime{NullTime: nullTime}
+}
+
+// ConvetToWRTime: sql.NullTimeをカスタムTime型に変換
+//
+// args:
+//   - sql.NullTime:	変換対象
+//
+// return:
+//   - common.WRTime:	カスタム時間
+//   - :
+func ConvertToWRTime(nulltime sql.NullTime) common.WRTime {
+	return common.WRTime{Time: nulltime.Time}
 }
 
 /*

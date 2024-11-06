@@ -14,6 +14,7 @@ import (
 	dogRepository "github.com/wanrun-develop/wanrun/internal/dog/adapters/repository"
 	dogController "github.com/wanrun-develop/wanrun/internal/dog/controller"
 	dogHandler "github.com/wanrun-develop/wanrun/internal/dog/core/handler"
+	dogOwnerRepositoy "github.com/wanrun-develop/wanrun/internal/dogOwner/adapters/repository"
 	"github.com/wanrun-develop/wanrun/internal/dogrun/adapters/googleplace"
 	dogrunR "github.com/wanrun-develop/wanrun/internal/dogrun/adapters/repository"
 	dogrunC "github.com/wanrun-develop/wanrun/internal/dogrun/controller"
@@ -64,9 +65,11 @@ func newRouter(e *echo.Echo, dbConn *gorm.DB) {
 	dogController := newDog(dbConn)
 	dog := e.Group("dog")
 	dog.GET("/all", dogController.GetAllDogs)
-	dog.GET("/:dogID", dogController.GetDogByID)
-	dog.POST("/create", dogController.CreateDog)
-	dog.DELETE("/delete", dogController.DeleteDog)
+	dog.GET("/detail/:dogID", dogController.GetDogByID)
+	dog.GET("/ownered/:dogOwnerId", dogController.GetDogByDogOwnerID)
+	dog.POST("", dogController.CreateDog)
+	dog.PUT("", dogController.UpdateDog)
+	dog.DELETE("", dogController.DeleteDog)
 	// dog.PUT("/:dogID", dogController.UpdateDog)
 
 	// dogrun関連
@@ -88,7 +91,8 @@ func newRouter(e *echo.Echo, dbConn *gorm.DB) {
 // dogの初期化
 func newDog(dbConn *gorm.DB) dogController.IDogController {
 	dogRepository := dogRepository.NewDogRepository(dbConn)
-	dogHandler := dogHandler.NewDogHandler(dogRepository)
+	dogOwnerRepository := dogOwnerRepositoy.NewDogRepository(dbConn)
+	dogHandler := dogHandler.NewDogHandler(dogRepository, dogOwnerRepository)
 	dogController := dogController.NewDogController(dogHandler)
 	return dogController
 }
