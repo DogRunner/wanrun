@@ -58,12 +58,14 @@ func NewWRError(err error, msg string, errorType eType) *wrError {
 カスタムエラーハンドラーミドルウェア
 */
 func HttpErrorHandler(err error, c echo.Context) {
-	code := 500
+	code := http.StatusInternalServerError
 
 	var me *wrError
 	if wreer, ok := err.(*wrError); ok {
 		me = wreer
 		code = mappingError(me)
+	} else {
+		me = NewWRError(err, M_UNEXPECTED_ERROR, NewUnexpectedErrorEType())
 	}
 
 	res := ErrorRes{

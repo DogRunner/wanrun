@@ -13,11 +13,16 @@ type Dog struct {
 	Sex        sql.NullString `gorm:"size:1;column:sex"`
 	Image      sql.NullString `gorm:"column:image"`
 	CreateAt   sql.NullTime   `gorm:"column:reg_at;not null;autoCreateTime"`
-	UpdateAt   sql.NullTime   `gorm:"column:upd_at;not null;autoCreateTime"`
+	UpdateAt   sql.NullTime   `gorm:"column:upd_at;not null;autoUpdateTime"`
 
 	//リレーション
 	DogOwner DogOwner   `gorm:"foreignKey:DogOwnerID;references:DogOwnerID"`
 	DogType  DogTypeMst `gorm:"foreignKey:DogTypeID;references:DogTypeID"`
+}
+
+// dogが空かの判定
+func (d *Dog) IsEmpty() bool {
+	return !d.DogID.Valid
 }
 
 type DogTypeMst struct {

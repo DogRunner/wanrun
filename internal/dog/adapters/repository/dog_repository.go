@@ -11,8 +11,9 @@ type IDogRepository interface {
 	GetAllDogs() ([]model.Dog, error)
 	GetDogByID(int64) (model.Dog, error)
 	GetDogByDogOwnerID(int64) ([]model.Dog, error)
-	CreateDog() (model.Dog, error)
-	DeleteDog(int) error
+	CreateDog(model.Dog) (model.Dog, error)
+	UpdateDog(model.Dog) (model.Dog, error)
+	DeleteDog(int64) error
 }
 
 type dogRepository struct {
@@ -31,7 +32,7 @@ func (dr *dogRepository) GetAllDogs() ([]model.Dog, error) {
 	return dogs, nil
 }
 
-// GetDogByID: DogIDでdogsのセレクト。dogTypeもロードする
+// GetDogByID: DBへDogIDでdogsのセレクト。dogTypeもロードする
 //
 // args:
 //   - int64:	dogId
@@ -41,13 +42,13 @@ func (dr *dogRepository) GetAllDogs() ([]model.Dog, error) {
 //   - error:	エラー
 func (dr *dogRepository) GetDogByID(dogID int64) (model.Dog, error) {
 	dog := model.Dog{}
-	if err := dr.db.Preload("DogType").Where("dog_id=?", dogID).First(&dog).Error; err != nil {
+	if err := dr.db.Preload("DogType").Where("dog_id=?", dogID).Find(&dog).Error; err != nil {
 		return model.Dog{}, err
 	}
 	return dog, nil
 }
 
-// GetDogByID: DogOwnerIDでdogsのセレクト。dogTypeもロードする
+// GetDogByID: DBへDogOwnerIDでdogsのセレクト。dogTypeもロードする
 //
 // args:
 //   - int:	dogId
@@ -63,15 +64,37 @@ func (dr *dogRepository) GetDogByDogOwnerID(dogOwnerID int64) ([]model.Dog, erro
 	return dogs, nil
 }
 
-func (dr *dogRepository) CreateDog() (model.Dog, error) {
-	dog := model.Dog{}
+// CreateDog: DBへdogのinsert
+//
+// args:
+//   - model.Dog:	登録するdog
+//
+// return:
+//   - model.dog:	登録されたdog
+//   - error:	エラー
+func (dr *dogRepository) CreateDog(dog model.Dog) (model.Dog, error) {
 	if err := dr.db.Create(&dog).Error; err != nil {
 		return model.Dog{}, err
 	}
 	return dog, nil
 }
 
-func (dr *dogRepository) DeleteDog(dogID int) error {
+// UpdateDog: dogのupdate
+//
+// args:
+//   - model.Dog:	更新するdog
+//
+// return:
+//   - model.Dog:	更新したdog
+//   - error:	エラー
+func (dr *dogRepository) UpdateDog(dog model.Dog) (model.Dog, error) {
+	if err := dr.db.Save(&dog).Error; err != nil {
+		return model.Dog{}, err
+	}
+	return dog, nil
+}
+
+func (dr *dogRepository) DeleteDog(dogID int64) error {
 	result := dr.db.Where("dog_id=?", dogID).Delete(&model.Dog{})
 
 	if result.Error != nil {
