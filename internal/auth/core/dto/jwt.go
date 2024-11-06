@@ -1,6 +1,6 @@
 package dto
 
-import "github.com/golang-jwt/jwt/v4"
+import "github.com/golang-jwt/jwt/v5"
 
 // JWTのClaims
 type AccountClaims struct {

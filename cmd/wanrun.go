@@ -10,6 +10,7 @@ import (
 	authRepository "github.com/wanrun-develop/wanrun/internal/auth/adapters/repository"
 	authController "github.com/wanrun-develop/wanrun/internal/auth/controller"
 	authHandler "github.com/wanrun-develop/wanrun/internal/auth/core/handler"
+	dogMW "github.com/wanrun-develop/wanrun/internal/auth/middleware"
 	"github.com/wanrun-develop/wanrun/internal/db"
 	dogRepository "github.com/wanrun-develop/wanrun/internal/dog/adapters/repository"
 	dogController "github.com/wanrun-develop/wanrun/internal/dog/controller"
@@ -27,6 +28,10 @@ import (
 func init() {
 
 }
+
+const (
+	AUTH_GROUP_PATH string = "/auth"
+)
 
 func Main() {
 	dbConn, err := db.NewDB()
@@ -48,6 +53,9 @@ func Main() {
 	e.Use(middleware.RequestID())
 	e.HTTPErrorHandler = errors.HttpErrorHandler
 	e.Use(logger.RequestLoggerMiddleware(zap))
+
+	// JWTミドルウェアの設定
+	e.Use(dogMW.CreateJwtConfig(AUTH_GROUP_PATH))
 
 	// CORSの設定
 	e.Use(middleware.CORS())
@@ -79,10 +87,10 @@ func newRouter(e *echo.Echo, dbConn *gorm.DB) {
 
 	// auth関連
 	authController := newAuth(dbConn)
-	auth := e.Group("auth")
+	auth := e.Group(AUTH_GROUP_PATH)
 	// auth.GET("/google/oauth", authController.GoogleOAuth)
 	auth.POST("/signUp", authController.SignUp)
-	// auth.POST("/login", authController.LogIn)
+	auth.POST("/login", authController.LogIn)
 }
 
 // dogの初期化
