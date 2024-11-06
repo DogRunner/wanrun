@@ -1,6 +1,6 @@
 package dto
 
-// dog詳細レスポンス
+// dogのsave用
 type DogSaveReq struct {
 	DogID      int64  `json:"dogId" validate:"primaryKey"`
 	DogOwnerID int64  `json:"dogOwnerId" validate:"required"`

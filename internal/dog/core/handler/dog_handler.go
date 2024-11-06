@@ -32,7 +32,7 @@ func NewDogHandler(r repository.IDogRepository, dwr dwRepositoy.IDogOwnerReposit
 func (h *dogHandler) GetAllDogs(c echo.Context) ([]dto.DogListRes, error) {
 	logger := log.GetLogger(c).Sugar()
 
-	dogs, err := h.r.GetAllDogs()
+	dogs, err := h.r.GetAllDogs(c)
 
 	if err != nil {
 		logger.Error(err)
@@ -70,7 +70,7 @@ func (h *dogHandler) GetAllDogs(c echo.Context) ([]dto.DogListRes, error) {
 //   - error:	エラー
 func (h *dogHandler) GetDogByID(c echo.Context, dogID int64) (dto.DogDetailsRes, error) {
 
-	d, err := h.r.GetDogByID(dogID)
+	d, err := h.r.GetDogByID(c, dogID)
 
 	if err != nil {
 		return dto.DogDetailsRes{}, err
@@ -120,7 +120,7 @@ func (h *dogHandler) GetDogByDogOwnerID(c echo.Context, dogOwnerID int64) ([]dto
 		return []dto.DogListRes{}, err
 	}
 
-	dogs, err := h.r.GetDogByDogOwnerID(dogOwner.DogOwnerID.Int64)
+	dogs, err := h.r.GetDogByDogOwnerID(c, dogOwner.DogOwnerID.Int64)
 	if err != nil {
 		logger.Error(err)
 		err = errors.NewWRError(err, "dog検索で失敗しました。", errors.NewDogServerErrorEType())
@@ -153,7 +153,7 @@ func (h *dogHandler) GetDogByDogOwnerID(c echo.Context, dogOwnerID int64) ([]dto
 //
 // args:
 //   - echo.Context:	コンテキスト
-//   - dto.DogSaveRew:	リクエスト内容
+//   - dto.DogSaveReq:	リクエスト内容
 //
 // return:
 //   - int64:	登録したdogId
@@ -178,10 +178,10 @@ func (h *dogHandler) CreateDog(c echo.Context, saveReq dto.DogSaveReq) (int64, e
 		Image:      util.NewSqlNullString(saveReq.Image),
 	}
 
-	dog, err := h.r.CreateDog(dog)
+	dog, err := h.r.CreateDog(c, dog)
 	if err != nil {
 		logger.Error(err)
-		err = errors.NewWRError(err, "dogOwnerの登録処理で失敗しました。", errors.NewDogServerErrorEType())
+		err = errors.NewWRError(err, "dogの登録処理で失敗しました。", errors.NewDogServerErrorEType())
 		return 0, err
 	}
 
@@ -197,7 +197,7 @@ func (h *dogHandler) CreateDog(c echo.Context, saveReq dto.DogSaveReq) (int64, e
 //   - dto.DogSaveReq:	リクエスト内容
 //
 // return:
-//   - dto.DogDetailsRes:	dog詳細用レスポンス
+//   - int64:	更新したdogID
 //   - error:	エラー
 func (h *dogHandler) UpdateDog(c echo.Context, saveReq dto.DogSaveReq) (int64, error) {
 	logger := log.GetLogger(c).Sugar()
@@ -228,10 +228,10 @@ func (h *dogHandler) UpdateDog(c echo.Context, saveReq dto.DogSaveReq) (int64, e
 	dog.Sex = util.NewSqlNullString(saveReq.Sex)
 	dog.Image = util.NewSqlNullString(saveReq.Image)
 	//更新
-	dog, err = h.r.UpdateDog(dog)
+	dog, err = h.r.UpdateDog(c, dog)
 	if err != nil {
 		logger.Error(err)
-		err = errors.NewWRError(err, "dogOwnerの更新処理で失敗しました。", errors.NewDogServerErrorEType())
+		err = errors.NewWRError(err, "dogの更新処理で失敗しました。", errors.NewDogServerErrorEType())
 		return 0, err
 	}
 
@@ -242,7 +242,7 @@ func (h *dogHandler) DeleteDog(c echo.Context, dogID int64) error {
 	if _, err := h.isExistsDog(c, dogID); err != nil {
 		return err
 	}
-	if err := h.r.DeleteDog(dogID); err != nil {
+	if err := h.r.DeleteDog(c, dogID); err != nil {
 		return err
 	}
 	return nil
@@ -259,7 +259,7 @@ func (h *dogHandler) DeleteDog(c echo.Context, dogID int64) error {
 func (h *dogHandler) isExistsDog(c echo.Context, dogID int64) (model.Dog, error) {
 	logger := log.GetLogger(c).Sugar()
 
-	dog, err := h.r.GetDogByID(dogID)
+	dog, err := h.r.GetDogByID(c, dogID)
 	if err != nil {
 		logger.Error(err)
 		err = errors.NewWRError(err, "dog検索で失敗しました。", errors.NewDogServerErrorEType())
@@ -267,7 +267,7 @@ func (h *dogHandler) isExistsDog(c echo.Context, dogID int64) (model.Dog, error)
 	}
 	if dog.IsEmpty() {
 		err = errors.NewWRError(nil, "指定されたdogは存在しません。", errors.NewDogClientErrorEType())
-		logger.Error("不正なdog owner idの指定", err)
+		logger.Error("不正なdog idの指定", err)
 		return model.Dog{}, err
 	}
 	return dog, nil

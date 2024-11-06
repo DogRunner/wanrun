@@ -1,19 +1,20 @@
 package repository
 
 import (
-	"fmt"
-
+	"github.com/labstack/echo/v4"
 	model "github.com/wanrun-develop/wanrun/internal/models"
+	"github.com/wanrun-develop/wanrun/pkg/errors"
+	"github.com/wanrun-develop/wanrun/pkg/log"
 	"gorm.io/gorm"
 )
 
 type IDogRepository interface {
-	GetAllDogs() ([]model.Dog, error)
-	GetDogByID(int64) (model.Dog, error)
-	GetDogByDogOwnerID(int64) ([]model.Dog, error)
-	CreateDog(model.Dog) (model.Dog, error)
-	UpdateDog(model.Dog) (model.Dog, error)
-	DeleteDog(int64) error
+	GetAllDogs(echo.Context) ([]model.Dog, error)
+	GetDogByID(echo.Context, int64) (model.Dog, error)
+	GetDogByDogOwnerID(echo.Context, int64) ([]model.Dog, error)
+	CreateDog(echo.Context, model.Dog) (model.Dog, error)
+	UpdateDog(echo.Context, model.Dog) (model.Dog, error)
+	DeleteDog(echo.Context, int64) error
 }
 
 type dogRepository struct {
@@ -24,9 +25,13 @@ func NewDogRepository(db *gorm.DB) IDogRepository {
 	return &dogRepository{db}
 }
 
-func (dr *dogRepository) GetAllDogs() ([]model.Dog, error) {
+func (dr *dogRepository) GetAllDogs(c echo.Context) ([]model.Dog, error) {
+	logger := log.GetLogger(c).Sugar()
+
 	dogs := []model.Dog{}
 	if err := dr.db.Find(&dogs).Error; err != nil {
+		logger.Error(err)
+		err = errors.NewWRError(err, "dogのselectで失敗しました。", errors.NewDogServerErrorEType())
 		return []model.Dog{}, err
 	}
 	return dogs, nil
@@ -40,9 +45,13 @@ func (dr *dogRepository) GetAllDogs() ([]model.Dog, error) {
 // return:
 //   - model.Dog:	dogデータ
 //   - error:	エラー
-func (dr *dogRepository) GetDogByID(dogID int64) (model.Dog, error) {
+func (dr *dogRepository) GetDogByID(c echo.Context, dogID int64) (model.Dog, error) {
+	logger := log.GetLogger(c).Sugar()
+
 	dog := model.Dog{}
 	if err := dr.db.Preload("DogType").Where("dog_id=?", dogID).Find(&dog).Error; err != nil {
+		logger.Error(err)
+		err = errors.NewWRError(err, "dogのselectで失敗しました。", errors.NewDogServerErrorEType())
 		return model.Dog{}, err
 	}
 	return dog, nil
@@ -56,9 +65,13 @@ func (dr *dogRepository) GetDogByID(dogID int64) (model.Dog, error) {
 // return:
 //   - []model.Dog:	dogデータ
 //   - error:	エラー
-func (dr *dogRepository) GetDogByDogOwnerID(dogOwnerID int64) ([]model.Dog, error) {
+func (dr *dogRepository) GetDogByDogOwnerID(c echo.Context, dogOwnerID int64) ([]model.Dog, error) {
+	logger := log.GetLogger(c).Sugar()
+
 	dogs := []model.Dog{}
 	if err := dr.db.Preload("DogType").Where("dog_owner_id=?", dogOwnerID).Find(&dogs).Error; err != nil {
+		logger.Error(err)
+		err = errors.NewWRError(err, "dogのselectで失敗しました。", errors.NewDogServerErrorEType())
 		return []model.Dog{}, err
 	}
 	return dogs, nil
@@ -72,8 +85,12 @@ func (dr *dogRepository) GetDogByDogOwnerID(dogOwnerID int64) ([]model.Dog, erro
 // return:
 //   - model.dog:	登録されたdog
 //   - error:	エラー
-func (dr *dogRepository) CreateDog(dog model.Dog) (model.Dog, error) {
+func (dr *dogRepository) CreateDog(c echo.Context, dog model.Dog) (model.Dog, error) {
+	logger := log.GetLogger(c).Sugar()
+
 	if err := dr.db.Create(&dog).Error; err != nil {
+		logger.Error(err)
+		err = errors.NewWRError(err, "dogのinsert処理で失敗しました。", errors.NewDogServerErrorEType())
 		return model.Dog{}, err
 	}
 	return dog, nil
@@ -87,26 +104,31 @@ func (dr *dogRepository) CreateDog(dog model.Dog) (model.Dog, error) {
 // return:
 //   - model.Dog:	更新したdog
 //   - error:	エラー
-func (dr *dogRepository) UpdateDog(dog model.Dog) (model.Dog, error) {
+func (dr *dogRepository) UpdateDog(c echo.Context, dog model.Dog) (model.Dog, error) {
+	logger := log.GetLogger(c).Sugar()
+
 	if err := dr.db.Save(&dog).Error; err != nil {
+		logger.Error(err)
+		err = errors.NewWRError(err, "dogのupdateで失敗しました。", errors.NewDogServerErrorEType())
 		return model.Dog{}, err
 	}
 	return dog, nil
 }
 
-func (dr *dogRepository) DeleteDog(dogID int64) error {
+func (dr *dogRepository) DeleteDog(c echo.Context, dogID int64) error {
+	logger := log.GetLogger(c).Sugar()
+
 	result := dr.db.Where("dog_id=?", dogID).Delete(&model.Dog{})
 
 	if result.Error != nil {
-		return result.Error
+		logger.Error(result.Error)
+		err := errors.NewWRError(result.Error, "dogのdelete処理で失敗しました。", errors.NewDogServerErrorEType())
+		return err
 	}
 	if result.RowsAffected < 1 {
-		return fmt.Errorf("object does not exist")
+		logger.Error(result.Error)
+		err := errors.NewWRError(result.Error, "dogのdelete処理で失敗しました。delete record is 0", errors.NewDogServerErrorEType())
+		return err
 	}
 	return nil
 }
-
-// func (dr *dogRepository) UpdateDog(dogID uint) error {
-// 	dog := model.Dog{}
-// 	result := dr.db.Model(&dog).Clauses(clause.Returning{}).Where("dog_id=?", dogID).Update()
-// }
