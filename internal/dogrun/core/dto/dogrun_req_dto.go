@@ -3,7 +3,7 @@ package dto
 /*
 円型検索のリクエストボディ
 */
-type SearchAroudCircleCondition struct {
+type SearchAroundCircleCondition struct {
 	Center pointer      `json:"center" validate:"required"`
 	Target centerTarget `json:"target" validate:"required"`
 }
@@ -27,7 +27,7 @@ type centerTarget struct {
 /*
 長方形型検索のリクエストボディ
 */
-type SearchAroudRectangleCondition struct {
+type SearchAroundRectangleCondition struct {
 	Target rectangleTarget `json:"target" validate:"required"`
 }
 
