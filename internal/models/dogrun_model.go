@@ -88,7 +88,7 @@ func (d *Dogrun) IsSpecialBusinessHoursNotEmpty() bool {
 /*
 対象のドッグランの通常営業時時間データから、指定されたの曜日(数値:0~6)の営業時間データを返す
 */
-func (d *Dogrun) FetchTargetRegularBussinessHour(day int) RegularBusinessHour {
+func (d *Dogrun) FetchTargetRegularBusinessHour(day int) RegularBusinessHour {
 	for _, v := range d.RegularBusinessHours {
 		if day == int(v.Day.Int64) {
 			return v

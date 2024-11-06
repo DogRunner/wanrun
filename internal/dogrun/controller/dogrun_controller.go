@@ -52,7 +52,7 @@ func (dc *dogrunController) GetDogrun(c echo.Context) error {
 func (dc *dogrunController) SearchAroundDogruns(c echo.Context) error {
 	logger := log.GetLogger(c).Sugar()
 	//リクエストボディをバインド
-	var condition dto.SearchAroudRectangleCondition
+	var condition dto.SearchAroundRectangleCondition
 	if err := c.Bind(&condition); err != nil {
 		err = errors.NewWRError(err, "検索条件が不正です", errors.NewDogrunClientErrorEType())
 		logger.Error(err)
