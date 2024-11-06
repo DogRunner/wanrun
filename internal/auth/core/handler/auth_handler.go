@@ -8,7 +8,7 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/golang-jwt/jwt/v4"
+	"github.com/golang-jwt/jwt/v5"
 	"github.com/labstack/echo/v4"
 	"github.com/wanrun-develop/wanrun/configs"
 	"github.com/wanrun-develop/wanrun/internal/auth/adapters/repository"
@@ -23,8 +23,8 @@ import (
 
 type IAuthHandler interface {
 	SignUp(c echo.Context, reqADOD dto.ReqAuthDogOwnerDto) (dto.ResDogOwnerDto, error)
-	JwtProcessing(c echo.Context, rdo dto.ResDogOwnerDto) error
-	// LogIn(c echo.Context, reqADOD dto.ReqAuthDogOwnerDto) (dto.ResDogOwnerDto, error)
+	JwtProcessing(c echo.Context, rdo dto.ResDogOwnerDto, msg string) error
+	LogIn(c echo.Context, reqADOD dto.ReqAuthDogOwnerDto) (dto.ResDogOwnerDto, error)
 	// LogOut() error
 	// GoogleOAuth(c echo.Context, authorizationCode string, grantType types.GrantType) (dto.ResDogOwnerDto, error)
 }
@@ -106,40 +106,55 @@ func (ah *authHandler) SignUp(c echo.Context, rado dto.ReqAuthDogOwnerDto) (dto.
 }
 
 // Login
-// func (ah *authHandler) LogIn(c echo.Context, reqADOD dto.ReqAuthDogOwnerDto) (dto.ResDogOwnerDto, error) {
-// 	logger := log.GetLogger(c).Sugar()
-// 	authDogOwner := model.AuthDogOwner{
-// 		DogOwner: model.DogOwner{
-// 			Email: reqADOD.Email,
-// 		},
-// 	}
+func (ah *authHandler) LogIn(c echo.Context, rado dto.ReqAuthDogOwnerDto) (dto.ResDogOwnerDto, error) {
+	logger := log.GetLogger(c).Sugar()
 
-// 	logger.Infof("authDogOwner Info: %v", authDogOwner)
+	// EmailとPhoneNumberのバリデーション
+	if wrErr := validateEmailOrPhoneNumber(rado); wrErr != nil {
+		logger.Error(wrErr)
+		return dto.ResDogOwnerDto{}, wrErr
+	}
 
-// 	// Emailから対象のDogOwner情報の取得
-// 	result, err := ah.ar.GetDogOwnerByEmail(c, authDogOwner)
+	dogOwnerCredential := model.DogOwnerCredential{
+		Email:       wrUtil.NewSqlNullString(rado.Email),
+		PhoneNumber: wrUtil.NewSqlNullString(rado.PhoneNumber),
+		Password:    wrUtil.NewSqlNullString(rado.Password),
+	}
 
-// 	if err != nil {
-// 		logger.Error(err)
-// 		return dto.ResDogOwnerDto{}, err
-// 	}
+	logger.Debugf("dogOwnerCredential %v, Type: %T", dogOwnerCredential, dogOwnerCredential)
 
-// 	// パスワードの確認
-// 	err = bcrypt.CompareHashAndPassword([]byte(result.Password), []byte(reqADOD.Password))
+	// EmailかPhoneNumberから対象のDogOwner情報の取得
+	result, err := ah.ar.GetDogOwnerByCredential(c, dogOwnerCredential)
 
-// 	if err != nil {
-// 		logger.Error(err)
-// 		return dto.ResDogOwnerDto{}, err
-// 	}
+	if err != nil {
+		logger.Error(err)
+		return dto.ResDogOwnerDto{}, err
+	}
 
-// 	resDogOwnerDetail := dto.ResDogOwnerDto{
-// 		DogOwnerID: result.DogOwnerID,
-// 	}
+	// パスワードの確認
+	err = bcrypt.CompareHashAndPassword([]byte(result.Password.String), []byte(rado.Password))
 
-// 	logger.Infof("resDogOwnerDetail: %v", resDogOwnerDetail)
+	if err != nil {
+		wrErr := wrErrors.NewWRError(
+			err,
+			"パスワードが間違っています",
+			wrErrors.NewDogownerServerErrorEType())
 
-// 	return resDogOwnerDetail, nil
-// }
+		logger.Errorf("Password compare failure: %v", wrErr)
+
+		return dto.ResDogOwnerDto{}, wrErr
+	}
+
+	// 作成したDogOwnerの情報をdto詰め替え
+	resDogOwnerDetail := dto.ResDogOwnerDto{
+		DogOwnerID: uint64(result.AuthDogOwner.DogOwnerID.Int64),
+		JwtID:      result.AuthDogOwner.JwtID.String,
+	}
+
+	logger.Infof("resDogOwnerDetail: %v", resDogOwnerDetail)
+
+	return resDogOwnerDetail, nil
+}
 
 // Logout
 func (ah *authHandler) LogOut() error { return nil }
@@ -247,11 +262,12 @@ jwt処理
 // args:
 //   - echo.Context: c   Echoのコンテキスト。リクエストやレスポンスにアクセスするために使用
 //   - dto.ResDogOwnerDto: rdo フロントに返す飼い主情報
+//   - string: msg フロントに返すメッセージ文
 //
 // return:
 //  - error: error情報
 
-func (ah *authHandler) JwtProcessing(c echo.Context, rdo dto.ResDogOwnerDto) error {
+func (ah *authHandler) JwtProcessing(c echo.Context, rdo dto.ResDogOwnerDto, msg string) error {
 	// 秘密鍵取得
 	secretKey := configs.FetchCondigStr("jwt.os.secret.key")
 	jwtExpTime := configs.FetchCondigInt("jwt.exp.time")
@@ -264,7 +280,7 @@ func (ah *authHandler) JwtProcessing(c echo.Context, rdo dto.ResDogOwnerDto) err
 	}
 
 	return c.JSON(http.StatusCreated, success.SuccessResponse{
-		Message: "飼い主の登録完了しました。",
+		Message: msg,
 		Token:   signedToken,
 	})
 }

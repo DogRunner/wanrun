@@ -1,6 +1,8 @@
 package controller
 
 import (
+
+	// "github.com/golang-jwt/jwt/v5"
 	"github.com/labstack/echo/v4"
 	"github.com/wanrun-develop/wanrun/internal/auth/core/dto"
 	"github.com/wanrun-develop/wanrun/internal/auth/core/handler"
@@ -10,7 +12,7 @@ import (
 
 type IAuthController interface {
 	SignUp(c echo.Context) error
-	// LogIn(c echo.Context) error
+	LogIn(c echo.Context) error
 	LogOut(c echo.Context) error
 	// GoogleOAuth(c echo.Context) error
 }
@@ -22,6 +24,11 @@ type authController struct {
 func NewAuthController(ah handler.IAuthHandler) IAuthController {
 	return &authController{ah}
 }
+
+const (
+	SIGNUP_MSG string = "飼い主の登録完了しました。"
+	LOGIN_MSG  string = "ログインが完了しました。"
+)
 
 /*
 GoogleのOAuth認証
@@ -69,16 +76,20 @@ GoogleのOAuth認証
 // 	return jwtProcessing(c, resDogOwner)
 // }
 
-/*
-パスワード認証
-*/
+// SignUp: Password認証
+//
+// args:
+//   - echo.Context: c Echoのコンテキスト。リクエストやレスポンスにアクセスするために使用されます。
+//
+// return:
+//   - error: error情報
 func (ac *authController) SignUp(c echo.Context) error {
 	logger := log.GetLogger(c).Sugar()
 
 	reqADOD := dto.ReqAuthDogOwnerDto{}
 
 	if err := c.Bind(&reqADOD); err != nil {
-		wrErr := errors.NewWRError(err, "入力項目に不正があります。", errors.NewDogrunClientErrorEType())
+		wrErr := errors.NewWRError(err, "入力項目に不正があります。", errors.NewDogownerClientErrorEType())
 		logger.Error(wrErr)
 		return wrErr
 	}
@@ -91,50 +102,37 @@ func (ac *authController) SignUp(c echo.Context) error {
 	}
 
 	// jwt処理
-	return ac.ah.JwtProcessing(c, resDogOwner)
+	return ac.ah.JwtProcessing(c, resDogOwner, SIGNUP_MSG)
 }
 
-// func (ac *authController) LogIn(c echo.Context) error {
-// 	logger := log.GetLogger(c).Sugar()
-// 	var reqADOD dto.ReqAuthDogOwnerDto = dto.ReqAuthDogOwnerDto{}
+// LogIn: login機能
+//
+// args:
+//   - echo.Context: c Echoのコンテキスト。リクエストやレスポンスにアクセスするために使用されます。
+//
+// return:
+//   - error: error情報
+func (ac *authController) LogIn(c echo.Context) error {
+	logger := log.GetLogger(c).Sugar()
 
-// 	if err := c.Bind(&reqADOD); err != nil {
-// 		logger.Error(err)
-// 		return c.JSON(http.StatusBadRequest, wrErrors.ErrorResponse{
-// 			Code:    http.StatusBadRequest,
-// 			Message: "Invalid format",
-// 		})
-// 	}
-// 	logger.Infof("Request AuthDogOwner info: %v", reqADOD)
+	reqADOD := dto.ReqAuthDogOwnerDto{}
 
-// 	// LogIn処理
-// 	resAuthDogOwner, err := ac.ah.LogIn(c, reqADOD)
+	if err := c.Bind(&reqADOD); err != nil {
+		wrErr := errors.NewWRError(err, "入力項目に不正があります。", errors.NewDogownerClientErrorEType())
+		logger.Error(wrErr)
+		return wrErr
+	}
 
-// 	if err != nil {
-// 		return c.JSON(http.StatusBadRequest, wrErrors.ErrorResponse{
-// 			Code:    http.StatusBadRequest,
-// 			Message: "Invalid Request",
-// 		})
-// 	}
+	// LogIn処理
+	resDogOwner, wrErr := ac.ah.LogIn(c, reqADOD)
 
-// 	// 秘密鍵取得
-// 	secretKey := configs.FetchCondigStr("os.secret.key")
+	if wrErr != nil {
+		return wrErr
+	}
 
-// 	// jwt token生成
-// 	signedToken, err := createToken(secretKey, resAuthDogOwner.DogOwnerID, 72)
-// 	if err != nil {
-// 		return c.JSON(http.StatusInternalServerError, wrErrors.ErrorResponse{
-// 			Code:    http.StatusInternalServerError,
-// 			Message: "Failed to sign token",
-// 		})
-// 	}
-
-// 	return c.JSON(http.StatusCreated, success.SuccessResponse{
-// 		Code:    http.StatusOK,
-// 		Message: "Successful login",
-// 		Token:   signedToken,
-// 	})
-// }
+	// jwt処理
+	return ac.ah.JwtProcessing(c, resDogOwner, LOGIN_MSG)
+}
 
 func (ac *authController) LogOut(c echo.Context) error { return nil }
 
