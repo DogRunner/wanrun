@@ -5,8 +5,9 @@ go 1.22.1
 require (
 	github.com/fsnotify/fsnotify v1.7.0
 	github.com/go-playground/validator/v10 v10.22.1
-	github.com/golang-jwt/jwt/v4 v4.5.0
+	github.com/golang-jwt/jwt/v5 v5.0.0
 	github.com/joho/godotenv v1.5.1
+	github.com/labstack/echo-jwt/v4 v4.2.0
 	github.com/labstack/echo/v4 v4.12.0
 	github.com/labstack/gommon v0.4.2
 	github.com/spf13/viper v1.19.0
