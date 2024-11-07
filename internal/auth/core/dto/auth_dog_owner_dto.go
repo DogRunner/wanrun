@@ -9,7 +9,7 @@ type ReqAuthDogOwnerDto struct {
 }
 
 type ResAuthDogOwner struct {
-	AuthDogOwnerID uint   `json:"authDogOwnerId"`
+	AuthDogOwnerID int64  `json:"authDogOwnerId"`
 	Name           string `json:"name"`
 	Email          string `json:"email"`
 	Sex            string `json:"sex"`

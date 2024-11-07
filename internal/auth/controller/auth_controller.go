@@ -79,7 +79,7 @@ GoogleのOAuth認証
 // SignUp: Password認証
 //
 // args:
-//   - echo.Context: c Echoのコンテキスト。リクエストやレスポンスにアクセスするために使用されます。
+//   - echo.Context: Echoのコンテキスト。リクエストやレスポンスにアクセスするために使用されます。
 //
 // return:
 //   - error: error情報
@@ -108,7 +108,7 @@ func (ac *authController) SignUp(c echo.Context) error {
 // LogIn: login機能
 //
 // args:
-//   - echo.Context: c Echoのコンテキスト。リクエストやレスポンスにアクセスするために使用されます。
+//   - echo.Context: Echoのコンテキスト。リクエストやレスポンスにアクセスするために使用されます。
 //
 // return:
 //   - error: error情報

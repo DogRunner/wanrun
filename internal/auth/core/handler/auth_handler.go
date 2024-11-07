@@ -41,7 +41,15 @@ func NewAuthHandler(ar repository.IAuthRepository) IAuthHandler {
 	return &authHandler{ar}
 }
 
-// SignUp
+// SignUp: Password認証の登録
+//
+// args:
+//   - echo.Context: Echoのコンテキスト。リクエストやレスポンスにアクセスするために使用
+//   - dto.ReqAuthDogOwnerDto:  AuthDogOwnerのdto
+//
+// return:
+//   - dto.ResDogOwnerDto:	DogOwnerのdto
+//   - error:	error情報
 func (ah *authHandler) SignUp(c echo.Context, rado dto.ReqAuthDogOwnerDto) (dto.ResDogOwnerDto, error) {
 	logger := log.GetLogger(c).Sugar()
 
@@ -96,7 +104,7 @@ func (ah *authHandler) SignUp(c echo.Context, rado dto.ReqAuthDogOwnerDto) (dto.
 
 	// 作成したDogOwnerの情報をdto詰め替え
 	resDogOwnerDetail := dto.ResDogOwnerDto{
-		DogOwnerID: uint64(result.AuthDogOwner.DogOwnerID.Int64),
+		DogOwnerID: result.AuthDogOwner.DogOwnerID.Int64,
 		JwtID:      result.AuthDogOwner.JwtID.String,
 	}
 
@@ -105,7 +113,15 @@ func (ah *authHandler) SignUp(c echo.Context, rado dto.ReqAuthDogOwnerDto) (dto.
 	return resDogOwnerDetail, nil
 }
 
-// Login
+// LogIn: Password認証のログイン
+//
+// args:
+//   - echo.Context: Echoのコンテキスト。リクエストやレスポンスにアクセスするために使用
+//   - dto.ReqAuthDogOwnerDto:  AuthDogOwnerのdto
+//
+// return:
+//   - dto.ResDogOwnerDto:	DogOwnerのdto
+//   - error:	error情報
 func (ah *authHandler) LogIn(c echo.Context, rado dto.ReqAuthDogOwnerDto) (dto.ResDogOwnerDto, error) {
 	logger := log.GetLogger(c).Sugar()
 
@@ -147,7 +163,7 @@ func (ah *authHandler) LogIn(c echo.Context, rado dto.ReqAuthDogOwnerDto) (dto.R
 
 	// 作成したDogOwnerの情報をdto詰め替え
 	resDogOwnerDetail := dto.ResDogOwnerDto{
-		DogOwnerID: uint64(result.AuthDogOwner.DogOwnerID.Int64),
+		DogOwnerID: result.AuthDogOwner.DogOwnerID.Int64,
 		JwtID:      result.AuthDogOwner.JwtID.String,
 	}
 
@@ -216,7 +232,7 @@ Google OAuth認証
 // 	}
 
 // 	resDogOwner := dto.ResDogOwnerDto{
-// 		DogOwnerID: uint(dogOC.AuthDogOwner.DogOwner.DogOwnerID.Int64),
+// 		DogOwnerID: dogOC.AuthDogOwner.DogOwner.DogOwnerID.Int64,
 // 	}
 
 // 	return resDogOwner, nil
@@ -228,7 +244,7 @@ Google OAuth認証
 //   - dto.ReqAuthDogOwnerDto: Response用のAuthDogOwnerのDTO
 //
 // return:
-//   - error: err
+//   - error: error情報
 func validateEmailOrPhoneNumber(rado dto.ReqAuthDogOwnerDto) error {
 	// 両方が空の場合はエラー
 	if rado.Email == "" && rado.PhoneNumber == "" {
@@ -254,15 +270,12 @@ func validateEmailOrPhoneNumber(rado dto.ReqAuthDogOwnerDto) error {
 	return nil
 }
 
-/*
-jwt処理
-*/
 // JwtProcessing: jwtの生成等を行う
 //
 // args:
-//   - echo.Context: c   Echoのコンテキスト。リクエストやレスポンスにアクセスするために使用
-//   - dto.ResDogOwnerDto: rdo フロントに返す飼い主情報
-//   - string: msg フロントに返すメッセージ文
+//   - echo.Context:  Echoのコンテキスト。リクエストやレスポンスにアクセスするために使用
+//   - dto.ResDogOwnerDto: フロントに返す飼い主情報
+//   - string: フロントに返すメッセージ文
 //
 // return:
 //  - error: error情報
@@ -288,19 +301,19 @@ func (ah *authHandler) JwtProcessing(c echo.Context, rdo dto.ResDogOwnerDto, msg
 // createToken: 指定された秘密鍵を使用して認証用のJWTトークンを生成
 //
 // args:
-//   - echo.Context: c   Echoのコンテキスト。リクエストやレスポンスにアクセスするために使用
-//   - string: secretKey   トークンの署名に使用する秘密鍵を表す文字列
-//   - dto.ResDogOwnerDto: rdo 飼い主用のレスポンス情報
-//   - int: expTime トークンの有効期限を秒単位で指定
+//   - echo.Context:  Echoのコンテキスト。リクエストやレスポンスにアクセスするために使用
+//   - string: トークンの署名に使用する秘密鍵を表す文字列
+//   - dto.ResDogOwnerDto: 飼い主用のレスポンス情報
+//   - int: トークンの有効期限を秒単位で指定
 //
 // return:
 //   - string: 生成されたJWTトークンを表す文字列
-//   - error: トークンの生成中に問題が発生したエラー
+//   - error: error情報
 func createToken(c echo.Context, secretKey string, rdo dto.ResDogOwnerDto, expTime int) (string, error) {
 	logger := log.GetLogger(c).Sugar()
 	// JWTのペイロード
 	claims := &dto.AccountClaims{
-		ID:  strconv.FormatUint(uint64(rdo.DogOwnerID), 10), // stringにコンバート
+		ID:  strconv.FormatInt(rdo.DogOwnerID, 10), // stringにコンバート
 		JTI: rdo.JwtID,
 		RegisteredClaims: jwt.RegisteredClaims{
 			ExpiresAt: jwt.NewNumericDate(time.Now().Add(time.Hour * time.Duration(expTime))), // 有効時間
@@ -328,7 +341,7 @@ func createToken(c echo.Context, secretKey string, rdo dto.ResDogOwnerDto, expTi
 // createJwtID: JWT IDの生成。引数の数だけランダムの文字列を生成
 //
 // args:
-//   - int: length 生成したい数
+//   - int: 生成したい数
 //
 // return:
 //   - string:　ランダム文字列
