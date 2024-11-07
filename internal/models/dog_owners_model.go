@@ -14,3 +14,8 @@ type DogOwner struct {
 	CreateAt   util.CustomTime `json:"createAt" gorm:"column:reg_at;not null;autoCreateTime"`
 	UpdateAt   util.CustomTime `json:"updateAt" gorm:"column:upd_at;not null;autoCreateTime"`
 }
+
+// dogownerが空かの判定
+func (do *DogOwner) IsEmpty() bool {
+	return !do.DogOwnerID.Valid
+}

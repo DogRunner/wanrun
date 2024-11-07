@@ -3,7 +3,7 @@ package dto
 import "time"
 
 // ドッグラン詳細画面での表示情報
-type DogrunDetailDto struct {
+type DogrunDetail struct {
 	DogrunID        int            `json:"dogrunId,omitempty"`
 	DogrunManagerID int            `json:"dogrunManagerId,omitempty"`
 	PlaceId         string         `json:"placeId,omitempty"`
@@ -22,7 +22,7 @@ type DogrunDetailDto struct {
 }
 
 // ドッグラン一覧での表示情報
-type DogrunListDto struct {
+type DogrunLists struct {
 	DogrunID          int             `json:"dogrunId,omitempty"`
 	PlaceId           string          `json:"placeId,omitempty"`
 	Name              string          `json:"name"`

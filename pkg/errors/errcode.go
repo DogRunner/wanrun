@@ -3,6 +3,7 @@ package errors
 import "fmt"
 
 const (
+	OTHER     int = 0
 	AUTH      int = 1
 	DOG       int = 2
 	DOG_OWNER int = 3
@@ -17,6 +18,13 @@ const (
 type eType struct {
 	service   int
 	errorType int
+}
+
+/*
+その他の予期せぬエラー
+*/
+func NewUnexpectedErrorEType() eType {
+	return eType{OTHER, SERVER}
 }
 
 /*

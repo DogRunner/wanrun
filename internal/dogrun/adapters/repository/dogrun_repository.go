@@ -13,7 +13,7 @@ import (
 type IDogrunRepository interface {
 	GetDogrunByPlaceID(echo.Context, string) (model.Dogrun, error)
 	GetDogrunByID(string) (model.Dogrun, error)
-	GetDogrunByRectanglePointer(echo.Context, dto.SearchAroudRectangleCondition) ([]model.Dogrun, error)
+	GetDogrunByRectanglePointer(echo.Context, dto.SearchAroundRectangleCondition) ([]model.Dogrun, error)
 	RegistDogrunPlaceId(echo.Context, string) (int, error)
 }
 
@@ -52,7 +52,7 @@ func (drr *dogrunRepository) GetDogrunByID(id string) (model.Dogrun, error) {
 /*
 リクエストのボディの条件に基づいて、指定範囲内のドッグランを取得する
 */
-func (drr *dogrunRepository) GetDogrunByRectanglePointer(c echo.Context, condition dto.SearchAroudRectangleCondition) ([]model.Dogrun, error) {
+func (drr *dogrunRepository) GetDogrunByRectanglePointer(c echo.Context, condition dto.SearchAroundRectangleCondition) ([]model.Dogrun, error) {
 	logger := log.GetLogger(c).Sugar()
 	dogruns := []model.Dogrun{}
 	if err := drr.db.Preload("DogrunTags.TagMst").

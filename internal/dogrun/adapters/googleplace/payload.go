@@ -53,7 +53,7 @@ type rectangle struct {
 	High pointer `json:"high" validate:"required"` //長方形の北東の角
 }
 
-func ConvertReqToSearchNearbyPayload(req dto.SearchAroudCircleCondition) SearchNearbyPayLoad {
+func ConvertReqToSearchNearbyPayload(req dto.SearchAroundCircleCondition) SearchNearbyPayLoad {
 	center := pointer{
 		Latitude:  req.Center.Latitude,
 		Longitude: req.Center.Longitude,
@@ -72,7 +72,7 @@ func ConvertReqToSearchNearbyPayload(req dto.SearchAroudCircleCondition) SearchN
 	}
 }
 
-func ConvertReqToSearchTextPayload(req dto.SearchAroudRectangleCondition) SearchTextPayLoad {
+func ConvertReqToSearchTextPayload(req dto.SearchAroundRectangleCondition) SearchTextPayLoad {
 	rectangle := rectangle{
 		Low: pointer{
 			Latitude:  req.Target.Southwest.Latitude,

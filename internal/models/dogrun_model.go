@@ -21,7 +21,7 @@ type Dogrun struct {
 	Longitude       sql.NullFloat64 `gorm:"column:longitude"`
 	Description     sql.NullString  `gorm:"type:text;column:description"`
 	CreateAt        sql.NullTime    `gorm:"column:reg_at;not null;autoCreateTime"`
-	UpdateAt        sql.NullTime    `gorm:"column:upd_at;not null;autoCreateTime"`
+	UpdateAt        sql.NullTime    `gorm:"column:upd_at;not null;autoUpdateTime"`
 
 	//リレーション
 	DogrunTags           []DogrunTag           `gorm:"foreignKey:DogrunID;references:DogrunID"`
@@ -88,7 +88,7 @@ func (d *Dogrun) IsSpecialBusinessHoursNotEmpty() bool {
 /*
 対象のドッグランの通常営業時時間データから、指定されたの曜日(数値:0~6)の営業時間データを返す
 */
-func (d *Dogrun) FetchTargetRegularBussinessHour(day int) RegularBusinessHour {
+func (d *Dogrun) FetchTargetRegularBusinessHour(day int) RegularBusinessHour {
 	for _, v := range d.RegularBusinessHours {
 		if day == int(v.Day.Int64) {
 			return v
