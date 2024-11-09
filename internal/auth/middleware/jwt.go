@@ -10,15 +10,14 @@ import (
 	"github.com/wanrun-develop/wanrun/internal/auth/core/dto"
 )
 
-// CreateJwtConfig: context部分のconfig設定
+// NewJwtValidationMiddleware: JWT検証用のミドルウェア設定を生成
 //
 // args:
-//   - :
-//   - :
+//   - string: スキップするルートパスのプレフィックス（例: "/auth" で auth グループ配下のルートをスキップ）
 //
 // return:
-//   - echo.MiddlewareFunc: ミドルウェア設定
-func CreateJwtConfig(agp string) echo.MiddlewareFunc {
+//   - echo.MiddlewareFunc: JWT検証のためのミドルウェア設定
+func NewJwtValidationMiddleware(agp string) echo.MiddlewareFunc {
 	return echojwt.WithConfig(
 		echojwt.Config{
 			SigningKey: []byte(configs.FetchCondigStr("jwt.os.secret.key")), // 署名用の秘密鍵

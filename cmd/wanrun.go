@@ -56,7 +56,7 @@ func Main() {
 	e.Use(logger.RequestLoggerMiddleware(zap))
 
 	// JWTミドルウェアの設定
-	e.Use(dogMW.CreateJwtConfig(AUTH_GROUP_PATH))
+	e.Use(dogMW.NewJwtValidationMiddleware(AUTH_GROUP_PATH))
 
 	// CORSの設定
 	e.Use(middleware.CORS())
@@ -93,7 +93,7 @@ func newRouter(e *echo.Echo, dbConn *gorm.DB) {
 	auth := e.Group(AUTH_GROUP_PATH)
 	// auth.GET("/google/oauth", authController.GoogleOAuth)
 	auth.POST("/signUp", authController.SignUp)
-	auth.POST("/login", authController.LogIn)
+	auth.POST("/token", authController.LogIn)
 }
 
 // dogの初期化

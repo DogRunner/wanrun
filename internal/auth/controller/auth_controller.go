@@ -3,6 +3,8 @@ package controller
 import (
 
 	// "github.com/golang-jwt/jwt/v5"
+	"net/http"
+
 	"github.com/labstack/echo/v4"
 	"github.com/wanrun-develop/wanrun/internal/auth/core/dto"
 	"github.com/wanrun-develop/wanrun/internal/auth/core/handler"
@@ -24,11 +26,6 @@ type authController struct {
 func NewAuthController(ah handler.IAuthHandler) IAuthController {
 	return &authController{ah}
 }
-
-const (
-	SIGNUP_MSG string = "飼い主の登録完了しました。"
-	LOGIN_MSG  string = "ログインが完了しました。"
-)
 
 /*
 GoogleのOAuth認証
@@ -86,23 +83,31 @@ GoogleのOAuth認証
 func (ac *authController) SignUp(c echo.Context) error {
 	logger := log.GetLogger(c).Sugar()
 
-	reqADOD := dto.ReqAuthDogOwnerDto{}
+	ador := dto.AuthDogOwnerReq{}
 
-	if err := c.Bind(&reqADOD); err != nil {
+	if err := c.Bind(&ador); err != nil {
 		wrErr := errors.NewWRError(err, "入力項目に不正があります。", errors.NewDogownerClientErrorEType())
 		logger.Error(wrErr)
 		return wrErr
 	}
 
 	// dogOwnerのSignUp
-	resDogOwner, wrErr := ac.ah.SignUp(c, reqADOD)
+	dogOwnerDetail, wrErr := ac.ah.CreateDogOwner(c, ador)
 
 	if wrErr != nil {
 		return wrErr
 	}
 
-	// jwt処理
-	return ac.ah.JwtProcessing(c, resDogOwner, SIGNUP_MSG)
+	// 署名済みのjwt token取得
+	token, wrErr := ac.ah.GetSignedJWT(c, dogOwnerDetail)
+
+	if wrErr != nil {
+		return wrErr
+	}
+
+	return c.JSON(http.StatusCreated, map[string]string{
+		"accessToken": token,
+	})
 }
 
 // LogIn: login機能
@@ -115,23 +120,31 @@ func (ac *authController) SignUp(c echo.Context) error {
 func (ac *authController) LogIn(c echo.Context) error {
 	logger := log.GetLogger(c).Sugar()
 
-	reqADOD := dto.ReqAuthDogOwnerDto{}
+	ador := dto.AuthDogOwnerReq{}
 
-	if err := c.Bind(&reqADOD); err != nil {
+	if err := c.Bind(&ador); err != nil {
 		wrErr := errors.NewWRError(err, "入力項目に不正があります。", errors.NewDogownerClientErrorEType())
 		logger.Error(wrErr)
 		return wrErr
 	}
 
-	// LogIn処理
-	resDogOwner, wrErr := ac.ah.LogIn(c, reqADOD)
+	// dogOwnerの情報取得
+	DogOwnerDetail, wrErr := ac.ah.FetchDogOwnerInfo(c, ador)
 
 	if wrErr != nil {
 		return wrErr
 	}
 
-	// jwt処理
-	return ac.ah.JwtProcessing(c, resDogOwner, LOGIN_MSG)
+	// 署名済みのjwt token取得
+	token, wrErr := ac.ah.GetSignedJWT(c, DogOwnerDetail)
+
+	if wrErr != nil {
+		return wrErr
+	}
+
+	return c.JSON(http.StatusOK, map[string]string{
+		"accessToken": token,
+	})
 }
 
 func (ac *authController) LogOut(c echo.Context) error { return nil }
