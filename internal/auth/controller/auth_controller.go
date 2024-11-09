@@ -99,7 +99,7 @@ func (ac *authController) SignUp(c echo.Context) error {
 	}
 
 	// 署名済みのjwt token取得
-	token, wrErr := ac.ah.GetSignedJWT(c, dogOwnerDetail)
+	token, wrErr := ac.ah.GetSignedJwt(c, dogOwnerDetail)
 
 	if wrErr != nil {
 		return wrErr
@@ -136,7 +136,7 @@ func (ac *authController) LogIn(c echo.Context) error {
 	}
 
 	// 署名済みのjwt token取得
-	token, wrErr := ac.ah.GetSignedJWT(c, DogOwnerDetail)
+	token, wrErr := ac.ah.GetSignedJwt(c, DogOwnerDetail)
 
 	if wrErr != nil {
 		return wrErr
