@@ -42,7 +42,7 @@ func NewAuthHandler(ar repository.IAuthRepository) IAuthHandler {
 // CreateDogOwner: DogOwnerの作成
 //
 // args:
-//   - echo.Context: c   Echoのコンテキスト。リクエストやレスポンスにアクセスするために使用
+//   - echo.Context: Echoのコンテキスト。リクエストやレスポンスにアクセスするために使用
 //   - dto.AuthDogOwnerReq: authDogOwnerのリクエスト情報
 //
 // return:
@@ -102,7 +102,7 @@ func (ah *authHandler) CreateDogOwner(c echo.Context, ador dto.AuthDogOwnerReq) 
 
 	// 作成したDogOwnerの情報をdto詰め替え
 	dogOwnerDetail := dto.DogOwnerDTO{
-		DogOwnerID: uint64(result.AuthDogOwner.DogOwnerID.Int64),
+		DogOwnerID: result.AuthDogOwner.DogOwnerID.Int64,
 		JwtID:      result.AuthDogOwner.JwtID.String,
 	}
 
@@ -114,7 +114,7 @@ func (ah *authHandler) CreateDogOwner(c echo.Context, ador dto.AuthDogOwnerReq) 
 // FetchDogOwnerInfo: リクエストのバリデーションやdogOwnerの情報取得
 //
 // args:
-//   - echo.Context: c   Echoのコンテキスト。リクエストやレスポンスにアクセスするために使用
+//   - echo.Context: Echoのコンテキスト。リクエストやレスポンスにアクセスするために使用
 //   - dto.AuthDogOwnerReq: authDogOwnerのリクエスト情報
 //
 // return:
@@ -169,7 +169,7 @@ func (ah *authHandler) FetchDogOwnerInfo(c echo.Context, ador dto.AuthDogOwnerRe
 
 	// 作成したDogOwnerの情報をdto詰め替え
 	dogOwnerDetail := dto.DogOwnerDTO{
-		DogOwnerID: uint64(result.AuthDogOwner.DogOwnerID.Int64),
+		DogOwnerID: result.AuthDogOwner.DogOwnerID.Int64,
 		JwtID:      jwtID,
 	}
 
@@ -238,7 +238,7 @@ Google OAuth認証
 // 	}
 
 // 	resDogOwner := dto.ResDogOwnerDto{
-// 		DogOwnerID: uint(dogOC.AuthDogOwner.DogOwner.DogOwnerID.Int64),
+// 		DogOwnerID: dogOC.AuthDogOwner.DogOwner.DogOwnerID.Int64,
 // 	}
 
 // 	return resDogOwner, nil
@@ -250,7 +250,7 @@ Google OAuth認証
 //   - dto.ReqAuthDogOwnerDto: Response用のAuthDogOwnerのDTO
 //
 // return:
-//   - error: err
+//   - error: err情報
 func validateEmailOrPhoneNumber(ador dto.AuthDogOwnerReq) error {
 	// 両方が空の場合はエラー
 	if ador.Email == "" && ador.PhoneNumber == "" {
@@ -320,7 +320,7 @@ func createToken(c echo.Context, secretKey string, dod dto.DogOwnerDTO, expTime 
 
 	// JWTのペイロード
 	claims := &dto.AccountClaims{
-		ID:  strconv.FormatUint(uint64(dod.DogOwnerID), 10), // stringにコンバート
+		ID:  strconv.FormatInt(dod.DogOwnerID, 10), // stringにコンバート
 		JTI: dod.JwtID,
 		RegisteredClaims: jwt.RegisteredClaims{
 			ExpiresAt: jwt.NewNumericDate(time.Now().Add(time.Hour * time.Duration(expTime))), // 有効時間
@@ -351,8 +351,8 @@ func createToken(c echo.Context, secretKey string, dod dto.DogOwnerDTO, expTime 
 //   - int: length 生成したい数
 //
 // return:
-//   - string:　ランダム文字列
-//   - error:　error情報
+//   - string: ランダム文字列
+//   - error: error情報
 func createJwtID(c echo.Context, length int) (string, error) {
 	logger := log.GetLogger(c).Sugar()
 
