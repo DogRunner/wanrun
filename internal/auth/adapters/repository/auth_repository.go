@@ -6,6 +6,7 @@ import (
 	"fmt"
 
 	"github.com/labstack/echo/v4"
+	"github.com/wanrun-develop/wanrun/internal/auth/core/dto"
 	model "github.com/wanrun-develop/wanrun/internal/models"
 	wrErrors "github.com/wanrun-develop/wanrun/pkg/errors"
 	"github.com/wanrun-develop/wanrun/pkg/log"
@@ -14,8 +15,9 @@ import (
 
 type IAuthRepository interface {
 	CreateDogOwner(c echo.Context, doc *model.DogOwnerCredential) (*model.DogOwnerCredential, error)
-	GetDogOwnerByCredential(c echo.Context, doc model.DogOwnerCredential) (*model.DogOwnerCredential, error)
+	GetDogOwnerByCredential(c echo.Context, ador dto.AuthDogOwnerReq) (*model.DogOwnerCredential, error)
 	// CreateOAuthDogOwner(c echo.Context, dogOwnerCredential *model.DogOwnerCredential) (*model.DogOwnerCredential, error)
+	UpdateJwtID(c echo.Context, doc *model.DogOwnerCredential, jwt_id string) error
 }
 
 type authRepository struct {
@@ -172,19 +174,19 @@ OAuthユーザーの作成
 //
 // args:
 //   - echo.Context: c Echoのコンテキスト。リクエストやレスポンスにアクセスするために使用
-//   - model.DogOwnerCredential: doc ドッグオーナーのクレデンシャル
+//   - dto.AuthDogOwnerReq: authDogOwnerのリクエスト情報
 //
 // return:
 //   - *model.DogOwnerCredential: ドッグオーナーのクレデンシャル
 //   - error: error情報
-func (ar *authRepository) GetDogOwnerByCredential(c echo.Context, doc model.DogOwnerCredential) (*model.DogOwnerCredential, error) {
+func (ar *authRepository) GetDogOwnerByCredential(c echo.Context, ador dto.AuthDogOwnerReq) (*model.DogOwnerCredential, error) {
 	logger := log.GetLogger(c).Sugar()
 
 	var result model.DogOwnerCredential
 
 	// EmailまたはPhoneNumberとgrantTypeがPASSWORDに基づくレコードを検索
 	err := ar.db.Model(&model.DogOwnerCredential{}).
-		Where("(email = ? OR phone_number = ?) AND grant_type = ?", doc.Email, doc.PhoneNumber, model.PASSWORD_GRANT_TYPE).
+		Where("(email = ? OR phone_number = ?) AND grant_type = ?", ador.Email, ador.PhoneNumber, model.PASSWORD_GRANT_TYPE).
 		Preload("AuthDogOwner").
 		Preload("AuthDogOwner.DogOwner").
 		First(&result).
@@ -217,9 +219,46 @@ func (ar *authRepository) GetDogOwnerByCredential(c echo.Context, doc model.DogO
 	return &result, nil
 }
 
-/*
-重複確認
-*/
+// UpdateJwtID: 対象のdogOwnerのjwt_idの更新
+//
+// args:
+//   - echo.Context: Echoのコンテキスト。リクエストやレスポンスにアクセスするために使用
+//   - *model.DogOwnerCredential: dogOwnerの情報
+//   - string: 更新用のjwt_id
+//
+// return:
+//   - error: error情報
+func (ar *authRepository) UpdateJwtID(c echo.Context, doc *model.DogOwnerCredential, jwt_id string) error {
+	logger := log.GetLogger(c).Sugar()
+
+	// 対象のdogOwnerのjwt_idの更新
+	err := ar.db.Model(&model.AuthDogOwner{}).
+		Where("dog_owner_id= ?", doc.AuthDogOwner.DogOwner.DogOwnerID.Int64).
+		Update("jwt_id", jwt_id).Error
+
+	if err != nil {
+		wrErr := wrErrors.NewWRError(
+			err,
+			"DBへの更新が失敗しました。",
+			wrErrors.NewDogownerServerErrorEType())
+
+		logger.Errorf("Failed to update JWT ID: %v", wrErr)
+
+		return wrErr
+	}
+
+	return err
+}
+
+// checkDuplicate:  Password認証のバリデーション
+//
+// args:
+//   - echo.Context: Echoのコンテキスト。リクエストやレスポンスにアクセスするために使用
+//   - string: 対象のdbのフィールド名
+//   - sql.NullString: 対象のgrant_typeの値
+//
+// return:
+//   - error: error情報
 func (ar *authRepository) checkDuplicate(c echo.Context, field string, value sql.NullString) error {
 	logger := log.GetLogger(c).Sugar()
 

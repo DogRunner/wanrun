@@ -21,7 +21,7 @@ import (
 
 type IAuthHandler interface {
 	CreateDogOwner(c echo.Context, ador dto.AuthDogOwnerReq) (dto.DogOwnerDTO, error)
-	GetSignedJWT(c echo.Context, dod dto.DogOwnerDTO) (string, error)
+	GetSignedJwt(c echo.Context, dod dto.DogOwnerDTO) (string, error)
 	FetchDogOwnerInfo(c echo.Context, ador dto.AuthDogOwnerReq) (dto.DogOwnerDTO, error)
 	// LogOut() error
 	// GoogleOAuth(c echo.Context, authorizationCode string, grantType types.GrantType) (dto.ResDogOwnerDto, error)
@@ -129,16 +129,10 @@ func (ah *authHandler) FetchDogOwnerInfo(c echo.Context, ador dto.AuthDogOwnerRe
 		return dto.DogOwnerDTO{}, wrErr
 	}
 
-	dogOwnerCredential := model.DogOwnerCredential{
-		Email:       wrUtil.NewSqlNullString(ador.Email),
-		PhoneNumber: wrUtil.NewSqlNullString(ador.PhoneNumber),
-		Password:    wrUtil.NewSqlNullString(ador.Password),
-	}
-
-	logger.Debugf("dogOwnerCredential %v, Type: %T", dogOwnerCredential, dogOwnerCredential)
+	logger.Debugf("authDogOwnerReq: %v, Type: %T", ador, ador)
 
 	// EmailかPhoneNumberから対象のDogOwner情報の取得
-	result, err := ah.ar.GetDogOwnerByCredential(c, dogOwnerCredential)
+	result, err := ah.ar.GetDogOwnerByCredential(c, ador)
 
 	if err != nil {
 		logger.Error(err)
@@ -159,10 +153,24 @@ func (ah *authHandler) FetchDogOwnerInfo(c echo.Context, ador dto.AuthDogOwnerRe
 		return dto.DogOwnerDTO{}, wrErr
 	}
 
+	// 更新用のJWT IDの生成
+	jwtID, wrErr := createJwtID(c, 15)
+
+	if wrErr != nil {
+		return dto.DogOwnerDTO{}, wrErr
+	}
+
+	// 取得したdogOwnerのjtw_idの更新
+	wrErr = ah.ar.UpdateJwtID(c, result, jwtID)
+
+	if wrErr != nil {
+		return dto.DogOwnerDTO{}, wrErr
+	}
+
 	// 作成したDogOwnerの情報をdto詰め替え
 	dogOwnerDetail := dto.DogOwnerDTO{
 		DogOwnerID: uint64(result.AuthDogOwner.DogOwnerID.Int64),
-		JwtID:      result.AuthDogOwner.JwtID.String,
+		JwtID:      jwtID,
 	}
 
 	logger.Infof("dogOwnerDetail: %v", dogOwnerDetail)
@@ -271,7 +279,7 @@ func validateEmailOrPhoneNumber(ador dto.AuthDogOwnerReq) error {
 /*
 jwt処理
 */
-// GetSignedJWT: 署名済みのJWT tokenの取得
+// GetSignedJwt: 署名済みのJWT tokenの取得
 //
 // args:
 //   - echo.Context: Echoのコンテキスト。リクエストやレスポンスにアクセスするために使用
@@ -281,7 +289,7 @@ jwt処理
 //  - string: 署名したtoken
 //  - error: error情報
 
-func (ah *authHandler) GetSignedJWT(c echo.Context, dod dto.DogOwnerDTO) (string, error) {
+func (ah *authHandler) GetSignedJwt(c echo.Context, dod dto.DogOwnerDTO) (string, error) {
 	// 秘密鍵取得
 	secretKey := configs.FetchCondigStr("jwt.os.secret.key")
 	jwtExpTime := configs.FetchCondigInt("jwt.exp.time")
