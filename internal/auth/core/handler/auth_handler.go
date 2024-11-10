@@ -12,6 +12,7 @@ import (
 	"github.com/wanrun-develop/wanrun/configs"
 	"github.com/wanrun-develop/wanrun/internal/auth/adapters/repository"
 	"github.com/wanrun-develop/wanrun/internal/auth/core/dto"
+	dogMW "github.com/wanrun-develop/wanrun/internal/auth/middleware"
 	model "github.com/wanrun-develop/wanrun/internal/models"
 	wrErrors "github.com/wanrun-develop/wanrun/pkg/errors"
 	"github.com/wanrun-develop/wanrun/pkg/log"
@@ -319,7 +320,7 @@ func createToken(c echo.Context, secretKey string, dod dto.DogOwnerDTO, expTime 
 	logger := log.GetLogger(c).Sugar()
 
 	// JWTのペイロード
-	claims := &dto.AccountClaims{
+	claims := &dogMW.AccountClaims{
 		ID:  strconv.FormatInt(dod.DogOwnerID, 10), // stringにコンバート
 		JTI: dod.JwtID,
 		RegisteredClaims: jwt.RegisteredClaims{
