@@ -1,6 +1,7 @@
 package internal
 
 import (
+	"net/http"
 	"os"
 
 	"github.com/labstack/echo/v4"
@@ -22,7 +23,14 @@ func Test(c echo.Context, dbConn *gorm.DB) error {
 		return wrErr
 	}
 
-	authJwt.IsJwtIDValid(c, claims)
+	isJwtIDValid, wrErr := authJwt.IsJwtIDValid(c, claims)
+
+	if wrErr != nil {
+		return wrErr
+	}
+	if !isJwtIDValid {
+		return echo.NewHTTPError(http.StatusUnauthorized, "Invalid JWT ID")
+	}
 
 	logger.Info("Test*()の実行. ")
 	if err := testError(); err != nil {
