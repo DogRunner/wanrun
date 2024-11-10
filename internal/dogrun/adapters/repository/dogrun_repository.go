@@ -32,7 +32,7 @@ PlaceIDで、ドッグランの取得
 func (drr *dogrunRepository) GetDogrunByPlaceID(c echo.Context, placeID string) (model.Dogrun, error) {
 	logger := log.GetLogger(c).Sugar()
 	dogrun := model.Dogrun{}
-	if err := drr.db.Preload("DogrunTags.TagMst").Preload("RegularBusinessHours").Preload("SpecialBusinessHours").Where("place_id = ?", placeID).Find(&dogrun).Error; err != nil {
+	if err := drr.db.Preload("DogrunTags").Preload("RegularBusinessHours").Preload("SpecialBusinessHours").Where("place_id = ?", placeID).Find(&dogrun).Error; err != nil {
 		logger.Error(err)
 		return model.Dogrun{}, errors.NewWRError(err, "DBからのデータ取得に失敗", errors.NewDogrunServerErrorEType())
 	}
@@ -56,7 +56,7 @@ func (drr *dogrunRepository) GetDogrunByID(id string) (model.Dogrun, error) {
 func (drr *dogrunRepository) GetDogrunByRectanglePointer(c echo.Context, condition dto.SearchAroundRectangleCondition) ([]model.Dogrun, error) {
 	logger := log.GetLogger(c).Sugar()
 	dogruns := []model.Dogrun{}
-	if err := drr.db.Preload("DogrunTags.TagMst").
+	if err := drr.db.Preload("DogrunTags").
 		Where("longitude BETWEEN ? AND ?", condition.Target.Southwest.Longitude, condition.Target.Northeast.Longitude).
 		Where("latitude BETWEEN ? AND ?", condition.Target.Southwest.Latitude, condition.Target.Northeast.Latitude).
 		Find(&dogruns).Error; err != nil {

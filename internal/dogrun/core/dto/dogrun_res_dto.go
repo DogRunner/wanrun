@@ -6,21 +6,21 @@ import (
 
 // ドッグラン詳細画面での表示情報
 type DogrunDetail struct {
-	DogrunID        int            `json:"dogrunId,omitempty"`
-	DogrunManagerID int            `json:"dogrunManagerId,omitempty"`
-	PlaceId         string         `json:"placeId,omitempty"`
-	Name            string         `json:"name"`
-	Address         Address        `json:"address"`
-	Location        Location       `json:"location"`
-	BusinessStatus  string         `json:"businessStatus,omitempty"`
-	NowOpen         bool           `json:"nowOpen"`
-	BusinessHour    BusinessHour   `json:"businessHour"`
-	Description     string         `json:"description,omitempty"`
-	GoogleRating    float32        `json:"googleRating,omitempty"`
-	UserRatingCount int            `json:"userRatingCount,omitempty"`
-	DogrunTags      []DogrunTagDto `json:"dogrunTags,omitempty"`
-	CreateAt        *time.Time     `json:"createAt,omitempty"`
-	UpdateAt        *time.Time     `json:"updateAt,omitempty"`
+	DogrunID        int          `json:"dogrunId,omitempty"`
+	DogrunManagerID int          `json:"dogrunManagerId,omitempty"`
+	PlaceId         string       `json:"placeId,omitempty"`
+	Name            string       `json:"name"`
+	Address         Address      `json:"address"`
+	Location        Location     `json:"location"`
+	BusinessStatus  string       `json:"businessStatus,omitempty"`
+	NowOpen         bool         `json:"nowOpen"`
+	BusinessHour    BusinessHour `json:"businessHour"`
+	Description     string       `json:"description,omitempty"`
+	GoogleRating    float32      `json:"googleRating,omitempty"`
+	UserRatingCount int          `json:"userRatingCount,omitempty"`
+	DogrunTags      []int64      `json:"dogrunTagId,omitempty"`
+	CreateAt        *time.Time   `json:"createAt,omitempty"`
+	UpdateAt        *time.Time   `json:"updateAt,omitempty"`
 }
 
 // ドッグラン一覧での表示情報
@@ -36,7 +36,7 @@ type DogrunLists struct {
 	Description       string          `json:"description,omitempty"`
 	GoogleRating      float32         `json:"googleRating,omitempty"`
 	UserRatingCount   int             `json:"userRatingCount,omitempty"`
-	DogrunTags        []DogrunTagDto  `json:"dogrunTags,omitempty"`
+	DogrunTags        []int64         `json:"dogrunTagId,omitempty"`
 	Photos            []PhotoInfo     `json:"photos,omitempty"`
 }
 
@@ -74,14 +74,6 @@ type PhotoInfo struct {
 	PhotoKey string `json:"photoKey"`
 	WidthPx  uint   `json:"widthPx"`
 	HeightPx uint   `json:"heightPx"`
-}
-
-// ドッグランタグ情報
-type DogrunTagDto struct {
-	DogrunTagId int    `json:"dogrunTagId"`
-	TagId       int    `json:"tagId"`
-	TagName     string `json:"tagName"`
-	Description string `json:"description"`
 }
 
 // 軽度・緯度情報

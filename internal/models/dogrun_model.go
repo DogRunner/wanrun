@@ -187,10 +187,6 @@ type DogrunTag struct {
 	DogrunTagID sql.NullInt64 `gorm:"primaryKey;column:dogrun_tag_id;autoIncrement"`
 	DogrunID    sql.NullInt64 `gorm:"column:dogrun_id;not null"`
 	TagID       sql.NullInt64 `gorm:"column:tag_id;not null"`
-
-	//リレーション
-	// Dogrun Dogrun `gorm:"foreignKey:DogrunID"`
-	TagMst TagMst `gorm:"foreignKey:TagID;references:TagID"`
 }
 
 type TagMst struct {
