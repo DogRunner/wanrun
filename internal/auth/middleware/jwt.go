@@ -61,12 +61,15 @@ func (aj *authJwt) NewJwtValidationMiddleware(agp string) echo.MiddlewareFunc {
 				return strings.HasPrefix(c.Path(), agp)
 			},
 			SuccessHandler: func(c echo.Context) {
-				// contextからJWTのclaims取得
-				claims, wrErr := getJwtClaims(c)
+				// contextからJWTのclaims取得と検証
+				claims, wrErr := getJwtClaimsAndVerification(c)
+
 				if wrErr != nil {
 					_ = c.JSON(http.StatusUnauthorized, map[string]error{"error": wrErr})
 					return
 				}
+
+				// リクエストのJWT内に含まれる`jwt_id`が、DBの`jwt_id`と一致するかを検証
 				isJwtIDValid, wrErr := aj.isJwtIDValid(c, claims)
 
 				if !isJwtIDValid {
@@ -74,14 +77,14 @@ func (aj *authJwt) NewJwtValidationMiddleware(agp string) echo.MiddlewareFunc {
 					return
 				}
 
-				// claimsをcontextにセット
+				// 全ての検証を終えたclaimsをcontextにセット
 				c.Set(VERIFIED_CONTEXT_KEY, claims)
 			},
 		},
 	)
 }
 
-// getJwtClaims: contextからJWTのclaimsを取得するメソッド
+// getJwtClaimsAndVerification: contextからJWTのclaimsを取得と検証
 //
 // args:
 //   - echo.Context: Echoのコンテキスト。リクエストやレスポンスにアクセスするために使用
@@ -89,7 +92,7 @@ func (aj *authJwt) NewJwtValidationMiddleware(agp string) echo.MiddlewareFunc {
 // return:
 //   - *AccountClaims: contextから取得したJWTのクレーム情報
 //   - error: error情報
-func getJwtClaims(c echo.Context) (*AccountClaims, error) {
+func getJwtClaimsAndVerification(c echo.Context) (*AccountClaims, error) {
 	logger := log.GetLogger(c).Sugar()
 
 	var wrErr error
@@ -142,7 +145,7 @@ func getJwtClaims(c echo.Context) (*AccountClaims, error) {
 	return claims, wrErr
 }
 
-// isJwtValid: リクエストのJWT内に含まれる`jwt_id`が、DBの`jwt_id`と一致するかを検証する共通メソッド
+// isJwtValid: リクエストのJWT内に含まれる`jwt_id`が、DBの`jwt_id`と一致するかを検証
 //
 // args:
 //   - echo.Context: Echoのコンテキスト。リクエストやレスポンスにアクセスするために使用
