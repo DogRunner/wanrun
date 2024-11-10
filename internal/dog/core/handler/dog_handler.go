@@ -4,7 +4,7 @@ import (
 	"github.com/labstack/echo/v4"
 	"github.com/wanrun-develop/wanrun/internal/dog/adapters/repository"
 	"github.com/wanrun-develop/wanrun/internal/dog/core/dto"
-	dwRepositoy "github.com/wanrun-develop/wanrun/internal/dogOwner/adapters/repository"
+	dwRepository "github.com/wanrun-develop/wanrun/internal/dogOwner/adapters/repository"
 	model "github.com/wanrun-develop/wanrun/internal/models"
 	"github.com/wanrun-develop/wanrun/pkg/errors"
 	"github.com/wanrun-develop/wanrun/pkg/log"
@@ -15,6 +15,7 @@ type IDogHandler interface {
 	GetAllDogs(echo.Context) ([]dto.DogListRes, error)
 	GetDogByID(echo.Context, int64) (dto.DogDetailsRes, error)
 	GetDogByDogOwnerID(echo.Context, int64) ([]dto.DogListRes, error)
+	GetDogTypeMst(c echo.Context) ([]dto.DogTypeRes, error)
 	CreateDog(echo.Context, dto.DogSaveReq) (int64, error)
 	UpdateDog(echo.Context, dto.DogSaveReq) (int64, error)
 	DeleteDog(echo.Context, int64) error
@@ -22,10 +23,10 @@ type IDogHandler interface {
 
 type dogHandler struct {
 	r   repository.IDogRepository
-	dwr dwRepositoy.IDogOwnerRepository
+	dwr dwRepository.IDogOwnerRepository
 }
 
-func NewDogHandler(r repository.IDogRepository, dwr dwRepositoy.IDogOwnerRepository) IDogHandler {
+func NewDogHandler(r repository.IDogRepository, dwr dwRepository.IDogOwnerRepository) IDogHandler {
 	return &dogHandler{r, dwr}
 }
 
@@ -145,6 +146,32 @@ func (h *dogHandler) GetDogByDogOwnerID(c echo.Context, dogOwnerID int64) ([]dto
 	}
 
 	return resDogs, nil
+}
+
+// GetDogTypeMst: DogTypeマスター情報の取得
+//
+// args:
+//   - echo.Context:	コンテキスト
+//
+// return:
+//   - []dto.DogTypeRes:	マスター情報
+//   - error:	エラー
+func (h *dogHandler) GetDogTypeMst(c echo.Context) ([]dto.DogTypeRes, error) {
+	dogTypeMst, err := h.r.GetDogTypeMst(c)
+	if err != nil {
+		return []dto.DogTypeRes{}, err
+	}
+	mstRes := []dto.DogTypeRes{}
+
+	for _, m := range dogTypeMst {
+		mst := dto.DogTypeRes{
+			DogTypeID: m.DogTypeID,
+			Name:      m.Name,
+		}
+		mstRes = append(mstRes, mst)
+	}
+
+	return mstRes, nil
 }
 
 // CreateDog: 犬の登録

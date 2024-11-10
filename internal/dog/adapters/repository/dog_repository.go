@@ -12,6 +12,7 @@ type IDogRepository interface {
 	GetAllDogs(echo.Context) ([]model.Dog, error)
 	GetDogByID(echo.Context, int64) (model.Dog, error)
 	GetDogByDogOwnerID(echo.Context, int64) ([]model.Dog, error)
+	GetDogTypeMst(echo.Context) ([]model.DogTypeMst, error)
 	CreateDog(echo.Context, model.Dog) (model.Dog, error)
 	UpdateDog(echo.Context, model.Dog) (model.Dog, error)
 	DeleteDog(echo.Context, int64) error
@@ -75,6 +76,27 @@ func (dr *dogRepository) GetDogByDogOwnerID(c echo.Context, dogOwnerID int64) ([
 		return []model.Dog{}, err
 	}
 	return dogs, nil
+}
+
+// GetDogTypeMst: dog_type_mstからマスターデータの全権select
+//
+// args:
+//   - echo.Context:
+//     -:
+//
+// return:
+//   - []model.DogTypeMst:
+//   - error:
+func (dr *dogRepository) GetDogTypeMst(c echo.Context) ([]model.DogTypeMst, error) {
+	logger := log.GetLogger(c).Sugar()
+
+	dogTypeMst := []model.DogTypeMst{}
+	if err := dr.db.Find(&dogTypeMst).Error; err != nil {
+		logger.Error(err)
+		err = errors.NewWRError(err, "dog_type_mstのselectで失敗しました。", errors.NewDogServerErrorEType())
+		return []model.DogTypeMst{}, err
+	}
+	return dogTypeMst, nil
 }
 
 // CreateDog: DBへdogのinsert
