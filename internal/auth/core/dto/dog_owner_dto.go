@@ -1,6 +1,6 @@
 package dto
 
 type DogOwnerDTO struct {
-	DogOwnerID uint64
+	DogOwnerID int64
 	JwtID      string
 }
