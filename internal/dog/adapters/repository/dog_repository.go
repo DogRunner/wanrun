@@ -50,7 +50,7 @@ func (dr *dogRepository) GetDogByID(c echo.Context, dogID int64) (model.Dog, err
 	logger := log.GetLogger(c).Sugar()
 
 	dog := model.Dog{}
-	if err := dr.db.Preload("DogType").Where("dog_id=?", dogID).Find(&dog).Error; err != nil {
+	if err := dr.db.Where("dog_id=?", dogID).Find(&dog).Error; err != nil {
 		logger.Error(err)
 		err = errors.NewWRError(err, "dogのselectで失敗しました。", errors.NewDogServerErrorEType())
 		return model.Dog{}, err
@@ -70,7 +70,7 @@ func (dr *dogRepository) GetDogByDogOwnerID(c echo.Context, dogOwnerID int64) ([
 	logger := log.GetLogger(c).Sugar()
 
 	dogs := []model.Dog{}
-	if err := dr.db.Preload("DogType").Where("dog_owner_id=?", dogOwnerID).Find(&dogs).Error; err != nil {
+	if err := dr.db.Where("dog_owner_id=?", dogOwnerID).Find(&dogs).Error; err != nil {
 		logger.Error(err)
 		err = errors.NewWRError(err, "dogのselectで失敗しました。", errors.NewDogServerErrorEType())
 		return []model.Dog{}, err

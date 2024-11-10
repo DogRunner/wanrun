@@ -16,8 +16,7 @@ type Dog struct {
 	UpdateAt   sql.NullTime   `gorm:"column:upd_at;not null;autoUpdateTime"`
 
 	//リレーション
-	DogOwner DogOwner   `gorm:"foreignKey:DogOwnerID;references:DogOwnerID"`
-	DogType  DogTypeMst `gorm:"foreignKey:DogTypeID;references:DogTypeID"`
+	DogOwner DogOwner `gorm:"foreignKey:DogOwnerID;references:DogOwnerID"`
 }
 
 // dogが空かの判定
