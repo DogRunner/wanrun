@@ -4,11 +4,10 @@ import (
 	_ "context"
 	"crypto/rand"
 	"encoding/base64"
-	"net/http"
 	"strconv"
 	"time"
 
-	"github.com/golang-jwt/jwt/v4"
+	"github.com/golang-jwt/jwt/v5"
 	"github.com/labstack/echo/v4"
 	"github.com/wanrun-develop/wanrun/configs"
 	"github.com/wanrun-develop/wanrun/internal/auth/adapters/repository"
@@ -16,15 +15,14 @@ import (
 	model "github.com/wanrun-develop/wanrun/internal/models"
 	wrErrors "github.com/wanrun-develop/wanrun/pkg/errors"
 	"github.com/wanrun-develop/wanrun/pkg/log"
-	"github.com/wanrun-develop/wanrun/pkg/success"
 	wrUtil "github.com/wanrun-develop/wanrun/pkg/util"
 	"golang.org/x/crypto/bcrypt"
 )
 
 type IAuthHandler interface {
-	SignUp(c echo.Context, reqADOD dto.ReqAuthDogOwnerDto) (dto.ResDogOwnerDto, error)
-	JwtProcessing(c echo.Context, rdo dto.ResDogOwnerDto) error
-	// LogIn(c echo.Context, reqADOD dto.ReqAuthDogOwnerDto) (dto.ResDogOwnerDto, error)
+	CreateDogOwner(c echo.Context, ador dto.AuthDogOwnerReq) (dto.DogOwnerDTO, error)
+	GetSignedJwt(c echo.Context, dod dto.DogOwnerDTO) (string, error)
+	FetchDogOwnerInfo(c echo.Context, ador dto.AuthDogOwnerReq) (dto.DogOwnerDTO, error)
 	// LogOut() error
 	// GoogleOAuth(c echo.Context, authorizationCode string, grantType types.GrantType) (dto.ResDogOwnerDto, error)
 }
@@ -41,12 +39,20 @@ func NewAuthHandler(ar repository.IAuthRepository) IAuthHandler {
 	return &authHandler{ar}
 }
 
-// SignUp
-func (ah *authHandler) SignUp(c echo.Context, rado dto.ReqAuthDogOwnerDto) (dto.ResDogOwnerDto, error) {
+// CreateDogOwner: DogOwnerの作成
+//
+// args:
+//   - echo.Context: c   Echoのコンテキスト。リクエストやレスポンスにアクセスするために使用
+//   - dto.AuthDogOwnerReq: authDogOwnerのリクエスト情報
+//
+// return:
+//   - dto.DogOwnerDOT: 作成したdogOwner情報
+//   - error: error情報
+func (ah *authHandler) CreateDogOwner(c echo.Context, ador dto.AuthDogOwnerReq) (dto.DogOwnerDTO, error) {
 	logger := log.GetLogger(c).Sugar()
 
 	// パスワードのハッシュ化
-	hash, err := bcrypt.GenerateFromPassword([]byte(rado.Password), bcrypt.DefaultCost) // 一旦costをデフォルト値
+	hash, err := bcrypt.GenerateFromPassword([]byte(ador.Password), bcrypt.DefaultCost) // 一旦costをデフォルト値
 
 	if err != nil {
 		wrErr := wrErrors.NewWRError(
@@ -55,91 +61,122 @@ func (ah *authHandler) SignUp(c echo.Context, rado dto.ReqAuthDogOwnerDto) (dto.
 			wrErrors.NewDogownerClientErrorEType(),
 		)
 		logger.Error(wrErr)
-		return dto.ResDogOwnerDto{}, wrErr
+		return dto.DogOwnerDTO{}, wrErr
 	}
 
 	// EmailとPhoneNumberのバリデーション
-	if wrErr := validateEmailOrPhoneNumber(rado); wrErr != nil {
+	if wrErr := validateEmailOrPhoneNumber(ador); wrErr != nil {
 		logger.Error(wrErr)
-		return dto.ResDogOwnerDto{}, wrErr
+		return dto.DogOwnerDTO{}, wrErr
 	}
 
 	// JWT IDの生成
 	jwtID, wrErr := createJwtID(c, 15)
 
 	if wrErr != nil {
-		return dto.ResDogOwnerDto{}, wrErr
+		return dto.DogOwnerDTO{}, wrErr
 	}
 
 	// requestからDogOwnerの構造体に詰め替え
 	dogOwnerCredential := model.DogOwnerCredential{
-		Email:       wrUtil.NewSqlNullString(rado.Email),
-		PhoneNumber: wrUtil.NewSqlNullString(rado.PhoneNumber),
+		Email:       wrUtil.NewSqlNullString(ador.Email),
+		PhoneNumber: wrUtil.NewSqlNullString(ador.PhoneNumber),
 		Password:    wrUtil.NewSqlNullString(string(hash)),
 		GrantType:   wrUtil.NewSqlNullString(model.PASSWORD_GRANT_TYPE), // Password認証
 		AuthDogOwner: model.AuthDogOwner{
 			JwtID: wrUtil.NewSqlNullString(jwtID),
 			DogOwner: model.DogOwner{
-				Name: wrUtil.NewSqlNullString(rado.DogOwnerName),
+				Name: wrUtil.NewSqlNullString(ador.DogOwnerName),
 			},
 		},
 	}
 
 	logger.Debugf("dogOwnerCredential %v, Type: %T", dogOwnerCredential, dogOwnerCredential)
 
-	// ドッグのオーナー作成
+	// ドッグオーナー作成
 	result, wrErr := ah.ar.CreateDogOwner(c, &dogOwnerCredential)
 
 	if wrErr != nil {
-		return dto.ResDogOwnerDto{}, wrErr
+		return dto.DogOwnerDTO{}, wrErr
 	}
 
 	// 作成したDogOwnerの情報をdto詰め替え
-	resDogOwnerDetail := dto.ResDogOwnerDto{
+	dogOwnerDetail := dto.DogOwnerDTO{
 		DogOwnerID: uint64(result.AuthDogOwner.DogOwnerID.Int64),
 		JwtID:      result.AuthDogOwner.JwtID.String,
 	}
 
-	logger.Infof("resDogOwnerDetail: %v", resDogOwnerDetail)
+	logger.Infof("dogOwnerDetail: %v", dogOwnerDetail)
 
-	return resDogOwnerDetail, nil
+	return dogOwnerDetail, nil
 }
 
-// Login
-// func (ah *authHandler) LogIn(c echo.Context, reqADOD dto.ReqAuthDogOwnerDto) (dto.ResDogOwnerDto, error) {
-// 	logger := log.GetLogger(c).Sugar()
-// 	authDogOwner := model.AuthDogOwner{
-// 		DogOwner: model.DogOwner{
-// 			Email: reqADOD.Email,
-// 		},
-// 	}
+// FetchDogOwnerInfo: リクエストのバリデーションやdogOwnerの情報取得
+//
+// args:
+//   - echo.Context: c   Echoのコンテキスト。リクエストやレスポンスにアクセスするために使用
+//   - dto.AuthDogOwnerReq: authDogOwnerのリクエスト情報
+//
+// return:
+//   - dto.DogOwnerDOT: 作成したdogOwner情報
+//   - error: error情報
+func (ah *authHandler) FetchDogOwnerInfo(c echo.Context, ador dto.AuthDogOwnerReq) (dto.DogOwnerDTO, error) {
+	logger := log.GetLogger(c).Sugar()
 
-// 	logger.Infof("authDogOwner Info: %v", authDogOwner)
+	// EmailとPhoneNumberのバリデーション
+	if wrErr := validateEmailOrPhoneNumber(ador); wrErr != nil {
+		logger.Error(wrErr)
+		return dto.DogOwnerDTO{}, wrErr
+	}
 
-// 	// Emailから対象のDogOwner情報の取得
-// 	result, err := ah.ar.GetDogOwnerByEmail(c, authDogOwner)
+	logger.Debugf("authDogOwnerReq: %v, Type: %T", ador, ador)
 
-// 	if err != nil {
-// 		logger.Error(err)
-// 		return dto.ResDogOwnerDto{}, err
-// 	}
+	// EmailかPhoneNumberから対象のDogOwner情報の取得
+	result, err := ah.ar.GetDogOwnerByCredential(c, ador)
 
-// 	// パスワードの確認
-// 	err = bcrypt.CompareHashAndPassword([]byte(result.Password), []byte(reqADOD.Password))
+	if err != nil {
+		logger.Error(err)
+		return dto.DogOwnerDTO{}, err
+	}
 
-// 	if err != nil {
-// 		logger.Error(err)
-// 		return dto.ResDogOwnerDto{}, err
-// 	}
+	// パスワードの確認
+	err = bcrypt.CompareHashAndPassword([]byte(result.Password.String), []byte(ador.Password))
 
-// 	resDogOwnerDetail := dto.ResDogOwnerDto{
-// 		DogOwnerID: result.DogOwnerID,
-// 	}
+	if err != nil {
+		wrErr := wrErrors.NewWRError(
+			err,
+			"パスワードが間違っています",
+			wrErrors.NewDogownerServerErrorEType())
 
-// 	logger.Infof("resDogOwnerDetail: %v", resDogOwnerDetail)
+		logger.Errorf("Password compare failure: %v", wrErr)
 
-// 	return resDogOwnerDetail, nil
-// }
+		return dto.DogOwnerDTO{}, wrErr
+	}
+
+	// 更新用のJWT IDの生成
+	jwtID, wrErr := createJwtID(c, 15)
+
+	if wrErr != nil {
+		return dto.DogOwnerDTO{}, wrErr
+	}
+
+	// 取得したdogOwnerのjtw_idの更新
+	wrErr = ah.ar.UpdateJwtID(c, result, jwtID)
+
+	if wrErr != nil {
+		return dto.DogOwnerDTO{}, wrErr
+	}
+
+	// 作成したDogOwnerの情報をdto詰め替え
+	dogOwnerDetail := dto.DogOwnerDTO{
+		DogOwnerID: uint64(result.AuthDogOwner.DogOwnerID.Int64),
+		JwtID:      jwtID,
+	}
+
+	logger.Infof("dogOwnerDetail: %v", dogOwnerDetail)
+
+	return dogOwnerDetail, nil
+}
 
 // Logout
 func (ah *authHandler) LogOut() error { return nil }
@@ -214,9 +251,9 @@ Google OAuth認証
 //
 // return:
 //   - error: err
-func validateEmailOrPhoneNumber(rado dto.ReqAuthDogOwnerDto) error {
+func validateEmailOrPhoneNumber(ador dto.AuthDogOwnerReq) error {
 	// 両方が空の場合はエラー
-	if rado.Email == "" && rado.PhoneNumber == "" {
+	if ador.Email == "" && ador.PhoneNumber == "" {
 		wrErr := wrErrors.NewWRError(
 			nil,
 			"Emailと電話番号のどちらも空です",
@@ -226,7 +263,7 @@ func validateEmailOrPhoneNumber(rado dto.ReqAuthDogOwnerDto) error {
 	}
 
 	// 両方に値が入っている場合もエラー
-	if rado.Email != "" && rado.PhoneNumber != "" {
+	if ador.Email != "" && ador.PhoneNumber != "" {
 		wrErr := wrErrors.NewWRError(
 			nil,
 			"Emailと電話番号のどちらも値が入っています",
@@ -242,50 +279,49 @@ func validateEmailOrPhoneNumber(rado dto.ReqAuthDogOwnerDto) error {
 /*
 jwt処理
 */
-// JwtProcessing: jwtの生成等を行う
+// GetSignedJwt: 署名済みのJWT tokenの取得
 //
 // args:
-//   - echo.Context: c   Echoのコンテキスト。リクエストやレスポンスにアクセスするために使用
-//   - dto.ResDogOwnerDto: rdo フロントに返す飼い主情報
+//   - echo.Context: Echoのコンテキスト。リクエストやレスポンスにアクセスするために使用
+//   - dto.DogOwnerDTO: 作成したdogOwnerの情報
 //
 // return:
+//  - string: 署名したtoken
 //  - error: error情報
 
-func (ah *authHandler) JwtProcessing(c echo.Context, rdo dto.ResDogOwnerDto) error {
+func (ah *authHandler) GetSignedJwt(c echo.Context, dod dto.DogOwnerDTO) (string, error) {
 	// 秘密鍵取得
 	secretKey := configs.FetchCondigStr("jwt.os.secret.key")
 	jwtExpTime := configs.FetchCondigInt("jwt.exp.time")
 
 	// jwt token生成
-	signedToken, wrErr := createToken(c, secretKey, rdo, jwtExpTime)
+	signedToken, wrErr := createToken(c, secretKey, dod, jwtExpTime)
 
 	if wrErr != nil {
-		return wrErr
+		return "", wrErr
 	}
 
-	return c.JSON(http.StatusCreated, success.SuccessResponse{
-		Message: "飼い主の登録完了しました。",
-		Token:   signedToken,
-	})
+	return signedToken, wrErr
 }
 
 // createToken: 指定された秘密鍵を使用して認証用のJWTトークンを生成
 //
 // args:
-//   - echo.Context: c   Echoのコンテキスト。リクエストやレスポンスにアクセスするために使用
+//   - echo.Context: Echoのコンテキスト。リクエストやレスポンスにアクセスするために使用
 //   - string: secretKey   トークンの署名に使用する秘密鍵を表す文字列
-//   - dto.ResDogOwnerDto: rdo 飼い主用のレスポンス情報
+//   - dto.DogOwnerDTO:  作成したdogOwnerの情報
 //   - int: expTime トークンの有効期限を秒単位で指定
 //
 // return:
 //   - string: 生成されたJWTトークンを表す文字列
 //   - error: トークンの生成中に問題が発生したエラー
-func createToken(c echo.Context, secretKey string, rdo dto.ResDogOwnerDto, expTime int) (string, error) {
+func createToken(c echo.Context, secretKey string, dod dto.DogOwnerDTO, expTime int) (string, error) {
 	logger := log.GetLogger(c).Sugar()
+
 	// JWTのペイロード
 	claims := &dto.AccountClaims{
-		ID:  strconv.FormatUint(uint64(rdo.DogOwnerID), 10), // stringにコンバート
-		JTI: rdo.JwtID,
+		ID:  strconv.FormatUint(uint64(dod.DogOwnerID), 10), // stringにコンバート
+		JTI: dod.JwtID,
 		RegisteredClaims: jwt.RegisteredClaims{
 			ExpiresAt: jwt.NewNumericDate(time.Now().Add(time.Hour * time.Duration(expTime))), // 有効時間
 		},

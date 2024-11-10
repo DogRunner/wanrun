@@ -2,9 +2,11 @@ package repository
 
 import (
 	"database/sql"
+	"errors"
 	"fmt"
 
 	"github.com/labstack/echo/v4"
+	"github.com/wanrun-develop/wanrun/internal/auth/core/dto"
 	model "github.com/wanrun-develop/wanrun/internal/models"
 	wrErrors "github.com/wanrun-develop/wanrun/pkg/errors"
 	"github.com/wanrun-develop/wanrun/pkg/log"
@@ -12,9 +14,10 @@ import (
 )
 
 type IAuthRepository interface {
-	CreateDogOwner(c echo.Context, dogOC *model.DogOwnerCredential) (*model.DogOwnerCredential, error)
-	// GetDogOwnerByEmail(c echo.Context, authDogOwner model.AuthDogOwner) (*model.AuthDogOwner, error)
+	CreateDogOwner(c echo.Context, doc *model.DogOwnerCredential) (*model.DogOwnerCredential, error)
+	GetDogOwnerByCredential(c echo.Context, ador dto.AuthDogOwnerReq) (*model.DogOwnerCredential, error)
 	// CreateOAuthDogOwner(c echo.Context, dogOwnerCredential *model.DogOwnerCredential) (*model.DogOwnerCredential, error)
+	UpdateJwtID(c echo.Context, doc *model.DogOwnerCredential, jwt_id string) error
 }
 
 type authRepository struct {
@@ -25,40 +28,49 @@ func NewAuthRepository(db *gorm.DB) IAuthRepository {
 	return &authRepository{db}
 }
 
-func (ar *authRepository) CreateDogOwner(c echo.Context, dogOC *model.DogOwnerCredential) (*model.DogOwnerCredential, error) {
+// CreateDogOwner: DogOwnerの作成
+//
+// args:
+//   - echo.Context: c Echoのコンテキスト。リクエストやレスポンスにアクセスするために使用
+//   - *model.DogOwnerCredential: doc ドッグオーナーのクレデンシャル
+//
+// return:
+//   - *model.DogOwnerCredential: ドッグオーナーのクレデンシャル
+//   - error: error情報
+func (ar *authRepository) CreateDogOwner(c echo.Context, doc *model.DogOwnerCredential) (*model.DogOwnerCredential, error) {
 	logger := log.GetLogger(c).Sugar()
 
 	// Emailの重複チェック
-	if wrErr := ar.checkDuplicate(c, model.EmailField, dogOC.Email); wrErr != nil {
+	if wrErr := ar.checkDuplicate(c, model.EmailField, doc.Email); wrErr != nil {
 		return nil, wrErr
 	}
 
 	// PhoneNumberの重複チェック
-	if wrErr := ar.checkDuplicate(c, model.PhoneNumberField, dogOC.PhoneNumber); wrErr != nil {
+	if wrErr := ar.checkDuplicate(c, model.PhoneNumberField, doc.PhoneNumber); wrErr != nil {
 		return nil, wrErr
 	}
 
 	// トランザクションの開始
 	err := ar.db.Transaction(func(tx *gorm.DB) error {
 		// dog_ownersテーブルにレコード作成
-		if err := tx.Create(&dogOC.AuthDogOwner.DogOwner).Error; err != nil {
+		if err := tx.Create(&doc.AuthDogOwner.DogOwner).Error; err != nil {
 			logger.Error("Failed to DogOwner: ", err)
 			return err
 		}
 
 		// DogOwnerが作成された後、そのIDをauthDogOwnerに設定
-		dogOC.AuthDogOwner.DogOwnerID = dogOC.AuthDogOwner.DogOwner.DogOwnerID
+		doc.AuthDogOwner.DogOwnerID = doc.AuthDogOwner.DogOwner.DogOwnerID
 
 		// auth_dog_ownersテーブルにレコード作成
-		if err := tx.Create(&dogOC.AuthDogOwner).Error; err != nil {
+		if err := tx.Create(&doc.AuthDogOwner).Error; err != nil {
 			logger.Error("Failed to AuthDogOwner: ", err)
 			return err
 		}
 		// AuthDogOwnerが作成された後、そのIDをdogOwnerCredentialに設定
-		dogOC.AuthDogOwnerID = dogOC.AuthDogOwner.AuthDogOwnerID
+		doc.AuthDogOwnerID = doc.AuthDogOwner.AuthDogOwnerID
 
 		// dog_owner_credentialsテーブルにレコード作成
-		if err := tx.Create(&dogOC).Error; err != nil {
+		if err := tx.Create(&doc).Error; err != nil {
 			logger.Error("Failed to DogOwnerCredential: ", err)
 			return err
 		}
@@ -76,21 +88,21 @@ func (ar *authRepository) CreateDogOwner(c echo.Context, dogOC *model.DogOwnerCr
 		return nil, wrErr
 	}
 
-	logger.Infof("Created DogOwner Detail: %v", dogOC.AuthDogOwner.DogOwner)
-	logger.Infof("Created AuthDogOwner Detail: %v", dogOC.AuthDogOwner)
-	logger.Infof("Created DogOwnerCredential Detail: %v", dogOC)
+	logger.Infof("Created DogOwner Detail: %v", doc.AuthDogOwner.DogOwner)
+	logger.Infof("Created AuthDogOwner Detail: %v", doc.AuthDogOwner)
+	logger.Infof("Created DogOwnerCredential Detail: %v", doc)
 
-	return dogOC, nil
+	return doc, nil
 }
 
 /*
 OAuthユーザーの作成
 */
-// func (ar *authRepository) CreateOAuthDogOwner(c echo.Context, dogOC *model.DogOwnerCredential) (*model.DogOwnerCredential, error) {
+// func (ar *authRepository) CreateOAuthDogOwner(c echo.Context, doc *model.DogOwnerCredential) (*model.DogOwnerCredential, error) {
 // 	logger := log.GetLogger(c).Sugar()
 
 // 	// Emailの確認
-// 	if wrErr := ar.checkDuplicate(c, model.PhoneNumberField, dogOC); wrErr != nil {
+// 	if wrErr := ar.checkDuplicate(c, model.PhoneNumberField, doc); wrErr != nil {
 // 		return nil, wrErr
 // 	}
 
@@ -99,24 +111,24 @@ OAuthユーザーの作成
 // 	// トランザクションの開始
 // 	err := ar.db.Transaction(func(tx *gorm.DB) error {
 // 		// dog_ownersテーブルにレコード作成
-// 		if err := tx.Create(&dogOC.AuthDogOwner.DogOwner).Error; err != nil {
+// 		if err := tx.Create(&doc.AuthDogOwner.DogOwner).Error; err != nil {
 // 			logger.Error("Failed to DogOwner: ", err)
 // 			return err
 // 		}
 
 // 		// DogOwnerが作成された後、そのIDをauthDogOwnerに設定
-// 		dogOC.AuthDogOwner.DogOwnerID = dogOC.AuthDogOwner.DogOwner.DogOwnerID
+// 		doc.AuthDogOwner.DogOwnerID = doc.AuthDogOwner.DogOwner.DogOwnerID
 
 // 		// auth_dog_ownersテーブルにレコード作成
-// 		if err := tx.Create(&dogOC.AuthDogOwner).Error; err != nil {
+// 		if err := tx.Create(&doc.AuthDogOwner).Error; err != nil {
 // 			logger.Error("Failed to AuthDogOwner: ", err)
 // 			return err
 // 		}
 
 // 		// AuthDogOwnerが作成された後、そのIDをdogOwnerCredentialに設定
-// dogOC.AuthDogOwnerID = dogOC.AuthDogOwner.AuthDogOwnerID
+// doc.AuthDogOwnerID = doc.AuthDogOwner.AuthDogOwnerID
 // 		// dog_owner_credentialsテーブルにレコード作成
-// 		if err := tx.Create(&dogOC).Error; err != nil {
+// 		if err := tx.Create(&doc).Error; err != nil {
 // 			logger.Error("Failed to DogOwnerCredential: ", err)
 // 			return err
 // 		}
@@ -134,13 +146,13 @@ OAuthユーザーの作成
 // 		return nil, wrErr
 // 	}
 
-// 	logger.Infof("Created DogOwner Detail: %v", dogOC.AuthDogOwner.DogOwner)
-// 	logger.Infof("Created AuthDogOwner Detail: %v", dogOC.AuthDogOwner)
-// 	logger.Infof("Created DogOwnerCredential Detail: %v", dogOC)
+// 	logger.Infof("Created DogOwner Detail: %v", doc.AuthDogOwner.DogOwner)
+// 	logger.Infof("Created AuthDogOwner Detail: %v", doc.AuthDogOwner)
+// 	logger.Infof("Created DogOwnerCredential Detail: %v", doc)
 
 // 	// レスポンス用にDogOwnerのクレデンシャル取得
 // 	var result model.DogOwnerCredential
-// 	err = ar.db.Preload("AuthDogOwner").Preload("AuthDogOwner.DogOwner").First(&result, dogOC.CredentialID).Error
+// 	err = ar.db.Preload("AuthDogOwner").Preload("AuthDogOwner.DogOwner").First(&result, doc.CredentialID).Error
 
 // 	if err != nil {
 // 		wrErr := wrErrors.NewWRError(
@@ -158,33 +170,106 @@ OAuthユーザーの作成
 // 	return &result, nil
 // }
 
-/*
-DogOwnerのメールアドレスからDogOwner情報の取得
-*/
-// func (ar *authRepository) GetDogOwnerByEmail(c echo.Context, authDogOwner *model.AuthDogOwner) (*model.AuthDogOwner, error) {
-// 	logger := log.GetLogger(c).Sugar()
+// GetDogOwnerByCredential: ドッグオーナーのクレデンシャル取得
+//
+// args:
+//   - echo.Context: c Echoのコンテキスト。リクエストやレスポンスにアクセスするために使用
+//   - dto.AuthDogOwnerReq: authDogOwnerのリクエスト情報
+//
+// return:
+//   - *model.DogOwnerCredential: ドッグオーナーのクレデンシャル
+//   - error: error情報
+func (ar *authRepository) GetDogOwnerByCredential(c echo.Context, ador dto.AuthDogOwnerReq) (*model.DogOwnerCredential, error) {
+	logger := log.GetLogger(c).Sugar()
 
-// 	var result model.AuthDogOwner = model.AuthDogOwner{}
+	var result model.DogOwnerCredential
 
-// 	if err := ar.db.Preload("DogOwner").Joins("LEFT JOIN dog_owners ON dog_owners.dog_owner_id = auth_dog_owners.dog_owner_id").Where("dog_owners.email = ?", authDogOwner.DogOwner.Email).First(&result).Error; err != nil {
-// 		logger.Error(err)
-// 		return nil, err
-// 	}
+	// EmailまたはPhoneNumberとgrantTypeがPASSWORDに基づくレコードを検索
+	err := ar.db.Model(&model.DogOwnerCredential{}).
+		Where("(email = ? OR phone_number = ?) AND grant_type = ?", ador.Email, ador.PhoneNumber, model.PASSWORD_GRANT_TYPE).
+		Preload("AuthDogOwner").
+		Preload("AuthDogOwner.DogOwner").
+		First(&result).
+		Error
 
-// 	logger.Infof("Query Result: %v", result)
+	if err != nil {
+		// 空だった時
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			wrErr := wrErrors.NewWRError(
+				err,
+				"認証情報がありません",
+				wrErrors.NewDogownerClientErrorEType())
 
-// 	return &result, nil
-// }
+			logger.Errorf("Not found credential error: %v", wrErr)
 
-/*
-重複確認
-*/
+			return nil, wrErr
+		}
+		// その他のエラー処理
+		wrErr := wrErrors.NewWRError(
+			err,
+			"DBからのデータ取得に失敗しました。",
+			wrErrors.NewDogownerServerErrorEType())
+
+		logger.Errorf("DB search failure: %v", wrErr)
+
+		return nil, wrErr
+	}
+	logger.Debugf("Query Result: %v", result)
+
+	return &result, nil
+}
+
+// UpdateJwtID: 対象のdogOwnerのjwt_idの更新
+//
+// args:
+//   - echo.Context: Echoのコンテキスト。リクエストやレスポンスにアクセスするために使用
+//   - *model.DogOwnerCredential: dogOwnerの情報
+//   - string: 更新用のjwt_id
+//
+// return:
+//   - error: error情報
+func (ar *authRepository) UpdateJwtID(c echo.Context, doc *model.DogOwnerCredential, jwt_id string) error {
+	logger := log.GetLogger(c).Sugar()
+
+	// 対象のdogOwnerのjwt_idの更新
+	err := ar.db.Model(&model.AuthDogOwner{}).
+		Where("dog_owner_id= ?", doc.AuthDogOwner.DogOwner.DogOwnerID.Int64).
+		Update("jwt_id", jwt_id).Error
+
+	if err != nil {
+		wrErr := wrErrors.NewWRError(
+			err,
+			"DBへの更新が失敗しました。",
+			wrErrors.NewDogownerServerErrorEType())
+
+		logger.Errorf("Failed to update JWT ID: %v", wrErr)
+
+		return wrErr
+	}
+
+	return err
+}
+
+// checkDuplicate:  Password認証のバリデーション
+//
+// args:
+//   - echo.Context: Echoのコンテキスト。リクエストやレスポンスにアクセスするために使用
+//   - string: 対象のdbのフィールド名
+//   - sql.NullString: 対象のgrant_typeの値
+//
+// return:
+//   - error: error情報
 func (ar *authRepository) checkDuplicate(c echo.Context, field string, value sql.NullString) error {
 	logger := log.GetLogger(c).Sugar()
 
 	// 重複のvalidate
 	var existingCount int64
-	err := ar.db.Model(&model.DogOwnerCredential{}).Where(field+" = ?", value).Count(&existingCount).Error
+
+	// grant_typeがPASSWORDで重複していないかの確認
+	err := ar.db.Model(&model.DogOwnerCredential{}).
+		Where(field+" = ? AND grant_type = ?", value, model.PASSWORD_GRANT_TYPE).
+		Count(&existingCount).
+		Error
 
 	if err != nil {
 		wrErr := wrErrors.NewWRError(
@@ -197,6 +282,7 @@ func (ar *authRepository) checkDuplicate(c echo.Context, field string, value sql
 
 		return wrErr
 	}
+
 	if existingCount > 0 {
 		wrErr := wrErrors.NewWRError(
 			nil,
