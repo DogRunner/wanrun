@@ -15,6 +15,7 @@ import (
 )
 
 type IAuthJwt interface {
+	IsJwtIDValid(c echo.Context, ac *AccountClaims) (bool, error)
 }
 
 type authJwt struct {
