@@ -1,36 +1,29 @@
 package internal
 
 import (
-	"net/http"
 	"os"
 
 	"github.com/labstack/echo/v4"
-	authRepository "github.com/wanrun-develop/wanrun/internal/auth/adapters/repository"
-	"github.com/wanrun-develop/wanrun/internal/auth/middleware"
+	"github.com/wanrun-develop/wanrun/internal/identity"
 	"github.com/wanrun-develop/wanrun/pkg/errors"
 	"github.com/wanrun-develop/wanrun/pkg/log"
-	"gorm.io/gorm"
 )
 
-func Test(c echo.Context, dbConn *gorm.DB) error {
+func Test(c echo.Context) error {
 	logger := log.GetLogger(c).Sugar()
-	authRepository := authRepository.NewAuthRepository(dbConn)
-	authJwt := middleware.NewAuthJwt(authRepository)
 
-	claims, wrErr := middleware.GetJwtClaims(c)
-
-	if wrErr != nil {
-		return wrErr
-	}
-
-	isJwtIDValid, wrErr := authJwt.IsJwtIDValid(c, claims)
+	// claims情報の取得
+	claims, wrErr := identity.GetVerifiedClaims(c)
 
 	if wrErr != nil {
 		return wrErr
 	}
-	if !isJwtIDValid {
-		return echo.NewHTTPError(http.StatusUnauthorized, "Invalid JWT ID")
-	}
+
+	userID := claims.ID
+	jti := claims.JTI
+	exp := claims.ExpiresAt
+
+	logger.Infof("userID: %v, jti: %v, exp: %v\n", userID, jti, exp)
 
 	logger.Info("Test*()の実行. ")
 	if err := testError(); err != nil {
