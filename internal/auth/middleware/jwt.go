@@ -1,6 +1,7 @@
 package middleware
 
 import (
+	"net/http"
 	"strconv"
 	"strings"
 	"time"
@@ -9,26 +10,27 @@ import (
 	echojwt "github.com/labstack/echo-jwt/v4"
 	"github.com/labstack/echo/v4"
 	"github.com/wanrun-develop/wanrun/configs"
-	"github.com/wanrun-develop/wanrun/internal/auth/adapters/repository"
+	"github.com/wanrun-develop/wanrun/internal/auth/middleware/adapters/repository"
 	"github.com/wanrun-develop/wanrun/pkg/errors"
 	"github.com/wanrun-develop/wanrun/pkg/log"
 )
 
 type IAuthJwt interface {
-	IsJwtIDValid(c echo.Context, ac *AccountClaims) (bool, error)
+	NewJwtValidationMiddleware(agp string) echo.MiddlewareFunc
 }
 
 type authJwt struct {
-	ar repository.IAuthRepository
+	ajr repository.IAuthJwtRepository
 }
 
-func NewAuthJwt(ar repository.IAuthRepository) IAuthJwt {
-	return &authJwt{ar}
+func NewAuthJwt(ajr repository.IAuthJwtRepository) IAuthJwt {
+	return &authJwt{ajr}
 }
 
 const (
-	CONTEXT_KEY   string = "user_info"
-	TOKEN_LOOK_UP string = "header:Authorization"
+	RAW_CONTEXT_KEY      string = "user_info"
+	TOKEN_LOOK_UP        string = "header:Authorization"
+	VERIFIED_CONTEXT_KEY string = "claims"
 )
 
 // JWTのClaims
@@ -45,24 +47,41 @@ type AccountClaims struct {
 //
 // return:
 //   - echo.MiddlewareFunc: JWT検証のためのミドルウェア設定
-func NewJwtValidationMiddleware(agp string) echo.MiddlewareFunc {
+func (aj *authJwt) NewJwtValidationMiddleware(agp string) echo.MiddlewareFunc {
 	return echojwt.WithConfig(
 		echojwt.Config{
 			SigningKey: []byte(configs.FetchCondigStr("jwt.os.secret.key")), // 署名用の秘密鍵
 			NewClaimsFunc: func(c echo.Context) jwt.Claims {
 				return &AccountClaims{} // カスタムクレームを設定
 			},
-			TokenLookup: TOKEN_LOOK_UP, // トークンの取得場所
-			ContextKey:  CONTEXT_KEY,   // カスタムキーを設定
+			TokenLookup: TOKEN_LOOK_UP,   // トークンの取得場所
+			ContextKey:  RAW_CONTEXT_KEY, // カスタムキーを設定
 			Skipper: func(c echo.Context) bool {
 				// authグループ配下のすべてのルートをスキップする
 				return strings.HasPrefix(c.Path(), agp)
+			},
+			SuccessHandler: func(c echo.Context) {
+				// contextからJWTのclaims取得
+				claims, wrErr := getJwtClaims(c)
+				if wrErr != nil {
+					_ = c.JSON(http.StatusUnauthorized, map[string]error{"error": wrErr})
+					return
+				}
+				isJwtIDValid, wrErr := aj.isJwtIDValid(c, claims)
+
+				if !isJwtIDValid {
+					_ = c.JSON(http.StatusUnauthorized, map[string]error{"error": wrErr})
+					return
+				}
+
+				// claimsをcontextにセット
+				c.Set(VERIFIED_CONTEXT_KEY, claims)
 			},
 		},
 	)
 }
 
-// GetJwtClaims: contextからJWTのclaimsを取得する共通メソッド
+// getJwtClaims: contextからJWTのclaimsを取得するメソッド
 //
 // args:
 //   - echo.Context: Echoのコンテキスト。リクエストやレスポンスにアクセスするために使用
@@ -70,12 +89,12 @@ func NewJwtValidationMiddleware(agp string) echo.MiddlewareFunc {
 // return:
 //   - *AccountClaims: contextから取得したJWTのクレーム情報
 //   - error: error情報
-func GetJwtClaims(c echo.Context) (*AccountClaims, error) {
+func getJwtClaims(c echo.Context) (*AccountClaims, error) {
 	logger := log.GetLogger(c).Sugar()
 
 	var wrErr error
 	// JWTトークンをコンテキストから取得
-	token, ok := c.Get(CONTEXT_KEY).(*jwt.Token)
+	token, ok := c.Get(RAW_CONTEXT_KEY).(*jwt.Token)
 	if !ok || token == nil {
 		wrErr := errors.NewWRError(
 			nil,
@@ -123,7 +142,7 @@ func GetJwtClaims(c echo.Context) (*AccountClaims, error) {
 	return claims, wrErr
 }
 
-// IsJwtValid: リクエストのJWT内に含まれる`jwt_id`が、DBの`jwt_id`と一致するかを検証する共通メソッド
+// isJwtValid: リクエストのJWT内に含まれる`jwt_id`が、DBの`jwt_id`と一致するかを検証する共通メソッド
 //
 // args:
 //   - echo.Context: Echoのコンテキスト。リクエストやレスポンスにアクセスするために使用
@@ -132,10 +151,10 @@ func GetJwtClaims(c echo.Context) (*AccountClaims, error) {
 // return:
 //   - bool: jwt_idが一致したかどうかの結果
 //   - error: error情報
-func (aj *authJwt) IsJwtIDValid(c echo.Context, ac *AccountClaims) (bool, error) {
+func (aj *authJwt) isJwtIDValid(c echo.Context, ac *AccountClaims) (bool, error) {
 	logger := log.GetLogger(c).Sugar()
 
-	// stringからint64変換
+	// dogOwnerIDをstringからint64変換
 	dogOwnerID, err := strconv.ParseInt(ac.ID, 10, 64)
 
 	if err != nil {
@@ -149,13 +168,14 @@ func (aj *authJwt) IsJwtIDValid(c echo.Context, ac *AccountClaims) (bool, error)
 	}
 
 	// 対象のdogOwnerからjwt_idの取得
-	jwtID, wrErr := aj.ar.GetJwtID(c, dogOwnerID)
+	jwtID, wrErr := aj.ajr.GetJwtID(c, dogOwnerID)
 
 	if wrErr != nil {
 		return false, wrErr
 	}
 
-	if jwtID == ac.JTI {
+	// フロントエンドからのリクエストのclaimsの`jti`とDBの`jwt_id`が一致するかどうか
+	if jwtID != ac.JTI {
 		wrErr := errors.NewWRError(
 			nil,
 			"jwt_idが一致しません。",
