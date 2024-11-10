@@ -14,7 +14,7 @@ import (
 	dogRepository "github.com/wanrun-develop/wanrun/internal/dog/adapters/repository"
 	dogController "github.com/wanrun-develop/wanrun/internal/dog/controller"
 	dogHandler "github.com/wanrun-develop/wanrun/internal/dog/core/handler"
-	dogOwnerRepositoy "github.com/wanrun-develop/wanrun/internal/dogOwner/adapters/repository"
+	dogOwnerRepository "github.com/wanrun-develop/wanrun/internal/dogOwner/adapters/repository"
 	"github.com/wanrun-develop/wanrun/internal/dogrun/adapters/googleplace"
 	dogrunR "github.com/wanrun-develop/wanrun/internal/dogrun/adapters/repository"
 	dogrunC "github.com/wanrun-develop/wanrun/internal/dogrun/controller"
@@ -74,12 +74,13 @@ func newRouter(e *echo.Echo, dbConn *gorm.DB) {
 	// dog.PUT("/:dogID", dogController.UpdateDog)
 
 	// dogrun関連
-	dogrunConrtoller := newDogrun(dbConn)
+	dogrunController := newDogrun(dbConn)
 	dogrun := e.Group("dogrun")
-	dogrun.GET("/detail/:placeId", dogrunConrtoller.GetDogrunDetail)
-	dogrun.GET("/:id", dogrunConrtoller.GetDogrun)
-	dogrun.POST("/search", dogrunConrtoller.SearchAroundDogruns)
-	dogrun.GET("/photo/src", dogrunConrtoller.GetDogrunPhoto)
+	dogrun.GET("/detail/:placeId", dogrunController.GetDogrunDetail)
+	dogrun.GET("/:id", dogrunController.GetDogrun)
+	dogrun.GET("/photo/src", dogrunController.GetDogrunPhoto)
+	dogrun.GET("/mst/tag", dogrunController.GetDogrunTagMst)
+	dogrun.POST("/search", dogrunController.SearchAroundDogruns)
 
 	// auth関連
 	authController := newAuth(dbConn)
@@ -92,7 +93,7 @@ func newRouter(e *echo.Echo, dbConn *gorm.DB) {
 // dogの初期化
 func newDog(dbConn *gorm.DB) dogController.IDogController {
 	dogRepository := dogRepository.NewDogRepository(dbConn)
-	dogOwnerRepository := dogOwnerRepositoy.NewDogRepository(dbConn)
+	dogOwnerRepository := dogOwnerRepository.NewDogRepository(dbConn)
 	dogHandler := dogHandler.NewDogHandler(dogRepository, dogOwnerRepository)
 	dogController := dogController.NewDogController(dogHandler)
 	return dogController
@@ -101,8 +102,8 @@ func newDog(dbConn *gorm.DB) dogController.IDogController {
 func newDogrun(dbConn *gorm.DB) dogrunC.IDogrunController {
 	dogrunRest := googleplace.NewRest()
 	dogrunRepository := dogrunR.NewDogrunRepository(dbConn)
-	dogrunHanlder := dogrunH.NewDogrunHandler(dogrunRest, dogrunRepository)
-	return dogrunC.NewDogrunController(dogrunHanlder)
+	dogrunHandler := dogrunH.NewDogrunHandler(dogrunRest, dogrunRepository)
+	return dogrunC.NewDogrunController(dogrunHandler)
 }
 
 func newAuth(dbConn *gorm.DB) authController.IAuthController {

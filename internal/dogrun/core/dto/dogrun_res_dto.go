@@ -1,6 +1,8 @@
 package dto
 
-import "time"
+import (
+	"time"
+)
 
 // ドッグラン詳細画面での表示情報
 type DogrunDetail struct {
@@ -78,7 +80,7 @@ type PhotoInfo struct {
 type DogrunTagDto struct {
 	DogrunTagId int    `json:"dogrunTagId"`
 	TagId       int    `json:"tagId"`
-	TagName     string `json:"tagIdagName"`
+	TagName     string `json:"tagName"`
 	Description string `json:"description"`
 }
 
@@ -92,4 +94,11 @@ type Location struct {
 type Address struct {
 	PostCode string `json:"postcode"`
 	Address  string `json:"address"`
+}
+
+// dogrunTagマスター情報
+type TagMstRes struct {
+	TagID       int64  `json:"tagId"`
+	TagName     string `json:"tagName"`
+	Description string `json:"description"`
 }

@@ -14,6 +14,7 @@ type IDogrunRepository interface {
 	GetDogrunByPlaceID(echo.Context, string) (model.Dogrun, error)
 	GetDogrunByID(string) (model.Dogrun, error)
 	GetDogrunByRectanglePointer(echo.Context, dto.SearchAroundRectangleCondition) ([]model.Dogrun, error)
+	GetTagMst(echo.Context) ([]model.TagMst, error)
 	RegistDogrunPlaceId(echo.Context, string) (int, error)
 }
 
@@ -63,6 +64,26 @@ func (drr *dogrunRepository) GetDogrunByRectanglePointer(c echo.Context, conditi
 		return nil, errors.NewWRError(err, "DBからのデータ取得に失敗", errors.NewDogrunServerErrorEType())
 	}
 	return dogruns, nil
+}
+
+// GetDogrunTagMst: tag_mstの全件select
+//
+// args:
+//   - echo.context:	コンテキスト
+//
+// return:
+//   - []model.TagMst:	マスター情報
+//   - error:	エラー
+func (drr *dogrunRepository) GetTagMst(c echo.Context) ([]model.TagMst, error) {
+	logger := log.GetLogger(c).Sugar()
+
+	tagMst := []model.TagMst{}
+	if err := drr.db.Find(&tagMst).Error; err != nil {
+		logger.Error(err)
+		err = errors.NewWRError(err, "tag_mstのselectで失敗しました。", errors.NewDogServerErrorEType())
+		return []model.TagMst{}, err
+	}
+	return tagMst, nil
 }
 
 // RegistDogrunPlaceId: placeIdをDBへ保存する

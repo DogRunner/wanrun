@@ -15,6 +15,7 @@ import (
 type IDogrunController interface {
 	GetDogrunDetail(echo.Context) error
 	GetDogrun(echo.Context) error
+	GetDogrunTagMst(echo.Context) error
 	SearchAroundDogruns(echo.Context) error
 	GetDogrunPhoto(echo.Context) error
 }
@@ -46,6 +47,24 @@ func (dc *dogrunController) GetDogrun(c echo.Context) error {
 	id := c.Param("id")
 	dc.h.GetDogrunByID(id)
 	return nil
+}
+
+// GetDogrunTagMst: DogrunTagMstのマスターデータの取得
+//
+// args:
+//   - echo.Context:	コンテキスト
+//
+// return:
+//   - error:	エラー
+func (dc *dogrunController) GetDogrunTagMst(c echo.Context) error {
+	logger := log.GetLogger(c).Sugar()
+	logger.Info("dogrun tagMst情報の取得開始")
+
+	mstRes, err := dc.h.GetDogrunTagMst(c)
+	if err != nil {
+		return err
+	}
+	return c.JSON(http.StatusOK, mstRes)
 }
 
 // ドッグランの周辺検索

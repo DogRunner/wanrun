@@ -24,6 +24,7 @@ const (
 type IDogrunHandler interface {
 	GetDogrunDetail(echo.Context, string) (*dto.DogrunDetail, error)
 	GetDogrunByID(string)
+	GetDogrunTagMst(echo.Context) ([]dto.TagMstRes, error)
 	SearchAroundDogruns(echo.Context, dto.SearchAroundRectangleCondition) ([]dto.DogrunLists, error)
 	GetDogrunPhotoSrc(echo.Context, string, string, string) (string, error)
 }
@@ -83,6 +84,34 @@ func (h *dogrunHandler) GetDogrunDetail(c echo.Context, placeID string) (*dto.Do
 
 func (h *dogrunHandler) GetDogrunByID(id string) {
 	fmt.Println(h.drr.GetDogrunByID(id))
+}
+
+// GetDogrunTagMst: DogrunTagMstのマスターデータの取得
+//
+// args:
+//   - echo.Context:	コンテキスト
+//
+// return:
+//   - []dto.TagMstRes:	マスター情報
+//   - error:	エラー
+func (h *dogrunHandler) GetDogrunTagMst(c echo.Context) ([]dto.TagMstRes, error) {
+	tagMst, err := h.drr.GetTagMst(c)
+
+	mstRes := []dto.TagMstRes{}
+	if err != nil {
+		return mstRes, err
+	}
+
+	for _, m := range tagMst {
+		mst := dto.TagMstRes{
+			TagID:       m.TagID.Int64,
+			TagName:     m.TagName.String,
+			Description: m.Description.String,
+		}
+		mstRes = append(mstRes, mst)
+	}
+
+	return mstRes, nil
 }
 
 // SearchAroundDogruns: 指定内（長方形）のドッグランを検索、DB情報と照合して返す
