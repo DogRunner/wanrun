@@ -57,7 +57,7 @@ func (aj *authJwt) NewJwtValidationMiddleware() echo.MiddlewareFunc {
 			ContextKey:  RAW_CONTEXT_KEY, // カスタムキーを設定
 			Skipper: func(c echo.Context) bool { // スキップするパスを指定
 				path := c.Path()
-				return path == "/auth/token" || path == "/auth/login"
+				return path == "/auth/token" || path == "/auth/signUp"
 			},
 			SuccessHandler: func(c echo.Context) {
 				// contextからJWTのclaims取得と検証
