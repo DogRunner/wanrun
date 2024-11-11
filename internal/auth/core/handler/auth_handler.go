@@ -14,6 +14,7 @@ import (
 	"github.com/wanrun-develop/wanrun/internal/auth/core/dto"
 	dogMW "github.com/wanrun-develop/wanrun/internal/auth/middleware"
 	model "github.com/wanrun-develop/wanrun/internal/models"
+	"github.com/wanrun-develop/wanrun/pkg/errors"
 	wrErrors "github.com/wanrun-develop/wanrun/pkg/errors"
 	"github.com/wanrun-develop/wanrun/pkg/log"
 	wrUtil "github.com/wanrun-develop/wanrun/pkg/util"
@@ -24,7 +25,7 @@ type IAuthHandler interface {
 	CreateDogOwner(c echo.Context, ador dto.AuthDogOwnerReq) (dto.DogOwnerDTO, error)
 	GetSignedJwt(c echo.Context, dod dto.DogOwnerDTO) (string, error)
 	FetchDogOwnerInfo(c echo.Context, ador dto.AuthDogOwnerReq) (dto.DogOwnerDTO, error)
-	// LogOut() error
+	LogOut(c echo.Context, claims *dogMW.AccountClaims) error
 	// GoogleOAuth(c echo.Context, authorizationCode string, grantType types.GrantType) (dto.ResDogOwnerDto, error)
 }
 
@@ -179,8 +180,37 @@ func (ah *authHandler) FetchDogOwnerInfo(c echo.Context, ador dto.AuthDogOwnerRe
 	return dogOwnerDetail, nil
 }
 
-// Logout
-func (ah *authHandler) LogOut() error { return nil }
+// LogOut: Logout
+//
+// args:
+//   - echo.Context: Echoのコンテキスト。リクエストやレスポンスにアクセスするために使用
+//   - *dogMW.AccountClaims: 検証済みのclaims情報
+//
+// return:
+//   - error: error情報
+func (ah *authHandler) LogOut(c echo.Context, claims *dogMW.AccountClaims) error {
+	logger := log.GetLogger(c).Sugar()
+
+	// dogOwnerIDをstringからint64変換
+	dogOwnerID, err := strconv.ParseInt(claims.ID, 10, 64)
+
+	if err != nil {
+		wrErr := errors.NewWRError(
+			nil,
+			"認証情報が違います。",
+			errors.NewDogownerClientErrorEType(),
+		)
+		logger.Error(wrErr)
+		return err
+	}
+
+	// 対象のdogOwnerのIDからJWT IDの削除
+	if wrErr := ah.ar.DeleteJwtID(c, dogOwnerID); wrErr != nil {
+		return wrErr
+	}
+
+	return nil
+}
 
 /*
 Google OAuth認証
@@ -289,7 +319,6 @@ jwt処理
 // return:
 //  - string: 署名したtoken
 //  - error: error情報
-
 func (ah *authHandler) GetSignedJwt(c echo.Context, dod dto.DogOwnerDTO) (string, error) {
 	// 秘密鍵取得
 	secretKey := configs.FetchCondigStr("jwt.os.secret.key")
