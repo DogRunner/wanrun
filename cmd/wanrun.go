@@ -31,9 +31,7 @@ func init() {
 
 }
 
-const (
-	AUTH_GROUP_PATH string = "/auth"
-)
+const ()
 
 func Main() {
 	dbConn, err := db.NewDB()
@@ -58,7 +56,7 @@ func Main() {
 
 	// JWTミドルウェアの設定
 	authMiddleware := newAuthMiddleware(dbConn)
-	e.Use(authMiddleware.NewJwtValidationMiddleware(AUTH_GROUP_PATH))
+	e.Use(authMiddleware.NewJwtValidationMiddleware())
 
 	// CORSの設定
 	e.Use(middleware.CORS())
@@ -92,10 +90,11 @@ func newRouter(e *echo.Echo, dbConn *gorm.DB) {
 
 	// auth関連
 	authController := newAuth(dbConn)
-	auth := e.Group(AUTH_GROUP_PATH)
+	auth := e.Group("auth")
 	// auth.GET("/google/oauth", authController.GoogleOAuth)
 	auth.POST("/signUp", authController.SignUp)
 	auth.POST("/token", authController.LogIn)
+	auth.POST("/logout", authController.LogOut)
 }
 
 // dogの初期化

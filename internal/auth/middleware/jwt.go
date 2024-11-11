@@ -3,7 +3,6 @@ package middleware
 import (
 	"net/http"
 	"strconv"
-	"strings"
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"
@@ -16,7 +15,7 @@ import (
 )
 
 type IAuthJwt interface {
-	NewJwtValidationMiddleware(agp string) echo.MiddlewareFunc
+	NewJwtValidationMiddleware() echo.MiddlewareFunc
 }
 
 type authJwt struct {
@@ -47,7 +46,7 @@ type AccountClaims struct {
 //
 // return:
 //   - echo.MiddlewareFunc: JWT検証のためのミドルウェア設定
-func (aj *authJwt) NewJwtValidationMiddleware(agp string) echo.MiddlewareFunc {
+func (aj *authJwt) NewJwtValidationMiddleware() echo.MiddlewareFunc {
 	return echojwt.WithConfig(
 		echojwt.Config{
 			SigningKey: []byte(configs.FetchCondigStr("jwt.os.secret.key")), // 署名用の秘密鍵
@@ -56,9 +55,9 @@ func (aj *authJwt) NewJwtValidationMiddleware(agp string) echo.MiddlewareFunc {
 			},
 			TokenLookup: TOKEN_LOOK_UP,   // トークンの取得場所
 			ContextKey:  RAW_CONTEXT_KEY, // カスタムキーを設定
-			Skipper: func(c echo.Context) bool {
-				// authグループ配下のすべてのルートをスキップする
-				return strings.HasPrefix(c.Path(), agp)
+			Skipper: func(c echo.Context) bool { // スキップするパスを指定
+				path := c.Path()
+				return path == "/auth/token" || path == "/auth/login"
 			},
 			SuccessHandler: func(c echo.Context) {
 				// contextからJWTのclaims取得と検証
