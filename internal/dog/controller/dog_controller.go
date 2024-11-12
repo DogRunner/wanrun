@@ -17,6 +17,7 @@ type IDogController interface {
 	GetAllDogs(c echo.Context) error
 	GetDogByID(c echo.Context) error
 	GetDogByDogOwnerID(c echo.Context) error
+	GetDogTypeMst(c echo.Context) error
 	CreateDog(c echo.Context) error
 	UpdateDog(c echo.Context) error
 	DeleteDog(c echo.Context) error
@@ -92,6 +93,24 @@ func (dc *dogController) GetDogByDogOwnerID(c echo.Context) error {
 	}
 
 	return c.JSON(http.StatusOK, dogs)
+}
+
+// GetDogTypeMst: DogTypeMstのマスターデータの取得
+//
+// args:
+//   - echo.Context:	コンテキスト
+//
+// return:
+//   - error:	エラー
+func (dc *dogController) GetDogTypeMst(c echo.Context) error {
+	logger := log.GetLogger(c).Sugar()
+	logger.Info("DogTypeMst情報の取得開始")
+
+	mstRes, err := dc.h.GetDogTypeMst(c)
+	if err != nil {
+		return err
+	}
+	return c.JSON(http.StatusOK, mstRes)
 }
 
 // CreateDog: 犬の登録
@@ -187,15 +206,3 @@ func (dc *dogController) DeleteDog(c echo.Context) error {
 	}
 	return c.NoContent(http.StatusNoContent)
 }
-
-// func (dc *dogController) UpdateDog(c echo.Context) error {
-// 	dogIDStr := c.Param("dogID")
-// 	dogID, err := strconv.Atoi(dogIDStr)
-// 	if err != nil {
-// 		log.Error(err)
-// 		return c.JSON(http.StatusBadRequest, errors.ErrorResponse{
-// 			Code:    http.StatusBadRequest,
-// 			Message: "Invalid dog ID format",
-// 		})
-// 	}
-// }

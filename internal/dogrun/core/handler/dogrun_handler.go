@@ -22,8 +22,9 @@ const (
 )
 
 type IDogrunHandler interface {
-	GetDogrunDetail(echo.Context, string) (*dto.DogrunDetail, error)
+	GetDogrunDetail(echo.Context, string) (dto.DogrunDetail, error)
 	GetDogrunByID(string)
+	GetDogrunTagMst(echo.Context) ([]dto.TagMstRes, error)
 	SearchAroundDogruns(echo.Context, dto.SearchAroundRectangleCondition) ([]dto.DogrunLists, error)
 	GetDogrunPhotoSrc(echo.Context, string, string, string) (string, error)
 }
@@ -46,14 +47,14 @@ func NewDogrunHandler(rest googleplace.IRest, drr repository.IDogrunRepository) 
 // return:
 //   - dto.DogrunDetail:	詳細DTO
 //   - error:	エラー
-func (h *dogrunHandler) GetDogrunDetail(c echo.Context, placeID string) (*dto.DogrunDetail, error) {
+func (h *dogrunHandler) GetDogrunDetail(c echo.Context, placeID string) (dto.DogrunDetail, error) {
 	logger := log.GetLogger(c).Sugar()
 	//base情報のFieldを使用
 	var baseFiled googleplace.IFieldMask = googleplace.BaseField{}
 	//place情報の取得
 	resG, err := h.rest.GETPlaceInfo(c, placeID, baseFiled)
 	if err != nil {
-		return nil, err
+		return dto.DogrunDetail{}, err
 	}
 	logger.Info("Google Place APIによって、ドッグラン情報の取得成功")
 
@@ -63,26 +64,54 @@ func (h *dogrunHandler) GetDogrunDetail(c echo.Context, placeID string) (*dto.Do
 	if err != nil {
 		err = errors.NewWRError(nil, "google apiレスポンスの変換に失敗しました。", errors.NewDogrunServerErrorEType())
 		logger.Error(err)
-		return nil, err
+		return dto.DogrunDetail{}, err
 	}
 
 	if dogrunG.ID == "" {
-		return nil, errors.NewWRError(nil, "指定されたPlaceIdのデータが存在しません。", errors.NewDogrunClientErrorEType())
+		return dto.DogrunDetail{}, errors.NewWRError(nil, "指定されたPlaceIdのデータが存在しません。", errors.NewDogrunClientErrorEType())
 	}
 
 	//dbから取得
 	dogrunD, err := h.drr.GetDogrunByPlaceID(c, placeID)
 	if err != nil {
-		return nil, err
+		return dto.DogrunDetail{}, err
 	}
 
 	//情報選定
 	resDogDetail := resolveDogrunDetail(dogrunG, dogrunD)
-	return &resDogDetail, nil
+	return resDogDetail, nil
 }
 
 func (h *dogrunHandler) GetDogrunByID(id string) {
 	fmt.Println(h.drr.GetDogrunByID(id))
+}
+
+// GetDogrunTagMst: DogrunTagMstのマスターデータの取得
+//
+// args:
+//   - echo.Context:	コンテキスト
+//
+// return:
+//   - []dto.TagMstRes:	マスター情報
+//   - error:	エラー
+func (h *dogrunHandler) GetDogrunTagMst(c echo.Context) ([]dto.TagMstRes, error) {
+	tagMst, err := h.drr.GetTagMst(c)
+
+	mstRes := []dto.TagMstRes{}
+	if err != nil {
+		return mstRes, err
+	}
+
+	for _, m := range tagMst {
+		mst := dto.TagMstRes{
+			TagID:       m.TagID.Int64,
+			TagName:     m.TagName.String,
+			Description: m.Description.String,
+		}
+		mstRes = append(mstRes, mst)
+	}
+
+	return mstRes, nil
 }
 
 // SearchAroundDogruns: 指定内（長方形）のドッグランを検索、DB情報と照合して返す
@@ -253,26 +282,19 @@ func resolveDogrunDetailByOnlyDB(dogrunD model.Dogrun) dto.DogrunDetail {
 /*
 DBからドッグランタグ情報を取得
 */
-func resolveDogrunTagInfo(dogrunD model.Dogrun) []dto.DogrunTagDto {
-
-	var dogrunTagInfos []dto.DogrunTagDto
+func resolveDogrunTagInfo(dogrunD model.Dogrun) []int64 {
 
 	if dogrunD.IsDogrunTagEmpty() {
-		return dogrunTagInfos
+		return nil
 	}
 
 	dogrunTag := dogrunD.DogrunTags
 
+	dogrunTagIds := []int64{}
 	for _, v := range dogrunTag {
-		dogrunTagInfo := dto.DogrunTagDto{
-			DogrunTagId: int(v.DogrunID.Int64),
-			TagId:       int(v.TagID.Int64),
-			TagName:     v.TagMst.TagName.String,
-			Description: v.TagMst.Description.String,
-		}
-		dogrunTagInfos = append(dogrunTagInfos, dogrunTagInfo)
+		dogrunTagIds = append(dogrunTagIds, v.TagID.Int64)
 	}
-	return dogrunTagInfos
+	return dogrunTagIds
 }
 
 /*

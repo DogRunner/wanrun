@@ -12,25 +12,23 @@ type DogDetailsRes struct {
 	Weight     int64         `json:"weight"`
 	Sex        string        `json:"sex"`
 	Image      string        `json:"image"`
+	DogTypeId  []int64       `json:"dogTypeId"`
 	CreateAt   common.WRTime `json:"createAt"`
 	UpdateAt   common.WRTime `json:"updateAt"`
-
-	DogType DogTypeRes `json:"dogType"`
 }
 
 // dog一覧用レスポンス
 type DogListRes struct {
-	DogID  int64  `json:"dogId"`
-	Name   string `json:"name"`
-	Weight int64  `json:"weight"`
-	Sex    string `json:"sex"`
-	Image  string `json:"image"`
-
-	DogType DogTypeRes `json:"dogType"`
+	DogID     int64   `json:"dogId"`
+	Name      string  `json:"name"`
+	Weight    int64   `json:"weight"`
+	Sex       string  `json:"sex"`
+	Image     string  `json:"image"`
+	DogTypeId []int64 `json:"dogTypeId"`
 }
 
 // dogType用レスポンス
-type DogTypeRes struct {
+type DogTypeMstRes struct {
 	DogTypeID int    `json:"dogTypeId"`
 	Name      string `json:"name"`
 }
