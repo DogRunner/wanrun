@@ -81,12 +81,11 @@ func (dr *dogRepository) GetDogByDogOwnerID(c echo.Context, dogOwnerID int64) ([
 // GetDogTypeMst: dog_type_mstからマスターデータの全権select
 //
 // args:
-//   - echo.Context:
-//     -:
+//   - echo.Context:	コンテキスト
 //
 // return:
-//   - []model.DogTypeMst:
-//   - error:
+//   - []model.DogTypeMst:	マスターテーブルデータ
+//   - error:	エラー
 func (dr *dogRepository) GetDogTypeMst(c echo.Context) ([]model.DogTypeMst, error) {
 	logger := log.GetLogger(c).Sugar()
 

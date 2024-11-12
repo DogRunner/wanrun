@@ -32,7 +32,11 @@ PlaceIDで、ドッグランの取得
 func (drr *dogrunRepository) GetDogrunByPlaceID(c echo.Context, placeID string) (model.Dogrun, error) {
 	logger := log.GetLogger(c).Sugar()
 	dogrun := model.Dogrun{}
-	if err := drr.db.Preload("DogrunTags").Preload("RegularBusinessHours").Preload("SpecialBusinessHours").Where("place_id = ?", placeID).Find(&dogrun).Error; err != nil {
+	if err := drr.db.Preload("DogrunTags").
+		Preload("RegularBusinessHours").
+		Preload("SpecialBusinessHours").
+		Where("place_id = ?", placeID).
+		Find(&dogrun).Error; err != nil {
 		logger.Error(err)
 		return model.Dogrun{}, errors.NewWRError(err, "DBからのデータ取得に失敗", errors.NewDogrunServerErrorEType())
 	}
