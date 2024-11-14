@@ -12,7 +12,6 @@ import (
 	"github.com/wanrun-develop/wanrun/configs"
 	"github.com/wanrun-develop/wanrun/internal/auth/adapters/repository"
 	"github.com/wanrun-develop/wanrun/internal/auth/core/dto"
-	dogMW "github.com/wanrun-develop/wanrun/internal/auth/middleware"
 	model "github.com/wanrun-develop/wanrun/internal/models"
 	wrErrors "github.com/wanrun-develop/wanrun/pkg/errors"
 	"github.com/wanrun-develop/wanrun/pkg/log"
@@ -38,6 +37,13 @@ type authHandler struct {
 //	}
 func NewAuthHandler(ar repository.IAuthRepository) IAuthHandler {
 	return &authHandler{ar}
+}
+
+// JWTのClaims
+type AccountClaims struct {
+	ID  string `json:"id"`
+	JTI string `json:"jti"`
+	jwt.RegisteredClaims
 }
 
 // CreateDogOwner: DogOwnerの作成
@@ -292,8 +298,8 @@ jwt処理
 
 func (ah *authHandler) GetSignedJwt(c echo.Context, dod dto.DogOwnerDTO) (string, error) {
 	// 秘密鍵取得
-	secretKey := configs.FetchCondigStr("jwt.os.secret.key")
-	jwtExpTime := configs.FetchCondigInt("jwt.exp.time")
+	secretKey := configs.FetchConfigStr("jwt.os.secret.key")
+	jwtExpTime := configs.FetchConfigInt("jwt.exp.time")
 
 	// jwt token生成
 	signedToken, wrErr := createToken(c, secretKey, dod, jwtExpTime)
@@ -320,7 +326,7 @@ func createToken(c echo.Context, secretKey string, dod dto.DogOwnerDTO, expTime 
 	logger := log.GetLogger(c).Sugar()
 
 	// JWTのペイロード
-	claims := &dogMW.AccountClaims{
+	claims := AccountClaims{
 		ID:  strconv.FormatInt(dod.DogOwnerID, 10), // stringにコンバート
 		JTI: dod.JwtID,
 		RegisteredClaims: jwt.RegisteredClaims{

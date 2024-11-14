@@ -33,9 +33,9 @@ const (
 // func NewOAuthGoogle() IOAuthGoogle {
 // 	return &oauthGoogle{
 // 		config: &oauth2.Config{
-// 			ClientID:     configs.FetchCondigStr("os.secret.key"),
-// 			ClientSecret: configs.FetchCondigStr("gcp.client.secret"),
-// 			RedirectURL:  configs.FetchCondigStr("gcp.redirect.uri"),
+// 			ClientID:     configs.FetchConfigStr("os.secret.key"),
+// 			ClientSecret: configs.FetchConfigStr("gcp.client.secret"),
+// 			RedirectURL:  configs.FetchConfigStr("gcp.redirect.uri"),
 // 			Scopes: []string{
 // 				GOOGLE_OAUTH_SCOPES_PREFIX + "userinfo.email",
 // 			},

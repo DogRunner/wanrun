@@ -18,6 +18,7 @@ type IAuthRepository interface {
 	GetDogOwnerByCredential(c echo.Context, ador dto.AuthDogOwnerReq) (*model.DogOwnerCredential, error)
 	// CreateOAuthDogOwner(c echo.Context, dogOwnerCredential *model.DogOwnerCredential) (*model.DogOwnerCredential, error)
 	UpdateJwtID(c echo.Context, doc *model.DogOwnerCredential, jwt_id string) error
+	GetJwtID(c echo.Context, doi int64) (string, error)
 }
 
 type authRepository struct {
@@ -248,6 +249,53 @@ func (ar *authRepository) UpdateJwtID(c echo.Context, doc *model.DogOwnerCredent
 	}
 
 	return err
+}
+
+// GetJwtID:
+//
+// args:
+//   - echo.Context: Echoのコンテキスト。リクエストやレスポンスにアクセスするために使用
+//   - int64: 取得したいdogOwnerID
+//
+// return:
+//   - string: 対象のdogOwnerのjwt_id
+//   - error: error情報
+func (ar *authRepository) GetJwtID(c echo.Context, doi int64) (string, error) {
+	logger := log.GetLogger(c).Sugar()
+
+	var result model.AuthDogOwner
+
+	// 対象のdogOwnerのjwt_idの取得
+	err := ar.db.Model(&model.AuthDogOwner{}).
+		Where("dog_owner_id= ?", doi).
+		First(&result).
+		Error
+
+	if err != nil {
+		// 空だった時
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			wrErr := wrErrors.NewWRError(
+				err,
+				"認証情報がありません",
+				wrErrors.NewDogownerClientErrorEType())
+
+			logger.Errorf("Not found jwt id error: %v", wrErr)
+
+			return "", wrErr
+		}
+		// その他のエラー処理
+		wrErr := wrErrors.NewWRError(
+			err,
+			"DBからのデータ取得に失敗しました。",
+			wrErrors.NewDogownerServerErrorEType())
+
+		logger.Errorf("Failed to get JWT ID: %v", wrErr)
+
+		return "", wrErr
+	}
+	logger.Debugf("Query Result: %v", result)
+
+	return result.JwtID.String, nil
 }
 
 // checkDuplicate:  Password認証のバリデーション

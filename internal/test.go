@@ -4,7 +4,7 @@ import (
 	"os"
 
 	"github.com/labstack/echo/v4"
-	"github.com/wanrun-develop/wanrun/internal/identity"
+	"github.com/wanrun-develop/wanrun/internal/wrcontext"
 	"github.com/wanrun-develop/wanrun/pkg/errors"
 	"github.com/wanrun-develop/wanrun/pkg/log"
 )
@@ -13,7 +13,7 @@ func Test(c echo.Context) error {
 	logger := log.GetLogger(c).Sugar()
 
 	// claims情報の取得
-	claims, wrErr := identity.GetVerifiedClaims(c)
+	claims, wrErr := wrcontext.GetVerifiedClaims(c)
 
 	if wrErr != nil {
 		return wrErr

@@ -11,7 +11,6 @@ import (
 	authController "github.com/wanrun-develop/wanrun/internal/auth/controller"
 	authHandler "github.com/wanrun-develop/wanrun/internal/auth/core/handler"
 	authMW "github.com/wanrun-develop/wanrun/internal/auth/middleware"
-	authMWR "github.com/wanrun-develop/wanrun/internal/auth/middleware/adapters/repository"
 	"github.com/wanrun-develop/wanrun/internal/db"
 	dogRepository "github.com/wanrun-develop/wanrun/internal/dog/adapters/repository"
 	dogController "github.com/wanrun-develop/wanrun/internal/dog/controller"
@@ -124,6 +123,6 @@ func newAuth(dbConn *gorm.DB) authController.IAuthController {
 }
 
 func newAuthMiddleware(dbConn *gorm.DB) authMW.IAuthJwt {
-	authMiddlewareRepository := authMWR.NewAuthJwtRepository(dbConn)
-	return authMW.NewAuthJwt(authMiddlewareRepository)
+	authRepository := authRepository.NewAuthRepository(dbConn)
+	return authMW.NewAuthJwt(authRepository)
 }

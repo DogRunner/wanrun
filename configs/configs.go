@@ -132,20 +132,20 @@ func (c DBInfoConfig) PostgresDB() string {
 /*
 loadしたviperからkeyで値を取得
 */
-func FetchCondigStr(key string) string {
+func FetchConfigStr(key string) string {
 	return v.GetString(key)
 }
 
 /*
 loadしたviperからkeyで値を取得(int)
 */
-func FetchCondigInt(key string) int {
+func FetchConfigInt(key string) int {
 	return v.GetInt(key)
 }
 
 /*
 loadしたviperからkeyで値を取得(bool)
 */
-func FetchCondigbool(key string) bool {
+func FetchConfigBool(key string) bool {
 	return v.GetBool(key)
 }
