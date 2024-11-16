@@ -39,6 +39,13 @@ func NewAuthHandler(ar repository.IAuthRepository) IAuthHandler {
 	return &authHandler{ar}
 }
 
+// JWTのClaims
+type AccountClaims struct {
+	ID  string `json:"id"`
+	JTI string `json:"jti"`
+	jwt.RegisteredClaims
+}
+
 // CreateDogOwner: DogOwnerの作成
 //
 // args:
@@ -291,8 +298,8 @@ jwt処理
 
 func (ah *authHandler) GetSignedJwt(c echo.Context, dod dto.DogOwnerDTO) (string, error) {
 	// 秘密鍵取得
-	secretKey := configs.FetchCondigStr("jwt.os.secret.key")
-	jwtExpTime := configs.FetchCondigInt("jwt.exp.time")
+	secretKey := configs.FetchConfigStr("jwt.os.secret.key")
+	jwtExpTime := configs.FetchConfigInt("jwt.exp.time")
 
 	// jwt token生成
 	signedToken, wrErr := createToken(c, secretKey, dod, jwtExpTime)
@@ -319,7 +326,7 @@ func createToken(c echo.Context, secretKey string, dod dto.DogOwnerDTO, expTime 
 	logger := log.GetLogger(c).Sugar()
 
 	// JWTのペイロード
-	claims := &dto.AccountClaims{
+	claims := AccountClaims{
 		ID:  strconv.FormatInt(dod.DogOwnerID, 10), // stringにコンバート
 		JTI: dod.JwtID,
 		RegisteredClaims: jwt.RegisteredClaims{

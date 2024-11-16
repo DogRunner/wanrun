@@ -10,7 +10,7 @@ import (
 	authRepository "github.com/wanrun-develop/wanrun/internal/auth/adapters/repository"
 	authController "github.com/wanrun-develop/wanrun/internal/auth/controller"
 	authHandler "github.com/wanrun-develop/wanrun/internal/auth/core/handler"
-	dogMW "github.com/wanrun-develop/wanrun/internal/auth/middleware"
+	authMW "github.com/wanrun-develop/wanrun/internal/auth/middleware"
 	"github.com/wanrun-develop/wanrun/internal/db"
 	dogRepository "github.com/wanrun-develop/wanrun/internal/dog/adapters/repository"
 	dogController "github.com/wanrun-develop/wanrun/internal/dog/controller"
@@ -56,7 +56,8 @@ func Main() {
 	e.Use(logger.RequestLoggerMiddleware(zap))
 
 	// JWTミドルウェアの設定
-	e.Use(dogMW.NewJwtValidationMiddleware(AUTH_GROUP_PATH))
+	authMiddleware := newAuthMiddleware(dbConn)
+	e.Use(authMiddleware.NewJwtValidationMiddleware(AUTH_GROUP_PATH))
 
 	// CORSの設定
 	e.Use(middleware.CORS())
@@ -121,4 +122,9 @@ func newAuth(dbConn *gorm.DB) authController.IAuthController {
 	authHandler := authHandler.NewAuthHandler(authRepository)
 	authController := authController.NewAuthController(authHandler)
 	return authController
+}
+
+func newAuthMiddleware(dbConn *gorm.DB) authMW.IAuthJwt {
+	authRepository := authRepository.NewAuthRepository(dbConn)
+	return authMW.NewAuthJwt(authRepository)
 }

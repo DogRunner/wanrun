@@ -39,7 +39,6 @@ func RequestLoggerMiddleware(logger *zap.Logger) echo.MiddlewareFunc {
 				zap.Int("status", c.Response().Status),
 				zap.Duration("latency", duration),
 			)
-
 			return err
 		}
 	}
@@ -71,7 +70,7 @@ func SetLogger(l *zap.Logger) {
 func NewWanRunLogger() *zap.Logger {
 	level := zap.NewAtomicLevel()
 	// ログレベルを文字列から設定
-	levelString := configs.FetchCondigStr("log.level")
+	levelString := configs.FetchConfigStr("log.level")
 	fmt.Println(levelString)
 	err := level.UnmarshalText([]byte(levelString))
 	if err != nil {

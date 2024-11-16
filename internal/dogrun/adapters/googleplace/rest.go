@@ -21,7 +21,7 @@ const (
 )
 
 func init() {
-	apiKey = configs.FetchCondigStr("google.place.api.key")
+	apiKey = configs.FetchConfigStr("google.place.api.key")
 }
 
 type IRest interface {
