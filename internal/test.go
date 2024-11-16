@@ -19,11 +19,17 @@ func Test(c echo.Context) error {
 		return wrErr
 	}
 
-	userID := claims.ID
+	// dogOwnerIDの取得
+	dogOwnerID, wrErr := claims.GetDogOwnerIDAsInt64(c)
+	if wrErr != nil {
+		return wrErr
+	}
+	// jti情報
 	jti := claims.JTI
+	// 有効期限
 	exp := claims.ExpiresAt
 
-	logger.Infof("userID: %v, jti: %v, exp: %v\n", userID, jti, exp)
+	logger.Infof("userID: %v, jti: %v, exp: %v\n", dogOwnerID, jti, exp)
 
 	logger.Info("Test*()の実行. ")
 	if err := testError(); err != nil {

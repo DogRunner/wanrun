@@ -8,6 +8,7 @@ import (
 	"github.com/labstack/echo/v4"
 	"github.com/wanrun-develop/wanrun/internal/auth/core/dto"
 	"github.com/wanrun-develop/wanrun/internal/auth/core/handler"
+	"github.com/wanrun-develop/wanrun/internal/wrcontext"
 	"github.com/wanrun-develop/wanrun/pkg/errors"
 	"github.com/wanrun-develop/wanrun/pkg/log"
 )
@@ -15,7 +16,7 @@ import (
 type IAuthController interface {
 	SignUp(c echo.Context) error
 	LogIn(c echo.Context) error
-	LogOut(c echo.Context) error
+	Revoke(c echo.Context) error
 	// GoogleOAuth(c echo.Context) error
 }
 
@@ -147,7 +148,27 @@ func (ac *authController) LogIn(c echo.Context) error {
 	})
 }
 
-func (ac *authController) LogOut(c echo.Context) error { return nil }
+// Revoke: revoke機能
+//
+// args:
+//   - echo.Context: c Echoのコンテキスト。リクエストやレスポンスにアクセスするために使用されます。
+//
+// return:
+//   - error: error情報
+func (ac *authController) Revoke(c echo.Context) error {
+	// claims情報の取得
+	claims, wrErr := wrcontext.GetVerifiedClaims(c)
+
+	if wrErr != nil {
+		return wrErr
+	}
+
+	if wrErr := ac.ah.Revoke(c, claims); wrErr != nil {
+		return wrErr
+	}
+
+	return c.JSON(http.StatusOK, map[string]any{})
+}
 
 // /*
 // OAuthのクエリパラメータのバリデーション
