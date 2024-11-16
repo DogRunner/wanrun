@@ -14,6 +14,7 @@ type IDogrunRepository interface {
 	GetDogrunByPlaceID(echo.Context, string) (model.Dogrun, error)
 	GetDogrunByID(string) (model.Dogrun, error)
 	GetDogrunByRectanglePointer(echo.Context, dto.SearchAroundRectangleCondition) ([]model.Dogrun, error)
+	GetTagMst(echo.Context) ([]model.TagMst, error)
 	RegistDogrunPlaceId(echo.Context, string) (int, error)
 }
 
@@ -31,7 +32,11 @@ PlaceIDで、ドッグランの取得
 func (drr *dogrunRepository) GetDogrunByPlaceID(c echo.Context, placeID string) (model.Dogrun, error) {
 	logger := log.GetLogger(c).Sugar()
 	dogrun := model.Dogrun{}
-	if err := drr.db.Preload("DogrunTags.TagMst").Preload("RegularBusinessHours").Preload("SpecialBusinessHours").Where("place_id = ?", placeID).Find(&dogrun).Error; err != nil {
+	if err := drr.db.Preload("DogrunTags").
+		Preload("RegularBusinessHours").
+		Preload("SpecialBusinessHours").
+		Where("place_id = ?", placeID).
+		Find(&dogrun).Error; err != nil {
 		logger.Error(err)
 		return model.Dogrun{}, errors.NewWRError(err, "DBからのデータ取得に失敗", errors.NewDogrunServerErrorEType())
 	}
@@ -55,7 +60,7 @@ func (drr *dogrunRepository) GetDogrunByID(id string) (model.Dogrun, error) {
 func (drr *dogrunRepository) GetDogrunByRectanglePointer(c echo.Context, condition dto.SearchAroundRectangleCondition) ([]model.Dogrun, error) {
 	logger := log.GetLogger(c).Sugar()
 	dogruns := []model.Dogrun{}
-	if err := drr.db.Preload("DogrunTags.TagMst").
+	if err := drr.db.Preload("DogrunTags").
 		Where("longitude BETWEEN ? AND ?", condition.Target.Southwest.Longitude, condition.Target.Northeast.Longitude).
 		Where("latitude BETWEEN ? AND ?", condition.Target.Southwest.Latitude, condition.Target.Northeast.Latitude).
 		Find(&dogruns).Error; err != nil {
@@ -63,6 +68,26 @@ func (drr *dogrunRepository) GetDogrunByRectanglePointer(c echo.Context, conditi
 		return nil, errors.NewWRError(err, "DBからのデータ取得に失敗", errors.NewDogrunServerErrorEType())
 	}
 	return dogruns, nil
+}
+
+// GetDogrunTagMst: tag_mstの全件select
+//
+// args:
+//   - echo.context:	コンテキスト
+//
+// return:
+//   - []model.TagMst:	マスター情報
+//   - error:	エラー
+func (drr *dogrunRepository) GetTagMst(c echo.Context) ([]model.TagMst, error) {
+	logger := log.GetLogger(c).Sugar()
+
+	tagMst := []model.TagMst{}
+	if err := drr.db.Find(&tagMst).Error; err != nil {
+		logger.Error(err)
+		err = errors.NewWRError(err, "tag_mstのselectで失敗しました。", errors.NewDogServerErrorEType())
+		return []model.TagMst{}, err
+	}
+	return tagMst, nil
 }
 
 // RegistDogrunPlaceId: placeIdをDBへ保存する

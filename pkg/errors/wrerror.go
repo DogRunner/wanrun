@@ -65,7 +65,9 @@ func HttpErrorHandler(err error, c echo.Context) {
 		me = wreer
 		code = mappingError(me)
 	} else {
-		me = NewWRError(err, M_UNEXPECTED_ERROR, NewUnexpectedErrorEType())
+		c.Logger().Error(err)
+		_ = c.JSON(code, err)
+		return
 	}
 
 	res := ErrorRes{
