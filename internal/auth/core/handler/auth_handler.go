@@ -13,6 +13,7 @@ import (
 	"github.com/wanrun-develop/wanrun/internal/auth/adapters/repository"
 	"github.com/wanrun-develop/wanrun/internal/auth/core/dto"
 	model "github.com/wanrun-develop/wanrun/internal/models"
+	"github.com/wanrun-develop/wanrun/pkg/errors"
 	wrErrors "github.com/wanrun-develop/wanrun/pkg/errors"
 	"github.com/wanrun-develop/wanrun/pkg/log"
 	wrUtil "github.com/wanrun-develop/wanrun/pkg/util"
@@ -23,7 +24,7 @@ type IAuthHandler interface {
 	CreateDogOwner(c echo.Context, ador dto.AuthDogOwnerReq) (dto.DogOwnerDTO, error)
 	GetSignedJwt(c echo.Context, dod dto.DogOwnerDTO) (string, error)
 	FetchDogOwnerInfo(c echo.Context, ador dto.AuthDogOwnerReq) (dto.DogOwnerDTO, error)
-	// LogOut() error
+	Revoke(c echo.Context, claims *AccountClaims) error
 	// GoogleOAuth(c echo.Context, authorizationCode string, grantType types.GrantType) (dto.ResDogOwnerDto, error)
 }
 
@@ -44,6 +45,31 @@ type AccountClaims struct {
 	ID  string `json:"id"`
 	JTI string `json:"jti"`
 	jwt.RegisteredClaims
+}
+
+// GetDogOwnerIDAsInt64: 共通処理で、int64のDogOwnerのID取得。
+//
+// args:
+//   - echo.Context: Echoのコンテキスト。リクエストやレスポンスにアクセスするために使用
+//
+// return:
+//   - int64: dogOwnerのID情報(int64)
+//   - error: error情報
+func (claims *AccountClaims) GetDogOwnerIDAsInt64(c echo.Context) (int64, error) {
+	logger := log.GetLogger(c).Sugar()
+
+	// IDをstringからint64に変換
+	dogOwnerID, err := strconv.ParseInt(claims.ID, 10, 64)
+	if err != nil {
+		wrErr := errors.NewWRError(
+			nil,
+			"認証情報が違います。",
+			errors.NewDogownerClientErrorEType(),
+		)
+		logger.Error(wrErr)
+		return 0, err
+	}
+	return dogOwnerID, nil
 }
 
 // CreateDogOwner: DogOwnerの作成
@@ -185,8 +211,28 @@ func (ah *authHandler) FetchDogOwnerInfo(c echo.Context, ador dto.AuthDogOwnerRe
 	return dogOwnerDetail, nil
 }
 
-// Logout
-func (ah *authHandler) LogOut() error { return nil }
+// Revoke: Revoke機能
+//
+// args:
+//   - echo.Context: Echoのコンテキスト。リクエストやレスポンスにアクセスするために使用
+//   - *dogMW.AccountClaims: 検証済みのclaims情報
+//
+// return:
+//   - error: error情報
+func (ah *authHandler) Revoke(c echo.Context, claims *AccountClaims) error {
+	// dogOwnerIDの取得
+	dogOwnerID, wrErr := claims.GetDogOwnerIDAsInt64(c)
+	if wrErr != nil {
+		return wrErr
+	}
+
+	// 対象のdogOwnerのIDからJWT IDの削除
+	if wrErr := ah.ar.DeleteJwtID(c, dogOwnerID); wrErr != nil {
+		return wrErr
+	}
+
+	return nil
+}
 
 /*
 Google OAuth認証
