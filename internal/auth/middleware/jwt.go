@@ -29,7 +29,7 @@ func NewAuthJwt(ar repository.IAuthRepository) IAuthJwt {
 
 const (
 	CONTEXT_KEY   string = "user_info"
-	TOKEN_LOOK_UP string = "header:Authorization"
+	TOKEN_LOOK_UP string = "header:Authorization:Bearer " // `Bearer `しか切り取れないのでスペースが多い場合は未対応
 )
 
 // NewJwtValidationMiddleware: JWT検証用のミドルウェア設定を生成

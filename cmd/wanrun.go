@@ -46,6 +46,9 @@ func Main() {
 	// アプリケーション終了時にロガーを同期
 	defer zap.Sync()
 
+	// CORSの設定
+	e.Use(middleware.CORS())
+
 	// ミドルウェアを登録
 	e.Use(middleware.RequestID())
 	e.HTTPErrorHandler = errors.HttpErrorHandler
@@ -54,9 +57,6 @@ func Main() {
 	// JWTミドルウェアの設定
 	authMiddleware := newAuthMiddleware(dbConn)
 	e.Use(authMiddleware.NewJwtValidationMiddleware())
-
-	// CORSの設定
-	e.Use(middleware.CORS())
 
 	// Router設定
 	newRouter(e, dbConn)
