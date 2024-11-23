@@ -86,6 +86,7 @@ func newRouter(e *echo.Echo, dbConn *gorm.DB) {
 	dogrun.GET("/photo/src", dogrunController.GetDogrunPhoto)
 	dogrun.GET("/mst/tag", dogrunController.GetDogrunTagMst)
 	dogrun.POST("/search", dogrunController.SearchAroundDogruns)
+	dogrun.POST("/create/qrCode", dogrunController.CreateQRCode)
 
 	// auth関連
 	authController := newAuth(dbConn)

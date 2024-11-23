@@ -38,3 +38,16 @@ type rectangleTarget struct {
 	Southwest pointer `json:"southwest" validate:"required"`
 	Northeast pointer `json:"northeast" validate:"required"`
 }
+
+/*
+QRのリクエストボディ
+*/
+type QRCodeReq struct {
+	DogRunID string `json:"dogRunID"`
+}
+
+type QRCodeDTO struct {
+	DogRunID  string `json:"dogRunID"`
+	Timestamp string `json:"timestamp"`
+	ExpiresAt string `json:"expiresAt"`
+}

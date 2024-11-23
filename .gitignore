@@ -27,3 +27,4 @@ main
 air.log
 
 *.DS_Store
+misc/minio/data*

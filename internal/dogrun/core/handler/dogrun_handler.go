@@ -8,6 +8,7 @@ import (
 
 	"github.com/go-playground/validator/v10"
 	"github.com/labstack/echo/v4"
+	"github.com/skip2/go-qrcode"
 	"github.com/wanrun-develop/wanrun/internal/dogrun/adapters/googleplace"
 	"github.com/wanrun-develop/wanrun/internal/dogrun/adapters/repository"
 	"github.com/wanrun-develop/wanrun/internal/dogrun/core/dto"
@@ -27,6 +28,7 @@ type IDogrunHandler interface {
 	GetDogrunTagMst(echo.Context) ([]dto.TagMstRes, error)
 	SearchAroundDogruns(echo.Context, dto.SearchAroundRectangleCondition) ([]dto.DogrunLists, error)
 	GetDogrunPhotoSrc(echo.Context, string, string, string) (string, error)
+	GenerateQRCode(echo.Context, dto.QRCodeReq) ([]byte, error)
 }
 
 type dogrunHandler struct {
@@ -729,4 +731,55 @@ func (h *dogrunHandler) persistenceDogrunPlaceId(c echo.Context, placeId string)
 	}
 	logger.Infof("PKの生成  %s->%s", placeId, id)
 	return id, nil
+}
+
+// GenerateQRCode: QRコードの作成
+//
+// args:
+//   - echo.Context: Echoのコンテキスト。リクエストやレスポンスにアクセスするために使用
+//
+// return:
+//   - error: error情報
+//   - []byte: QRコード
+func (h *dogrunHandler) GenerateQRCode(c echo.Context, qcr dto.QRCodeReq) ([]byte, error) {
+	logger := log.GetLogger(c).Sugar()
+
+	// 現在の日付を取得
+	now := time.Now()
+
+	// その日の終わり(23:59:59)を計算
+	// 有効期限は、その日のみに限る
+	expiry := time.Date(now.Year(), now.Month(), now.Day(), 23, 59, 59, 0, now.Location())
+
+	qrData := dto.QRCodeDTO{
+		DogRunID:  qcr.DogRunID,
+		Timestamp: time.Now().Format(time.RFC3339),
+		ExpiresAt: expiry.Format(time.RFC3339),
+	}
+
+	// qrDataをJSON形式に変換
+	qrDataJSON, err := json.Marshal(qrData)
+	if err != nil {
+		wrErr := errors.NewWRError(
+			err,
+			"QRCode用データのJSON変換に失敗しました。",
+			errors.NewDogownerServerErrorEType(),
+		)
+		logger.Error(wrErr)
+		return nil, wrErr
+	}
+
+	// QRコードを生成
+	png, err := qrcode.Encode(string(qrDataJSON), qrcode.Highest, 256)
+	if err != nil {
+		wrErr := errors.NewWRError(
+			err,
+			"QRCodeの生成に失敗しました。",
+			errors.NewDogownerServerErrorEType(),
+		)
+		logger.Error(wrErr)
+		return nil, wrErr
+	}
+
+	return png, nil
 }
