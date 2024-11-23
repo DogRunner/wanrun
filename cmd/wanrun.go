@@ -55,6 +55,9 @@ func Main() {
 	// アプリケーション終了時にロガーを同期
 	defer zap.Sync()
 
+	// CORSの設定
+	e.Use(middleware.CORS())
+
 	// ミドルウェアを登録
 	e.Use(middleware.RequestID())
 	e.HTTPErrorHandler = errors.HttpErrorHandler
@@ -63,9 +66,6 @@ func Main() {
 	// JWTミドルウェアの設定
 	authMiddleware := newAuthMiddleware(dbConn)
 	e.Use(authMiddleware.NewJwtValidationMiddleware())
-
-	// CORSの設定
-	e.Use(middleware.CORS())
 
 	// Router設定
 	newRouter(e, dbConn)
@@ -83,7 +83,7 @@ func newRouter(e *echo.Echo, dbConn *gorm.DB) {
 	dog := e.Group("dog")
 	dog.GET("/all", dogController.GetAllDogs)
 	dog.GET("/detail/:dogID", dogController.GetDogByID)
-	dog.GET("/ownered/:dogOwnerId", dogController.GetDogByDogOwnerID)
+	dog.GET("/owned/:dogOwnerId", dogController.GetDogByDogOwnerID)
 	dog.GET("/mst/dogType", dogController.GetDogTypeMst)
 	dog.POST("", dogController.CreateDog)
 	dog.PUT("", dogController.UpdateDog)
