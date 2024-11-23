@@ -27,6 +27,7 @@ type IDogrunHandler interface {
 	GetDogrunTagMst(echo.Context) ([]dto.TagMstRes, error)
 	SearchAroundDogruns(echo.Context, dto.SearchAroundRectangleCondition) ([]dto.DogrunLists, error)
 	GetDogrunPhotoSrc(echo.Context, string, string, string) (string, error)
+	CheckDogrunExistById(echo.Context, int64) error
 }
 
 type dogrunHandler struct {
@@ -729,4 +730,29 @@ func (h *dogrunHandler) persistenceDogrunPlaceId(c echo.Context, placeId string)
 	}
 	logger.Infof("PKの生成  %s->%s", placeId, id)
 	return id, nil
+}
+
+// CheckDogrunExistById: dogrunの存在チェック
+//
+// args:
+//   - echo.Context:	コンテキスト
+//   - int64:	ドッグランID
+//
+// return:
+//   - error:	存在しない場合エラー
+func (h *dogrunHandler) CheckDogrunExistById(c echo.Context, dogrunID int64) error {
+	logger := log.GetLogger(c).Sugar()
+
+	dogrun, err := h.drr.FindDogrunByID(dogrunID)
+	if err != nil {
+		err = errors.NewWRError(err, "dogrun存在チェックでエラー", errors.NewDogrunClientErrorEType())
+		return err
+	}
+
+	if dogrun.IsEmpty() {
+		err = errors.NewWRError(nil, "指定されたdogrunが存在しません", errors.NewDogrunClientErrorEType())
+		logger.Error("不正なdogrun idの指定", err)
+		return err
+	}
+	return nil
 }

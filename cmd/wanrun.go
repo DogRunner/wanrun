@@ -20,6 +20,9 @@ import (
 	dogrunR "github.com/wanrun-develop/wanrun/internal/dogrun/adapters/repository"
 	dogrunC "github.com/wanrun-develop/wanrun/internal/dogrun/controller"
 	dogrunH "github.com/wanrun-develop/wanrun/internal/dogrun/core/handler"
+	interactionR "github.com/wanrun-develop/wanrun/internal/interaction/adapters/repository"
+	interactionC "github.com/wanrun-develop/wanrun/internal/interaction/controller"
+	interactionH "github.com/wanrun-develop/wanrun/internal/interaction/core/handler"
 
 	"github.com/wanrun-develop/wanrun/pkg/errors"
 	logger "github.com/wanrun-develop/wanrun/pkg/log"
@@ -97,6 +100,12 @@ func newRouter(e *echo.Echo, dbConn *gorm.DB) {
 	// auth.GET("/google/oauth", authController.GoogleOAuth)
 	auth.POST("/signUp", authController.SignUp)
 	auth.POST("/token", authController.LogIn)
+
+	//interaction関連
+	interactionController := newInteraction(dbConn)
+	bookmark := e.Group("bookmark")
+	bookmark.POST("/dogrun", interactionController.AddBookmark)
+
 }
 
 // dogの初期化
@@ -127,4 +136,15 @@ func newAuth(dbConn *gorm.DB) authController.IAuthController {
 func newAuthMiddleware(dbConn *gorm.DB) authMW.IAuthJwt {
 	authRepository := authRepository.NewAuthRepository(dbConn)
 	return authMW.NewAuthJwt(authRepository)
+}
+
+func newInteraction(dbConn *gorm.DB) interactionC.IBookmarkController {
+	//dogrun
+	dogrunRest := googleplace.NewRest()
+	dogrunRepository := dogrunR.NewDogrunRepository(dbConn)
+	dogrunHandler := dogrunH.NewDogrunHandler(dogrunRest, dogrunRepository)
+
+	interactionRepository := interactionR.NewBookmarkRepository(dbConn)
+	interactionHandler := interactionH.NewBookmarkHandler(interactionRepository, dogrunHandler)
+	return interactionC.NewBookmarkController(interactionHandler)
 }

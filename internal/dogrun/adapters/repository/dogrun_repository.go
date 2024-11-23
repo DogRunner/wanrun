@@ -13,6 +13,7 @@ import (
 type IDogrunRepository interface {
 	GetDogrunByPlaceID(echo.Context, string) (model.Dogrun, error)
 	GetDogrunByID(string) (model.Dogrun, error)
+	FindDogrunByID(int64) (model.Dogrun, error)
 	GetDogrunByRectanglePointer(echo.Context, dto.SearchAroundRectangleCondition) ([]model.Dogrun, error)
 	GetTagMst(echo.Context) ([]model.TagMst, error)
 	RegistDogrunPlaceId(echo.Context, string) (int, error)
@@ -47,6 +48,18 @@ func (drr *dogrunRepository) GetDogrunByPlaceID(c echo.Context, placeID string) 
 DogrunIDで、ドッグランの取得
 */
 func (drr *dogrunRepository) GetDogrunByID(id string) (model.Dogrun, error) {
+	dogrun := model.Dogrun{}
+	if err := drr.db.Where("dogrun_id = ?", id).Find(&dogrun).Error; err != nil {
+		return dogrun, err
+	}
+	return dogrun, nil
+}
+
+/*
+[暫定] GetDogrunByIdが引数stringのため。後に統合
+DogrunIDで、ドッグランの取得
+*/
+func (drr *dogrunRepository) FindDogrunByID(id int64) (model.Dogrun, error) {
 	dogrun := model.Dogrun{}
 	if err := drr.db.Where("dogrun_id = ?", id).Find(&dogrun).Error; err != nil {
 		return dogrun, err

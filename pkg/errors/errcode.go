@@ -3,11 +3,12 @@ package errors
 import "fmt"
 
 const (
-	OTHER     int = 0
-	AUTH      int = 1
-	DOG       int = 2
-	DOG_OWNER int = 3
-	DOGRUN    int = 4
+	OTHER       int = 0
+	AUTH        int = 1
+	DOG         int = 2
+	DOG_OWNER   int = 3
+	DOGRUN      int = 4
+	INTERACTION int = 5
 )
 
 const (
@@ -18,6 +19,11 @@ const (
 type eType struct {
 	service   int
 	errorType int
+}
+
+func (t eType) String() string {
+	// カスタムフォーマットで文字列を返す
+	return fmt.Sprintf("%d-%d", t.service, t.errorType)
 }
 
 /*
@@ -83,7 +89,16 @@ func NewDogrunServerErrorEType() eType {
 	return eType{DOGRUN, SERVER}
 }
 
-func (t eType) String() string {
-	// カスタムフォーマットで文字列を返す
-	return fmt.Sprintf("%d-%d", t.service, t.errorType)
+/*
+インタラクション機能のクライアントエラー
+*/
+func NewInteractionClientErrorEType() eType {
+	return eType{INTERACTION, CLIENT}
+}
+
+/*
+インタラクション機能のサーバーエラー
+*/
+func NewInteractionServerErrorEType() eType {
+	return eType{INTERACTION, SERVER}
 }
