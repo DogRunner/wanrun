@@ -33,10 +33,6 @@ func init() {
 
 }
 
-const (
-	AUTH_GROUP_PATH string = "/auth"
-)
-
 func Main() {
 	dbConn, err := db.NewDB()
 	if err != nil {
@@ -53,6 +49,9 @@ func Main() {
 	// アプリケーション終了時にロガーを同期
 	defer zap.Sync()
 
+	// CORSの設定
+	e.Use(middleware.CORS())
+
 	// ミドルウェアを登録
 	e.Use(middleware.RequestID())
 	e.HTTPErrorHandler = errors.HttpErrorHandler
@@ -60,10 +59,7 @@ func Main() {
 
 	// JWTミドルウェアの設定
 	authMiddleware := newAuthMiddleware(dbConn)
-	e.Use(authMiddleware.NewJwtValidationMiddleware(AUTH_GROUP_PATH))
-
-	// CORSの設定
-	e.Use(middleware.CORS())
+	e.Use(authMiddleware.NewJwtValidationMiddleware())
 
 	// Router設定
 	newRouter(e, dbConn)
@@ -78,7 +74,7 @@ func newRouter(e *echo.Echo, dbConn *gorm.DB) {
 	dog := e.Group("dog")
 	dog.GET("/all", dogController.GetAllDogs)
 	dog.GET("/detail/:dogID", dogController.GetDogByID)
-	dog.GET("/ownered/:dogOwnerId", dogController.GetDogByDogOwnerID)
+	dog.GET("/owned/:dogOwnerId", dogController.GetDogByDogOwnerID)
 	dog.GET("/mst/dogType", dogController.GetDogTypeMst)
 	dog.POST("", dogController.CreateDog)
 	dog.PUT("", dogController.UpdateDog)
@@ -96,10 +92,11 @@ func newRouter(e *echo.Echo, dbConn *gorm.DB) {
 
 	// auth関連
 	authController := newAuth(dbConn)
-	auth := e.Group(AUTH_GROUP_PATH)
+	auth := e.Group("auth")
 	// auth.GET("/google/oauth", authController.GoogleOAuth)
 	auth.POST("/signUp", authController.SignUp)
 	auth.POST("/token", authController.LogIn)
+	auth.POST("/revoke", authController.Revoke)
 
 	//interaction関連
 	interactionController := newInteraction(dbConn)

@@ -19,6 +19,7 @@ type IAuthRepository interface {
 	// CreateOAuthDogOwner(c echo.Context, dogOwnerCredential *model.DogOwnerCredential) (*model.DogOwnerCredential, error)
 	UpdateJwtID(c echo.Context, doc *model.DogOwnerCredential, jwt_id string) error
 	GetJwtID(c echo.Context, doi int64) (string, error)
+	DeleteJwtID(c echo.Context, doID int64) error
 }
 
 type authRepository struct {
@@ -244,6 +245,35 @@ func (ar *authRepository) UpdateJwtID(c echo.Context, doc *model.DogOwnerCredent
 			wrErrors.NewDogownerServerErrorEType())
 
 		logger.Errorf("Failed to update JWT ID: %v", wrErr)
+
+		return wrErr
+	}
+
+	return err
+}
+
+// DeleteJwtID: 対象のdogOwnerのjwt_idの削除
+//
+// args:
+//   - echo.Context: Echoのコンテキスト。リクエストやレスポンスにアクセスするために使用
+//   - dto.DogOwnerDTO: dogOwnerの情報
+//
+// return:
+//   - error: error情報
+func (ar *authRepository) DeleteJwtID(c echo.Context, doID int64) error {
+	logger := log.GetLogger(c).Sugar()
+
+	// 対象のdogOwnerのjwt_idの更新
+	err := ar.db.Model(&model.AuthDogOwner{}).
+		Where("dog_owner_id= ?", doID).
+		Update("jwt_id", nil).Error
+	if err != nil {
+		wrErr := wrErrors.NewWRError(
+			err,
+			"DBへの同期が失敗しました。",
+			wrErrors.NewDogownerServerErrorEType())
+
+		logger.Errorf("Failed to delete JWT ID: %v", wrErr)
 
 		return wrErr
 	}
