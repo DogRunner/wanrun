@@ -2,6 +2,7 @@ package wanruncmd
 
 import (
 	"log"
+	"net/http"
 
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
@@ -94,6 +95,11 @@ func newRouter(e *echo.Echo, dbConn *gorm.DB) {
 	auth.POST("/signUp", authController.SignUp)
 	auth.POST("/token", authController.LogIn)
 	auth.POST("/revoke", authController.Revoke)
+
+	// ヘルスチェック
+	e.GET("/health", func(c echo.Context) error {
+		return c.NoContent(http.StatusOK)
+	})
 }
 
 // dogの初期化
