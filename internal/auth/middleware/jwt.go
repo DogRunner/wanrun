@@ -103,7 +103,7 @@ func getJwtClaimsAndVerification(c echo.Context) (*handler.AccountClaims, error)
 		wrErr := errors.NewWRError(
 			nil,
 			"JWTトークンが見つかりません。",
-			errors.NewDogownerClientErrorEType(),
+			errors.NewDogOwnerClientErrorEType(),
 		)
 		logger.Error(wrErr)
 		return nil, wrErr
@@ -114,7 +114,7 @@ func getJwtClaimsAndVerification(c echo.Context) (*handler.AccountClaims, error)
 		wrErr := errors.NewWRError(
 			nil,
 			"無効なJWTトークンです。",
-			errors.NewDogownerClientErrorEType(),
+			errors.NewDogOwnerClientErrorEType(),
 		)
 		logger.Error(wrErr)
 		return nil, wrErr
@@ -126,7 +126,7 @@ func getJwtClaimsAndVerification(c echo.Context) (*handler.AccountClaims, error)
 		wrErr := errors.NewWRError(
 			nil,
 			"クレーム情報の取得に失敗しました。",
-			errors.NewDogownerClientErrorEType(),
+			errors.NewDogOwnerClientErrorEType(),
 		)
 		logger.Error(wrErr)
 		return nil, wrErr
@@ -137,7 +137,7 @@ func getJwtClaimsAndVerification(c echo.Context) (*handler.AccountClaims, error)
 		wrErr := errors.NewWRError(
 			nil,
 			"JWTトークンの有効期限が切れています。",
-			errors.NewDogownerClientErrorEType(),
+			errors.NewDogOwnerClientErrorEType(),
 		)
 		logger.Error(wrErr)
 		return nil, wrErr
@@ -164,7 +164,7 @@ func (aj *authJwt) jwtIDValid(c echo.Context, ac *handler.AccountClaims) error {
 		wrErr := errors.NewWRError(
 			nil,
 			"認証情報が違います。",
-			errors.NewDogownerClientErrorEType(),
+			errors.NewDogOwnerClientErrorEType(),
 		)
 		logger.Error(wrErr)
 		return wrErr
@@ -182,7 +182,7 @@ func (aj *authJwt) jwtIDValid(c echo.Context, ac *handler.AccountClaims) error {
 		wrErr := errors.NewWRError(
 			nil,
 			"jwt_idが一致しません。",
-			errors.NewDogownerClientErrorEType(),
+			errors.NewDogOwnerClientErrorEType(),
 		)
 		logger.Error(wrErr)
 		return wrErr
