@@ -1,6 +1,8 @@
 package controller
 
 import (
+	"net/http"
+
 	"github.com/go-playground/validator/v10"
 	"github.com/labstack/echo/v4"
 	"github.com/wanrun-develop/wanrun/internal/interaction/core/dto"
@@ -14,7 +16,7 @@ type IBookmarkController interface {
 }
 
 type bookmarkController struct {
-	bh handler.IBookmarkHandler
+	h handler.IBookmarkHandler
 }
 
 func NewBookmarkController(bh handler.IBookmarkHandler) IBookmarkController {
@@ -32,8 +34,8 @@ func (bc *bookmarkController) AddBookmark(c echo.Context) error {
 	logger := log.GetLogger(c).Sugar()
 
 	var reqBody dto.AddBookmark
-	if err := c.Bind(*&reqBody); err != nil {
-		err = errors.NewWRError(err, "検索条件が不正です", errors.NewInteractionClientErrorEType())
+	if err := c.Bind(&reqBody); err != nil {
+		err = errors.NewWRError(err, "ブックマーク登録リクエストが不正です", errors.NewInteractionClientErrorEType())
 		logger.Error(err)
 		return err
 	}
@@ -42,10 +44,18 @@ func (bc *bookmarkController) AddBookmark(c echo.Context) error {
 
 	//リクエストボディのバリデーション
 	if err := validate.Struct(reqBody); err != nil {
-		err = errors.NewWRError(err, "検索条件のバリデーションに違反しています", errors.NewInteractionClientErrorEType())
+		err = errors.NewWRError(err, "リクエストがバリデーションに違反しています", errors.NewInteractionClientErrorEType())
 		logger.Error(err)
 		return err
 	}
 
-	return nil
+	//本処理
+	bookmarkId, err := bc.h.AddBookmark(c, reqBody)
+	if err != nil {
+		return err
+	}
+
+	return c.JSON(http.StatusOK, map[string]int64{
+		"dogrunBookmarkId": bookmarkId,
+	})
 }

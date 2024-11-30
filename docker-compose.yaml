@@ -39,6 +39,10 @@ services:
       GO_ENV: ${GO_ENV}
       SECRET_KEY: ${SECRET_KEY}
       GOOGLE_PLACE_API_KEY: ${GOOGLE_PLACE_API_KEY}
+      JWT_EXP_TIME: ${JWT_EXP_TIME}
+      AWS_ACCESS_KEY: ${AWS_ACCESS_KEY}
+      AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY}
+      AWS_S3_BUCKET_NAME: ${AWS_S3_BUCKET_NAME}
     depends_on:
       postgres:
         condition: service_healthy
