@@ -81,35 +81,35 @@ GoogleのOAuth認証
 //
 // return:
 //   - error: error情報
-func (ac *authController) SignUp(c echo.Context) error {
-	logger := log.GetLogger(c).Sugar()
+// func (ac *authController) SignUp(c echo.Context) error {
+// 	logger := log.GetLogger(c).Sugar()
 
-	ador := dto.AuthDogOwnerReq{}
+// 	ador := dto.AuthDogOwnerReq{}
 
-	if err := c.Bind(&ador); err != nil {
-		wrErr := errors.NewWRError(err, "入力項目に不正があります。", errors.NewDogownerClientErrorEType())
-		logger.Error(wrErr)
-		return wrErr
-	}
+// 	if err := c.Bind(&ador); err != nil {
+// 		wrErr := errors.NewWRError(err, "入力項目に不正があります。", errors.NewDogOwnerClientErrorEType())
+// 		logger.Error(wrErr)
+// 		return wrErr
+// 	}
 
-	// dogOwnerのSignUp
-	dogOwnerDetail, wrErr := ac.ah.CreateDogOwner(c, ador)
+// 	// dogOwnerのSignUp
+// 	dogOwnerDetail, wrErr := ac.ah.CreateDogOwner(c, ador)
 
-	if wrErr != nil {
-		return wrErr
-	}
+// 	if wrErr != nil {
+// 		return wrErr
+// 	}
 
-	// 署名済みのjwt token取得
-	token, wrErr := ac.ah.GetSignedJwt(c, dogOwnerDetail)
+// 	// 署名済みのjwt token取得
+// 	token, wrErr := ac.ah.GetSignedJwt(c, dogOwnerDetail)
 
-	if wrErr != nil {
-		return wrErr
-	}
+// 	if wrErr != nil {
+// 		return wrErr
+// 	}
 
-	return c.JSON(http.StatusCreated, map[string]string{
-		"accessToken": token,
-	})
-}
+// 	return c.JSON(http.StatusCreated, map[string]string{
+// 		"accessToken": token,
+// 	})
+// }
 
 // LogIn: login機能
 //
@@ -124,7 +124,7 @@ func (ac *authController) LogIn(c echo.Context) error {
 	ador := dto.AuthDogOwnerReq{}
 
 	if err := c.Bind(&ador); err != nil {
-		wrErr := errors.NewWRError(err, "入力項目に不正があります。", errors.NewDogownerClientErrorEType())
+		wrErr := errors.NewWRError(err, "入力項目に不正があります。", errors.NewDogOwnerClientErrorEType())
 		logger.Error(wrErr)
 		return wrErr
 	}
@@ -179,7 +179,7 @@ func (ac *authController) Revoke(c echo.Context) error {
 // 		wrErr := wrErrors.NewWRError(
 // 			errOAuthFailed,
 // 			"認証に失敗しました。",
-// 			wrErrors.NewDogownerClientErrorEType(),
+// 			wrErrors.NewDogOwnerClientErrorEType(),
 // 		)
 // 		return wrErr
 // 	}
