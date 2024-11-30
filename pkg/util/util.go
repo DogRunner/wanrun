@@ -1,7 +1,9 @@
 package util
 
 import (
+	"crypto/rand"
 	"database/sql"
+	"encoding/base64"
 	"strings"
 	"time"
 )
@@ -83,4 +85,25 @@ func ChooseTimeValidValue(sqlTime sql.NullTime, t time.Time) time.Time {
 		return sqlTime.Time
 	}
 	return t
+}
+
+// UUIDGenerator: 指定された長さの一意のIDを生成
+// Args:
+//
+//	length: 生成されるIDの長さを指定
+//	handleError: エラーを受け取りエラーを返す、カスタムエラーを処理する関数
+//
+// Returns:
+//
+//	string: ユニークなID
+//	error: error情報
+func UUIDGenerator(l int, handleError func(error) error) (string, error) {
+	b := make([]byte, l)
+	_, err := rand.Read(b)
+
+	if err != nil {
+		return "", handleError(err)
+	}
+
+	return base64.RawURLEncoding.EncodeToString(b)[:l], nil
 }
