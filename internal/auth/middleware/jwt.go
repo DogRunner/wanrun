@@ -37,6 +37,7 @@ const (
 var skipPaths = []string{
 	"/auth/token",
 	"/auth/signUp",
+	"/auth/dogOwner/signUp",
 	"/health",
 }
 

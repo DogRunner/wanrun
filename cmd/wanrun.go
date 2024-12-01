@@ -17,10 +17,14 @@ import (
 	dogController "github.com/wanrun-develop/wanrun/internal/dog/controller"
 	dogHandler "github.com/wanrun-develop/wanrun/internal/dog/core/handler"
 	dogOwnerRepository "github.com/wanrun-develop/wanrun/internal/dogOwner/adapters/repository"
+	dogOwnerController "github.com/wanrun-develop/wanrun/internal/dogOwner/controller"
+	dogOwnerHandler "github.com/wanrun-develop/wanrun/internal/dogOwner/core/handler"
+	dogOwnerUsecase "github.com/wanrun-develop/wanrun/internal/dogOwner/core/usecase"
 	"github.com/wanrun-develop/wanrun/internal/dogrun/adapters/googleplace"
 	dogrunR "github.com/wanrun-develop/wanrun/internal/dogrun/adapters/repository"
 	dogrunC "github.com/wanrun-develop/wanrun/internal/dogrun/controller"
 	dogrunH "github.com/wanrun-develop/wanrun/internal/dogrun/core/handler"
+	"github.com/wanrun-develop/wanrun/internal/transaction"
 
 	"github.com/wanrun-develop/wanrun/pkg/errors"
 	logger "github.com/wanrun-develop/wanrun/pkg/log"
@@ -90,9 +94,11 @@ func newRouter(e *echo.Echo, dbConn *gorm.DB) {
 
 	// auth関連
 	authController := newAuth(dbConn)
+	dogOwnerController := newDogOwner(dbConn)
 	auth := e.Group("auth")
 	// auth.GET("/google/oauth", authController.GoogleOAuth)
-	auth.POST("/signUp", authController.SignUp)
+	// auth.POST("/signUp", authController.SignUp)
+	auth.POST("/dogOwner/signUp", dogOwnerController.DogOwnerSignUp)
 	auth.POST("/token", authController.LogIn)
 	auth.POST("/revoke", authController.Revoke)
 
@@ -130,4 +136,28 @@ func newAuth(dbConn *gorm.DB) authController.IAuthController {
 func newAuthMiddleware(dbConn *gorm.DB) authMW.IAuthJwt {
 	authRepository := authRepository.NewAuthRepository(dbConn)
 	return authMW.NewAuthJwt(authRepository)
+}
+
+// dogOwnerの初期化
+func newDogOwner(dbConn *gorm.DB) dogOwnerController.IDogOwnerController {
+	// repository層
+	dogOwnerRepository := dogOwnerRepository.NewDogRepository(dbConn)
+	authRepository := authRepository.NewAuthRepository(dbConn)
+
+	// transaction層
+	transactionManager := transaction.NewTransactionManager(dbConn)
+
+	// usecase層
+	dogOwnerUsecase := dogOwnerUsecase.NewDogOwnerUsecase(
+		authRepository,
+		dogOwnerRepository,
+		transactionManager,
+	)
+
+	// handler層
+	authHandler := authHandler.NewAuthHandler(authRepository)
+	dogOwnerHandler := dogOwnerHandler.NewDogOwnerHandler(dogOwnerUsecase)
+
+	// controller層
+	return dogOwnerController.NewDogOwnerController(dogOwnerHandler, authHandler)
 }
