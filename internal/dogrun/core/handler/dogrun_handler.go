@@ -27,7 +27,7 @@ type IDogrunHandler interface {
 	GetDogrunTagMst(echo.Context) ([]dto.TagMstRes, error)
 	SearchAroundDogruns(echo.Context, dto.SearchAroundRectangleCondition) ([]dto.DogrunLists, error)
 	GetDogrunPhotoSrc(echo.Context, string, string, string) (string, error)
-	CheckDogrunExistById(echo.Context, int64) error
+	CheckDogrunExistByIds(echo.Context, []int64) error
 }
 
 type dogrunHandler struct {
@@ -736,21 +736,31 @@ func (h *dogrunHandler) persistenceDogrunPlaceId(c echo.Context, placeId string)
 //
 // args:
 //   - echo.Context:	コンテキスト
-//   - int64:	ドッグランID
+//   - []int64:	ドッグランIDs
 //
 // return:
 //   - error:	存在しない場合エラー
-func (h *dogrunHandler) CheckDogrunExistById(c echo.Context, dogrunID int64) error {
+func (h *dogrunHandler) CheckDogrunExistByIds(c echo.Context, dogrunIDs []int64) error {
 	logger := log.GetLogger(c).Sugar()
 
-	dogrun, err := h.drr.FindDogrunByID(dogrunID)
+	dogrunResults, err := h.drr.FindDogrunByIDs(dogrunIDs)
 	if err != nil {
 		err = errors.NewWRError(err, "dogrun存在チェックでエラー", errors.NewDogrunClientErrorEType())
 		return err
 	}
 
-	if dogrun.IsEmpty() {
-		err = errors.NewWRError(nil, "指定されたdogrunが存在しません", errors.NewDogrunClientErrorEType())
+	if len(dogrunResults) != len(dogrunIDs) {
+		dogrunsMap := make(map[int64]struct{})
+		for _, dogrun := range dogrunResults {
+			dogrunsMap[dogrun.DogrunID.Int64] = struct{}{}
+		}
+		notExistsIds := []int64{}
+		for _, targetId := range dogrunIDs {
+			if _, exists := dogrunsMap[targetId]; !exists {
+				notExistsIds = append(notExistsIds, targetId)
+			}
+		}
+		err = errors.NewWRError(nil, fmt.Sprintf("指定されたドッグランID:%dが存在しません", notExistsIds), errors.NewDogrunClientErrorEType())
 		logger.Error("不正なdogrun idの指定", err)
 		return err
 	}

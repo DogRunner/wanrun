@@ -5,6 +5,7 @@ import (
 
 	"github.com/go-playground/validator/v10"
 	"github.com/labstack/echo/v4"
+	"github.com/wanrun-develop/wanrun/common"
 	"github.com/wanrun-develop/wanrun/internal/interaction/core/dto"
 	"github.com/wanrun-develop/wanrun/internal/interaction/core/handler"
 	"github.com/wanrun-develop/wanrun/pkg/errors"
@@ -13,6 +14,7 @@ import (
 
 type IBookmarkController interface {
 	AddBookmark(echo.Context) error
+	DeleteBookmarks(echo.Context) error
 }
 
 type bookmarkController struct {
@@ -41,6 +43,7 @@ func (bc *bookmarkController) AddBookmark(c echo.Context) error {
 	}
 	// バリデータのインスタンス作成
 	validate := validator.New()
+	_ = validate.RegisterValidation("notEmpty", common.VNotEmpty)
 
 	//リクエストボディのバリデーション
 	if err := validate.Struct(reqBody); err != nil {
@@ -55,7 +58,22 @@ func (bc *bookmarkController) AddBookmark(c echo.Context) error {
 		return err
 	}
 
-	return c.JSON(http.StatusOK, map[string]int64{
+	return c.JSON(http.StatusOK, map[string][]int64{
 		"dogrunBookmarkId": bookmarkId,
 	})
+}
+
+// DeleteBookmarks: ブックマーク済みドッグランの取得
+//
+// args:
+//   - echo.Context:	コンテキスト
+//
+// return:
+//   - error	:	エラー
+func (bc *bookmarkController) DeleteBookmarks(c echo.Context) error {
+	logger := log.GetLogger(c).Sugar()
+	logger.Info()
+
+	return c.JSON(http.StatusOK, nil)
+
 }

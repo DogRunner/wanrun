@@ -13,7 +13,7 @@ import (
 type IDogrunRepository interface {
 	GetDogrunByPlaceID(echo.Context, string) (model.Dogrun, error)
 	GetDogrunByID(string) (model.Dogrun, error)
-	FindDogrunByID(int64) (model.Dogrun, error)
+	FindDogrunByIDs([]int64) ([]model.Dogrun, error)
 	GetDogrunByRectanglePointer(echo.Context, dto.SearchAroundRectangleCondition) ([]model.Dogrun, error)
 	GetTagMst(echo.Context) ([]model.TagMst, error)
 	RegistDogrunPlaceId(echo.Context, string) (int, error)
@@ -55,16 +55,21 @@ func (drr *dogrunRepository) GetDogrunByID(id string) (model.Dogrun, error) {
 	return dogrun, nil
 }
 
-/*
-[暫定] GetDogrunByIdが引数stringのため。後に統合
-DogrunIDで、ドッグランの取得
-*/
-func (drr *dogrunRepository) FindDogrunByID(id int64) (model.Dogrun, error) {
-	dogrun := model.Dogrun{}
-	if err := drr.db.Where("dogrun_id = ?", id).Find(&dogrun).Error; err != nil {
-		return dogrun, err
+// FindDogrunByIDs: 複数IDのドッグラン検索
+//
+// args:
+//   - echo.Context:	コンテキスト
+//   - []int64: dogrunIDs
+//
+// return:
+//   - []model.Dogrun:	検索結果
+//   - error:	エラー
+func (drr *dogrunRepository) FindDogrunByIDs(ids []int64) ([]model.Dogrun, error) {
+	dogruns := []model.Dogrun{}
+	if err := drr.db.Where("dogrun_id in ?", ids).Find(&dogruns).Error; err != nil {
+		return dogruns, err
 	}
-	return dogrun, nil
+	return dogruns, nil
 }
 
 /*
