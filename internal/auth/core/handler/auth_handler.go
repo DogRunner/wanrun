@@ -24,6 +24,7 @@ import (
 type IAuthHandler interface {
 	CreateDogOwner(c echo.Context, ador dto.AuthDogOwnerReq) (dto.DogOwnerDTO, error)
 	GetSignedJwt(c echo.Context, dod docDTO.DogOwnerDTO) (string, error)
+	GetSignedJwtTemporary(c echo.Context, dod dto.DogOwnerDTO) (string, error)
 	FetchDogOwnerInfo(c echo.Context, ador dto.AuthDogOwnerReq) (dto.DogOwnerDTO, error)
 	Revoke(c echo.Context, claims *AccountClaims) error
 	// GoogleOAuth(c echo.Context, authorizationCode string, grantType types.GrantType) (dto.ResDogOwnerDto, error)
@@ -326,6 +327,21 @@ func (ah *authHandler) GetSignedJwt(c echo.Context, dod docDTO.DogOwnerDTO) (str
 	return signedToken, wrErr
 }
 
+func (ah *authHandler) GetSignedJwtTemporary(c echo.Context, dod dto.DogOwnerDTO) (string, error) {
+	// 秘密鍵取得
+	secretKey := configs.FetchConfigStr("jwt.os.secret.key")
+	jwtExpTime := configs.FetchConfigInt("jwt.exp.time")
+
+	// jwt token生成
+	signedToken, wrErr := createTokenTemporary(c, secretKey, dod, jwtExpTime)
+
+	if wrErr != nil {
+		return "", wrErr
+	}
+
+	return signedToken, wrErr
+}
+
 // createToken: 指定された秘密鍵を使用して認証用のJWTトークンを生成
 //
 // args:
@@ -338,6 +354,36 @@ func (ah *authHandler) GetSignedJwt(c echo.Context, dod docDTO.DogOwnerDTO) (str
 //   - string: 生成されたJWTトークンを表す文字列
 //   - error: トークンの生成中に問題が発生したエラー
 func createToken(c echo.Context, secretKey string, dod docDTO.DogOwnerDTO, expTime int) (string, error) {
+	logger := log.GetLogger(c).Sugar()
+
+	// JWTのペイロード
+	claims := AccountClaims{
+		ID:  strconv.FormatInt(dod.DogOwnerID, 10), // stringにコンバート
+		JTI: dod.JwtID,
+		RegisteredClaims: jwt.RegisteredClaims{
+			ExpiresAt: jwt.NewNumericDate(time.Now().Add(time.Hour * time.Duration(expTime))), // 有効時間
+		},
+	}
+
+	// token生成
+	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
+
+	// tokenに署名
+	signedToken, err := token.SignedString([]byte(secretKey))
+	if err != nil {
+		wrErr := wrErrors.NewWRError(
+			err,
+			"パスワードに不正な文字列が入っています。",
+			wrErrors.NewDogOwnerClientErrorEType(),
+		)
+		logger.Error(wrErr)
+		return "", err
+	}
+
+	return signedToken, nil
+}
+
+func createTokenTemporary(c echo.Context, secretKey string, dod dto.DogOwnerDTO, expTime int) (string, error) {
 	logger := log.GetLogger(c).Sugar()
 
 	// JWTのペイロード

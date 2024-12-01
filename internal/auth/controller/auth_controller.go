@@ -14,7 +14,7 @@ import (
 )
 
 type IAuthController interface {
-	SignUp(c echo.Context) error
+	// SignUp(c echo.Context) error
 	LogIn(c echo.Context) error
 	Revoke(c echo.Context) error
 	// GoogleOAuth(c echo.Context) error
@@ -137,7 +137,7 @@ func (ac *authController) LogIn(c echo.Context) error {
 	}
 
 	// 署名済みのjwt token取得
-	token, wrErr := ac.ah.GetSignedJwt(c, DogOwnerDetail)
+	token, wrErr := ac.ah.GetSignedJwtTemporary(c, DogOwnerDetail)
 
 	if wrErr != nil {
 		return wrErr
