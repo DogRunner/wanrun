@@ -3,6 +3,7 @@ package controller
 import (
 	"net/http"
 
+	"github.com/go-playground/validator/v10"
 	"github.com/labstack/echo/v4"
 	authHandler "github.com/wanrun-develop/wanrun/internal/auth/core/handler"
 	"github.com/wanrun-develop/wanrun/internal/dogOwner/core/dto"
@@ -50,6 +51,20 @@ func (doc *dogOwnerController) DogOwnerSignUp(c echo.Context) error {
 		)
 		logger.Error(wrErr)
 		return wrErr
+	}
+
+	// バリデータのインスタンス作成
+	validate := validator.New()
+
+	//リクエストボディのバリデーション
+	if err := validate.Struct(&doReq); err != nil {
+		err = errors.NewWRError(
+			err,
+			"必須の項目に不正があります。",
+			errors.NewDogOwnerClientErrorEType(),
+		)
+		logger.Error(err)
+		return err
 	}
 
 	// dogOwnerのSignUp
