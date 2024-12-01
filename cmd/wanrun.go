@@ -102,6 +102,7 @@ func newRouter(e *echo.Echo, dbConn *gorm.DB) {
 	interactionController := newInteraction(dbConn)
 	bookmark := e.Group("bookmark")
 	bookmark.POST("/dogrun", interactionController.AddBookmark)
+	bookmark.DELETE("/dogrun", interactionController.DeleteBookmarks)
 
 }
 

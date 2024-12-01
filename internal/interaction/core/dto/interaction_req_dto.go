@@ -4,3 +4,7 @@ package dto
 type AddBookmark struct {
 	DogrunIDs []int64 `json:"bookmarkDogrunId" validate:"required,notEmpty"`
 }
+
+type DeleteBookmark struct {
+	DogrunIDs []int64 `json:"bookmarkDogrunId" validate:"required,notEmpty"`
+}

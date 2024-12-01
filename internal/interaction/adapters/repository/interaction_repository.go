@@ -12,6 +12,7 @@ import (
 type IBookmarkRepository interface {
 	AddBookmark(echo.Context, int64, int64) (int64, error)
 	FindDogrunBookmark(echo.Context, int64, int64) (model.DogrunBookmark, error)
+	DeleteBookmark(echo.Context, []int64, int64) error
 }
 
 type bookmarkRepository struct {
@@ -32,11 +33,11 @@ func NewBookmarkRepository(db *gorm.DB) IBookmarkRepository {
 // return:
 //   - int64:	発行されたdogrun_bookmark_id
 //   - error:	エラー
-func (r *bookmarkRepository) AddBookmark(c echo.Context, dogrunId int64, dogownerId int64) (int64, error) {
+func (r *bookmarkRepository) AddBookmark(c echo.Context, dogrunID int64, dogownerID int64) (int64, error) {
 	logger := log.GetLogger(c).Sugar()
 	bookmark := model.DogrunBookmark{
-		DogOwnerID: util.NewSqlNullInt64(dogownerId),
-		DogrunID:   util.NewSqlNullInt64(dogrunId),
+		DogOwnerID: util.NewSqlNullInt64(dogownerID),
+		DogrunID:   util.NewSqlNullInt64(dogrunID),
 	}
 
 	if err := r.db.Create(&bookmark).Error; err != nil {
@@ -61,11 +62,38 @@ func (r *bookmarkRepository) FindDogrunBookmark(c echo.Context, dogrunID int64, 
 	logger := log.GetLogger(c).Sugar()
 
 	bookmark := model.DogrunBookmark{}
-	if err := r.db.Where("dogrun_id = ?", dogrunID).Where("dog_owner_id = ?", dogownerID).Find(&bookmark).Error; err != nil {
+	if err := r.db.
+		Where("dogrun_id = ?", dogrunID).
+		Where("dog_owner_id = ?", dogownerID).
+		Find(&bookmark).Error; err != nil {
 		logger.Error(err)
 		err := errors.NewWRError(err, "dogrun_bookmarkの検索に失敗しました。", errors.NewInteractionServerErrorEType())
 		return bookmark, err
 	}
 
 	return bookmark, nil
+}
+
+// AddBookmark: 複数ドックランのブックマーク削除
+//
+// args:
+//   - echo.Context:	コンテキスト
+//   - []int64:	ブックマーク削除対象のdogrunIds
+//   - int64:	ブックマーク登録者のdogownerId
+//
+// return:
+//   - error:	エラー
+func (r *bookmarkRepository) DeleteBookmark(c echo.Context, dogrunIDs []int64, dogownerID int64) error {
+
+	logger := log.GetLogger(c).Sugar()
+
+	if err := r.db.
+		Where("dog_owner_id = ?", dogownerID).
+		Where("dogrun_id IN ?", dogrunIDs).
+		Delete(&model.DogrunBookmark{}).Error; err != nil {
+		logger.Error(err)
+		err := errors.NewWRError(err, "dogrun_bookmarkの削除に失敗しました。", errors.NewInteractionServerErrorEType())
+		return err
+	}
+	return nil
 }

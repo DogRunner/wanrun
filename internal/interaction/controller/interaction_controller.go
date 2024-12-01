@@ -72,8 +72,27 @@ func (bc *bookmarkController) AddBookmark(c echo.Context) error {
 //   - error	:	エラー
 func (bc *bookmarkController) DeleteBookmarks(c echo.Context) error {
 	logger := log.GetLogger(c).Sugar()
-	logger.Info()
 
-	return c.JSON(http.StatusOK, nil)
+	var reqBody dto.DeleteBookmark
+	if err := c.Bind(&reqBody); err != nil {
+		err = errors.NewWRError(err, "ブックマーク登録リクエストが不正です", errors.NewInteractionClientErrorEType())
+		logger.Error(err)
+		return err
+	}
+	// バリデータのインスタンス作成
+	validate := validator.New()
+	_ = validate.RegisterValidation("notEmpty", common.VNotEmpty)
+	//リクエストボディのバリデーション
+	if err := validate.Struct(reqBody); err != nil {
+		err = errors.NewWRError(err, "リクエストがバリデーションに違反しています", errors.NewInteractionClientErrorEType())
+		logger.Error(err)
+		return err
+	}
+
+	if err := bc.h.DeleteBookmark(c, reqBody); err != nil {
+		return err
+	}
+
+	return c.NoContent(http.StatusOK)
 
 }
