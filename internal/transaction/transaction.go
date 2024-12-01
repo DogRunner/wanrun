@@ -19,7 +19,6 @@ type ITransactionManager interface {
 		c echo.Context,
 		ctx context.Context,
 		f func(tx *gorm.DB) error,
-		errorGenerator func(error) error, // エラー生成関数を受け取る
 	) error
 }
 
@@ -71,14 +70,14 @@ func (tm *transactionManager) DoInTransaction(
 	c echo.Context,
 	ctx context.Context,
 	f func(tx *gorm.DB) error,
-	errorGenerator func(error) error, // エラー生成関数を受け取る
 ) error {
 	logger := log.GetLogger(c).Sugar()
 
 	// トランザクション開始
 	tx := tm.db.Begin()
 	if tx.Error != nil {
-		return errorGenerator(tx.Error)
+		logger.Errorf("Transactionの開始にエラーが起きました。詳細情報: %v", tx.Error)
+		return tx.Error
 	}
 
 	defer func() {
@@ -89,14 +88,16 @@ func (tm *transactionManager) DoInTransaction(
 	}()
 
 	// コールバック関数の実行
-	if err := f(tx); err != nil {
+	if wrErr := f(tx); wrErr != nil {
+		logger.Errorf("関数実行でエラーが起きました。詳細情報: %v", wrErr)
 		tx.Rollback()
-		return errorGenerator(tx.Error)
+		return wrErr
 	}
 
 	// コミット
 	if err := tx.Commit().Error; err != nil {
-		return errorGenerator(tx.Error)
+		logger.Errorf("DBコミットでエラーが起きました。詳細情報: %v", tx.Error)
+		return tx.Error
 	}
 
 	return nil

@@ -6,7 +6,6 @@ import (
 	dogOwnerRepository "github.com/wanrun-develop/wanrun/internal/dogOwner/adapters/repository"
 	model "github.com/wanrun-develop/wanrun/internal/models"
 	"github.com/wanrun-develop/wanrun/internal/transaction"
-	wrErrors "github.com/wanrun-develop/wanrun/pkg/errors"
 	"github.com/wanrun-develop/wanrun/pkg/log"
 	"gorm.io/gorm"
 )
@@ -33,13 +32,22 @@ func NewDogOwnerUsecase(
 	}
 }
 
+// SignUp: dogOwnerの登録処理
+//
+// args:
+//   - echo.Context: Echoのコンテキスト。リクエストやレスポンスにアクセスするために使用されます。
+//   - *model.DogOwnerCredential: dogOwnerの情報
+//
+// return:
+//   - *model.DogOwnerCredential: dogOwnerの情報
+//   - error: error情報
 func (dou *dogOwnerUsecase) SignUp(c echo.Context, doc *model.DogOwnerCredential) (*model.DogOwnerCredential, error) {
 	logger := log.GetLogger(c).Sugar()
 
 	ctx := c.Request().Context()
 
-	// 1トランザクション
-	wrErr := dou.tm.DoInTransaction(c, ctx, func(tx *gorm.DB) error {
+	// dogOwnerの作成する1トランザクション
+	err := dou.tm.DoInTransaction(c, ctx, func(tx *gorm.DB) error {
 
 		// Emailの重複チェック
 		if wrErr := dou.ar.CheckDuplicate(c, model.EmailField, doc.Email); wrErr != nil {
@@ -64,18 +72,11 @@ func (dou *dogOwnerUsecase) SignUp(c echo.Context, doc *model.DogOwnerCredential
 		// 正常に完了
 		return nil
 
-	}, func(err error) error {
-		// エラー生成関数を指定
-		return wrErrors.NewWRError(
-			err,
-			"SignUpトランザクション中にエラーが発生しました",
-			wrErrors.NewDogOwnerServerErrorEType(),
-		)
 	})
 
-	if wrErr != nil {
-		logger.Error("Transaction failed:", wrErr)
-		return nil, wrErr
+	if err != nil {
+		logger.Error("Transaction failed:", err)
+		return nil, err
 	}
 
 	// 正常に終了

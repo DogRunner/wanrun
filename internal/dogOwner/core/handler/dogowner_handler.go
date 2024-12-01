@@ -24,6 +24,15 @@ func NewDogOwnerHandler(dou usecase.IDogOwnerUsecase) IDogOwnerHandler {
 	return &dogOwnerHandler{dou}
 }
 
+// DogOwnerSignUp: dogOwnerの登録処理
+//
+// args:
+//   - echo.Context: Echoのコンテキスト。リクエストやレスポンスにアクセスするために使用されます。
+//   - dto.DogOwnerReq: dogOwnerに対するリクエスト情報
+//
+// return:
+//   - dto.dogOwnerDTO: dogOwnerのレスポンス情報
+//   - error: error情報
 func (doh *dogOwnerHandler) DogOwnerSignUp(c echo.Context, doReq dto.DogOwnerReq) (dto.DogOwnerDTO, error) {
 	logger := log.GetLogger(c).Sugar()
 

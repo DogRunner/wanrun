@@ -30,6 +30,13 @@ func NewDogOwnerController(
 	}
 }
 
+// DogOwnerSignUp: dogOwnerの登録処理
+//
+// args:
+//   - echo.Context: Echoのコンテキスト。リクエストやレスポンスにアクセスするために使用されます。
+//
+// return:
+//   - error: error情報
 func (doc *dogOwnerController) DogOwnerSignUp(c echo.Context) error {
 	logger := log.GetLogger(c).Sugar()
 
