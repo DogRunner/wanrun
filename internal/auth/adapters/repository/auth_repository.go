@@ -21,7 +21,6 @@ type IAuthRepository interface {
 	GetJwtID(c echo.Context, doi int64) (string, error)
 	DeleteJwtID(c echo.Context, doID int64) error
 	CheckDuplicate(c echo.Context, field string, value sql.NullString) error
-	CreateAuthDogOwnerAndCredential(tx *gorm.DB, c echo.Context, doc *model.DogOwnerCredential) error
 }
 
 type authRepository struct {
@@ -374,37 +373,5 @@ func (ar *authRepository) CheckDuplicate(c echo.Context, field string, value sql
 
 		return wrErr
 	}
-	return nil
-}
-
-func (ar *authRepository) CreateAuthDogOwnerAndCredential(tx *gorm.DB, c echo.Context, doc *model.DogOwnerCredential) error {
-	logger := log.GetLogger(c).Sugar()
-
-	// auth_dog_ownersテーブルにAuthDogOwner作成
-	if err := tx.Create(&doc.AuthDogOwner).Error; err != nil {
-		logger.Error("Failed to create AuthDogOwner: ", err)
-		return wrErrors.NewWRError(
-			err,
-			"AuthDogOwner作成に失敗しました。",
-			wrErrors.NewDogOwnerServerErrorEType(),
-		)
-	}
-
-	// AuthDogOwnerが作成された後、そのIDをdogOwnerCredentialに設定
-	doc.AuthDogOwnerID = doc.AuthDogOwner.AuthDogOwnerID
-
-	// dog_owner_credentialsテーブルにレコード作成
-	if err := tx.Create(&doc).Error; err != nil {
-		logger.Error("Failed to create DogOwnerCredential: ", err)
-		return wrErrors.NewWRError(
-			err,
-			"DogOwnerCredential作成に失敗しました。",
-			wrErrors.NewDogOwnerServerErrorEType(),
-		)
-	}
-
-	logger.Infof("Created AuthDogOwner Detail: %v", doc.AuthDogOwner)
-	logger.Infof("Created DogOwnerCredential Detail: %v", doc)
-
 	return nil
 }

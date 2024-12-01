@@ -9,6 +9,7 @@ import (
 
 	"github.com/wanrun-develop/wanrun/internal"
 	authRepository "github.com/wanrun-develop/wanrun/internal/auth/adapters/repository"
+	authScopeRepository "github.com/wanrun-develop/wanrun/internal/auth/adapters/scopeRepository"
 	authController "github.com/wanrun-develop/wanrun/internal/auth/controller"
 	authHandler "github.com/wanrun-develop/wanrun/internal/auth/core/handler"
 	authMW "github.com/wanrun-develop/wanrun/internal/auth/middleware"
@@ -17,9 +18,9 @@ import (
 	dogController "github.com/wanrun-develop/wanrun/internal/dog/controller"
 	dogHandler "github.com/wanrun-develop/wanrun/internal/dog/core/handler"
 	dogOwnerRepository "github.com/wanrun-develop/wanrun/internal/dogOwner/adapters/repository"
+	dogOwnerScopeRepository "github.com/wanrun-develop/wanrun/internal/dogOwner/adapters/scopeRepository"
 	dogOwnerController "github.com/wanrun-develop/wanrun/internal/dogOwner/controller"
 	dogOwnerHandler "github.com/wanrun-develop/wanrun/internal/dogOwner/core/handler"
-	dogOwnerUsecase "github.com/wanrun-develop/wanrun/internal/dogOwner/core/usecase"
 	"github.com/wanrun-develop/wanrun/internal/dogrun/adapters/googleplace"
 	dogrunR "github.com/wanrun-develop/wanrun/internal/dogrun/adapters/repository"
 	dogrunC "github.com/wanrun-develop/wanrun/internal/dogrun/controller"
@@ -147,16 +148,19 @@ func newDogOwner(dbConn *gorm.DB) dogOwnerController.IDogOwnerController {
 	// transaction層
 	transactionManager := transaction.NewTransactionManager(dbConn)
 
-	// usecase層
-	dogOwnerUsecase := dogOwnerUsecase.NewDogOwnerUsecase(
-		authRepository,
-		dogOwnerRepository,
-		transactionManager,
-	)
+	// scopeRepository層
+	dogOwnerScopeRepository := dogOwnerScopeRepository.NewDogOwnerScopeRepository()
+	authScopeRepository := authScopeRepository.NewAuthScopeRepository()
 
 	// handler層
 	authHandler := authHandler.NewAuthHandler(authRepository)
-	dogOwnerHandler := dogOwnerHandler.NewDogOwnerHandler(dogOwnerUsecase)
+	dogOwnerHandler := dogOwnerHandler.NewDogOwnerHandler(
+		dogOwnerScopeRepository,
+		transactionManager,
+		authScopeRepository,
+		dogOwnerRepository,
+		authRepository,
+	)
 
 	// controller層
 	return dogOwnerController.NewDogOwnerController(dogOwnerHandler, authHandler)

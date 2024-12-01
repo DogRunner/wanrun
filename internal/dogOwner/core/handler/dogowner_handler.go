@@ -2,14 +2,19 @@ package handler
 
 import (
 	"github.com/labstack/echo/v4"
+	authRepository "github.com/wanrun-develop/wanrun/internal/auth/adapters/repository"
+	authScopeRepository "github.com/wanrun-develop/wanrun/internal/auth/adapters/scopeRepository"
+	dogOwnerRepository "github.com/wanrun-develop/wanrun/internal/dogOwner/adapters/repository"
+	dogOwnerScopeRepository "github.com/wanrun-develop/wanrun/internal/dogOwner/adapters/scopeRepository"
 	"github.com/wanrun-develop/wanrun/internal/dogOwner/core/dto"
-	"github.com/wanrun-develop/wanrun/internal/dogOwner/core/usecase"
 	model "github.com/wanrun-develop/wanrun/internal/models"
+	"github.com/wanrun-develop/wanrun/internal/transaction"
 	wrErrors "github.com/wanrun-develop/wanrun/pkg/errors"
 	"github.com/wanrun-develop/wanrun/pkg/log"
 	"github.com/wanrun-develop/wanrun/pkg/util"
 	wrUtil "github.com/wanrun-develop/wanrun/pkg/util"
 	"golang.org/x/crypto/bcrypt"
+	"gorm.io/gorm"
 )
 
 type IDogOwnerHandler interface {
@@ -17,11 +22,27 @@ type IDogOwnerHandler interface {
 }
 
 type dogOwnerHandler struct {
-	dou usecase.IDogOwnerUsecase
+	dosr dogOwnerScopeRepository.IDogOwnerScopeRepository
+	tm   transaction.ITransactionManager
+	asr  authScopeRepository.IAuthScopeRepository
+	dor  dogOwnerRepository.IDogOwnerRepository
+	ar   authRepository.IAuthRepository
 }
 
-func NewDogOwnerHandler(dou usecase.IDogOwnerUsecase) IDogOwnerHandler {
-	return &dogOwnerHandler{dou}
+func NewDogOwnerHandler(
+	dosr dogOwnerScopeRepository.IDogOwnerScopeRepository,
+	tm transaction.ITransactionManager,
+	asr authScopeRepository.IAuthScopeRepository,
+	dor dogOwnerRepository.IDogOwnerRepository,
+	ar authRepository.IAuthRepository,
+) IDogOwnerHandler {
+	return &dogOwnerHandler{
+		dosr: dosr,
+		tm:   tm,
+		asr:  asr,
+		dor:  dor,
+		ar:   ar,
+	}
 }
 
 // DogOwnerSignUp: dogOwnerの登録処理
@@ -78,16 +99,51 @@ func (doh *dogOwnerHandler) DogOwnerSignUp(c echo.Context, doReq dto.DogOwnerReq
 
 	logger.Debugf("dogOwnerCredential %v, Type: %T", dogOwnerCredential, dogOwnerCredential)
 
-	result, wrErr := doh.dou.SignUp(c, &dogOwnerCredential)
+	ctx := c.Request().Context()
 
-	if wrErr != nil {
+	// Emailの重複チェック
+	if wrErr := doh.ar.CheckDuplicate(c, model.EmailField, dogOwnerCredential.Email); wrErr != nil {
 		return dto.DogOwnerDTO{}, wrErr
 	}
 
+	// PhoneNumberの重複チェック
+	if wrErr := doh.ar.CheckDuplicate(c, model.PhoneNumberField, dogOwnerCredential.PhoneNumber); wrErr != nil {
+		return dto.DogOwnerDTO{}, wrErr
+	}
+
+	// dogOwnerの作成する1トランザクション
+	if err := doh.tm.DoInTransaction(c, ctx, func(tx *gorm.DB) error {
+
+		// DogOwnerを作成
+		if wrErr := doh.dosr.CreateDogOwner(tx, c, &dogOwnerCredential); wrErr != nil {
+			return wrErr
+		}
+
+		// AuthDogOwnerを作成
+		if wrErr := doh.asr.CreateAuthDogOwner(tx, c, &dogOwnerCredential); wrErr != nil {
+			return wrErr
+		}
+
+		// DogOwnerのCredentialを作成
+		if wrErr := doh.asr.CreateDogOwnerCredential(tx, c, &dogOwnerCredential); wrErr != nil {
+			return wrErr
+		}
+
+		// 正常に完了
+		return nil
+
+	}); err != nil {
+		logger.Error("Transaction failed:", err)
+		return dto.DogOwnerDTO{}, err
+	}
+
+	// 正常に終了
+	logger.Infof("Successfully created SignUp DogOwner: %v", dogOwnerCredential)
+
 	// 作成したDogOwnerの情報をdto詰め替え
 	dogOwnerDetail := dto.DogOwnerDTO{
-		DogOwnerID: result.AuthDogOwner.DogOwnerID.Int64,
-		JwtID:      result.AuthDogOwner.JwtID.String,
+		DogOwnerID: dogOwnerCredential.AuthDogOwner.DogOwnerID.Int64,
+		JwtID:      dogOwnerCredential.AuthDogOwner.JwtID.String,
 	}
 
 	logger.Infof("dogOwnerDetail: %v", dogOwnerDetail)
