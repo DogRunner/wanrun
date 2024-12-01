@@ -8,7 +8,7 @@ import (
 	"gorm.io/gorm"
 )
 
-type TxKey struct{}
+type txKey struct{}
 
 type ITransactionManager interface {
 	Begin(ctx context.Context) (context.Context, *gorm.DB, error)
@@ -36,12 +36,12 @@ func (tm *transactionManager) Begin(ctx context.Context) (context.Context, *gorm
 	if tx.Error != nil {
 		return ctx, nil, tx.Error
 	}
-	return context.WithValue(ctx, TxKey{}, tx), tx, nil
+	return context.WithValue(ctx, txKey{}, tx), tx, nil
 }
 
 // トランザクションをコミット
 func (tm *transactionManager) Commit(ctx context.Context) error {
-	tx := ctx.Value(TxKey{}).(*gorm.DB)
+	tx := ctx.Value(txKey{}).(*gorm.DB)
 	if tx == nil {
 		return nil // トランザクションがない場合は何もしない
 	}
@@ -50,7 +50,7 @@ func (tm *transactionManager) Commit(ctx context.Context) error {
 
 // トランザクションをロールバック
 func (tm *transactionManager) Rollback(ctx context.Context) {
-	tx := ctx.Value(TxKey{}).(*gorm.DB)
+	tx := ctx.Value(txKey{}).(*gorm.DB)
 	if tx != nil {
 		tx.Rollback()
 	}
@@ -58,11 +58,16 @@ func (tm *transactionManager) Rollback(ctx context.Context) {
 
 // コンテキストからトランザクションを取得
 func (tm *transactionManager) GetTx(ctx context.Context) *gorm.DB {
-	tx, ok := ctx.Value(TxKey{}).(*gorm.DB)
+	tx, ok := ctx.Value(txKey{}).(*gorm.DB)
 	if !ok {
 		return nil
 	}
 	return tx
+}
+
+// トランザクションの保存
+func SaveTxToContext(ctx context.Context, tx *gorm.DB) context.Context {
+	return context.WithValue(ctx, txKey{}, tx)
 }
 
 // ヘルパー関数: トランザクションを簡略化
