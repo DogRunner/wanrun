@@ -1,0 +1,1 @@
+DROP TABLE IF EXISTS s3_file_info CASCADE;
