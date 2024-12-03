@@ -39,6 +39,7 @@ services:
       ENV: ${ENV}
       SECRET_KEY: ${SECRET_KEY}
       GOOGLE_PLACE_API_KEY: ${GOOGLE_PLACE_API_KEY}
+      STAGE: ${STAGE}
     depends_on:
       postgres:
         condition: service_healthy
