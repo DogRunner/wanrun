@@ -1,17 +1,26 @@
 package wanruncmd
 
 import (
+	"context"
 	"log"
 	"net/http"
 
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/config"
+	"github.com/aws/aws-sdk-go-v2/credentials"
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
 
+	"github.com/wanrun-develop/wanrun/configs"
 	"github.com/wanrun-develop/wanrun/internal"
 	authRepository "github.com/wanrun-develop/wanrun/internal/auth/adapters/repository"
 	authController "github.com/wanrun-develop/wanrun/internal/auth/controller"
 	authHandler "github.com/wanrun-develop/wanrun/internal/auth/core/handler"
 	authMW "github.com/wanrun-develop/wanrun/internal/auth/middleware"
+	cmsAWS "github.com/wanrun-develop/wanrun/internal/cms/adapters/aws"
+	cmsRepository "github.com/wanrun-develop/wanrun/internal/cms/adapters/repository"
+	cmsController "github.com/wanrun-develop/wanrun/internal/cms/controller"
+	cmsHandler "github.com/wanrun-develop/wanrun/internal/cms/core/handler"
 	"github.com/wanrun-develop/wanrun/internal/db"
 	dogRepository "github.com/wanrun-develop/wanrun/internal/dog/adapters/repository"
 	dogController "github.com/wanrun-develop/wanrun/internal/dog/controller"
@@ -63,6 +72,9 @@ func Main() {
 	newRouter(e, dbConn)
 	e.GET("/test", internal.Test)
 
+	// 最大リクエストボディサイズの指定
+	e.Use(middleware.BodyLimit("10M")) // 最大10MB
+
 	e.Logger.Fatal(e.Start(":8080"))
 }
 
@@ -96,7 +108,12 @@ func newRouter(e *echo.Echo, dbConn *gorm.DB) {
 	auth.POST("/token", authController.LogIn)
 	auth.POST("/revoke", authController.Revoke)
 
-	// ヘルスチェック
+	// cms関連
+	cmsController := newCms(dbConn)
+	cms := e.Group("cms")
+	cms.POST("/upload/file", cmsController.UploadFile)
+
+  // ヘルスチェック
 	e.GET("/health", func(c echo.Context) error {
 		return c.NoContent(http.StatusOK)
 	})
@@ -130,4 +147,39 @@ func newAuth(dbConn *gorm.DB) authController.IAuthController {
 func newAuthMiddleware(dbConn *gorm.DB) authMW.IAuthJwt {
 	authRepository := authRepository.NewAuthRepository(dbConn)
 	return authMW.NewAuthJwt(authRepository)
+}
+
+func newCms(dbConn *gorm.DB) cmsController.ICmsController {
+	cmsRepository := cmsRepository.NewCmsRepository(dbConn)
+	// aws設定
+	sdkCfg, err := loadAWSConfig()
+
+	if err != nil {
+		log.Fatalf("AWSのクレデンシャル取得に失敗: %v", err)
+	}
+	cmsAWS := cmsAWS.NewS3Client(sdkCfg)
+	cmsHandler := cmsHandler.NewCmsHandler(cmsAWS, cmsRepository)
+	cmsController := cmsController.NewCmsController(cmsHandler)
+	return cmsController
+}
+
+func loadAWSConfig() (aws.Config, error) {
+	// local
+	if configs.FetchConfigStr("ENV") == "local" {
+		return config.LoadDefaultConfig(context.Background(),
+			config.WithRegion(cmsAWS.DEFAULT_REGION),
+			config.WithCredentialsProvider(
+				credentials.NewStaticCredentialsProvider(
+					configs.FetchConfigStr("aws.access.key"),
+					configs.FetchConfigStr("aws.secret.access.key"),
+					"",
+				),
+			),
+		)
+	}
+
+	// クラウド
+	return config.LoadDefaultConfig(context.Background(),
+		config.WithRegion(cmsAWS.DEFAULT_REGION),
+	)
 }

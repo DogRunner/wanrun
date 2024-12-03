@@ -72,12 +72,16 @@ func bindEnvs() {
 	_ = v.BindEnv("postgres.user", "POSTGRES_USER")
 	_ = v.BindEnv("postgres.password", "POSTGRES_PASSWORD")
 	_ = v.BindEnv("postgres.dbname", "POSTGRES_DB")
+	_ = v.BindEnv("env", "ENV")
 	_ = v.BindEnv("google.place.api.key", "GOOGLE_PLACE_API_KEY")
-	_ = v.BindEnv("jwt.os.secret.key", "SECRET_KEY")        // jwt生成用の秘密鍵
-	_ = v.BindEnv("jwt.exp.time", "JWT_EXP_TIME")           // jwt生成用の秘密鍵
-	_ = v.BindEnv("gcp.client.id", "GCP_CLIENT_ID")         // oauthの際のgcp credentials
-	_ = v.BindEnv("gcp.client.secret", "GCP_CLIENT_SECRET") // oauthの際のgcp credentials
-	_ = v.BindEnv("gcp.redirect.uri", "GCP_REDIRECT_URI")   // oauthの際のgcp credentials
+	_ = v.BindEnv("jwt.os.secret.key", "SECRET_KEY")                // jwt生成用の秘密鍵
+	_ = v.BindEnv("jwt.exp.time", "JWT_EXP_TIME")                   // jwt生成用の秘密鍵
+	_ = v.BindEnv("gcp.client.id", "GCP_CLIENT_ID")                 // oauthの際のgcp credentials
+	_ = v.BindEnv("gcp.client.secret", "GCP_CLIENT_SECRET")         // oauthの際のgcp credentials
+	_ = v.BindEnv("gcp.redirect.uri", "GCP_REDIRECT_URI")           // oauthの際のgcp credentials
+	_ = v.BindEnv("aws.access.key", "AWS_ACCESS_KEY")               // awsのアクセスキー
+	_ = v.BindEnv("aws.secret.access.key", "AWS_SECRET_ACCESS_KEY") // awsのシークレットアクセスキー
+	_ = v.BindEnv("aws.s3.bucket.name", "AWS_S3_BUCKET_NAME")       // awsのbucket名
 }
 
 /*
