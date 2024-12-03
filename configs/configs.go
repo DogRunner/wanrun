@@ -72,6 +72,7 @@ func bindEnvs() {
 	_ = v.BindEnv("postgres.user", "POSTGRES_USER")
 	_ = v.BindEnv("postgres.password", "POSTGRES_PASSWORD")
 	_ = v.BindEnv("postgres.dbname", "POSTGRES_DB")
+	_ = v.BindEnv("stage", "STAGE")
 	_ = v.BindEnv("google.place.api.key", "GOOGLE_PLACE_API_KEY")
 	_ = v.BindEnv("jwt.os.secret.key", "SECRET_KEY")        // jwt生成用の秘密鍵
 	_ = v.BindEnv("jwt.exp.time", "JWT_EXP_TIME")           // jwt生成用の秘密鍵
