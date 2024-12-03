@@ -5,7 +5,13 @@ export POSTGRES_HOST=**************
 export POSTGRES_PORT=**************
 export ENV=**************
 export SECRET_KEY=**************
-export JWT_EXP_TIME=72
-export AWS_ACCESS_KEY=admin
-export AWS_SECRET_ACCESS_KEY=adminpass
-export AWS_S3_BUCKET_NAME="cms"
+export ENV=local
+export SECRET_KEY=$(cat <<EOF
+****
+EOF
+)
+export JWT_EXP_TIME=******
+export AWS_ACCESS_KEY=****
+export AWS_SECRET_ACCESS_KEY=******
+export AWS_S3_BUCKET_NAME=****
+export STAGE=****
