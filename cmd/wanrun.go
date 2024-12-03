@@ -3,6 +3,7 @@ package wanruncmd
 import (
 	"context"
 	"log"
+	"net/http"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/config"
@@ -111,6 +112,11 @@ func newRouter(e *echo.Echo, dbConn *gorm.DB) {
 	cmsController := newCms(dbConn)
 	cms := e.Group("cms")
 	cms.POST("/upload/file", cmsController.UploadFile)
+
+  // ヘルスチェック
+	e.GET("/health", func(c echo.Context) error {
+		return c.NoContent(http.StatusOK)
+	})
 }
 
 // dogの初期化

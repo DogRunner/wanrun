@@ -13,6 +13,7 @@ import (
 	"github.com/wanrun-develop/wanrun/internal/auth/core/handler"
 	"github.com/wanrun-develop/wanrun/pkg/errors"
 	"github.com/wanrun-develop/wanrun/pkg/log"
+	"golang.org/x/exp/slices"
 )
 
 type IAuthJwt interface {
@@ -32,6 +33,13 @@ const (
 	TOKEN_LOOK_UP string = "header:Authorization:Bearer " // `Bearer `しか切り取れないのでスペースが多い場合は未対応
 )
 
+// スキップ対象のパスを定義
+var skipPaths = []string{
+	"/auth/token",
+	"/auth/signUp",
+	"/health",
+}
+
 // NewJwtValidationMiddleware: JWT検証用のミドルウェア設定を生成
 //
 // args:
@@ -50,7 +58,7 @@ func (aj *authJwt) NewJwtValidationMiddleware() echo.MiddlewareFunc {
 			ContextKey:  CONTEXT_KEY,   // カスタムキーを設定
 			Skipper: func(c echo.Context) bool { // スキップするパスを指定
 				path := c.Path()
-				return path == "/auth/token" || path == "/auth/signUp"
+				return slices.Contains(skipPaths, path)
 			},
 			SuccessHandler: func(c echo.Context) {
 				// contextからJWTのclaims取得と検証
