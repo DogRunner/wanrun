@@ -113,7 +113,7 @@ func newRouter(e *echo.Echo, dbConn *gorm.DB) {
 	cms := e.Group("cms")
 	cms.POST("/upload/file", cmsController.UploadFile)
 
-  // ヘルスチェック
+	// ヘルスチェック
 	e.GET("/health", func(c echo.Context) error {
 		return c.NoContent(http.StatusOK)
 	})
@@ -157,7 +157,7 @@ func newCms(dbConn *gorm.DB) cmsController.ICmsController {
 	if err != nil {
 		log.Fatalf("AWSのクレデンシャル取得に失敗: %v", err)
 	}
-	cmsAWS := cmsAWS.NewS3Client(sdkCfg)
+	cmsAWS := cmsAWS.NewS3Provider(sdkCfg)
 	cmsHandler := cmsHandler.NewCmsHandler(cmsAWS, cmsRepository)
 	cmsController := cmsController.NewCmsController(cmsHandler)
 	return cmsController
