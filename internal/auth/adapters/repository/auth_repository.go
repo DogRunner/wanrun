@@ -20,6 +20,7 @@ type IAuthRepository interface {
 	UpdateJwtID(c echo.Context, doc *model.DogOwnerCredential, jwt_id string) error
 	GetJwtID(c echo.Context, doi int64) (string, error)
 	DeleteJwtID(c echo.Context, doID int64) error
+	CheckDuplicate(c echo.Context, field string, value sql.NullString) error
 }
 
 type authRepository struct {
@@ -43,12 +44,12 @@ func (ar *authRepository) CreateDogOwner(c echo.Context, doc *model.DogOwnerCred
 	logger := log.GetLogger(c).Sugar()
 
 	// Emailの重複チェック
-	if wrErr := ar.checkDuplicate(c, model.EmailField, doc.Email); wrErr != nil {
+	if wrErr := ar.CheckDuplicate(c, model.EmailField, doc.Email); wrErr != nil {
 		return nil, wrErr
 	}
 
 	// PhoneNumberの重複チェック
-	if wrErr := ar.checkDuplicate(c, model.PhoneNumberField, doc.PhoneNumber); wrErr != nil {
+	if wrErr := ar.CheckDuplicate(c, model.PhoneNumberField, doc.PhoneNumber); wrErr != nil {
 		return nil, wrErr
 	}
 
@@ -83,7 +84,7 @@ func (ar *authRepository) CreateDogOwner(c echo.Context, doc *model.DogOwnerCred
 		wrErr := wrErrors.NewWRError(
 			err,
 			"DBへの登録が失敗しました。",
-			wrErrors.NewDogownerServerErrorEType())
+			wrErrors.NewDogOwnerServerErrorEType())
 
 		logger.Errorf("Transaction failed error: %v", wrErr)
 
@@ -141,7 +142,7 @@ OAuthユーザーの作成
 // 		wrErr := wrErrors.NewWRError(
 // 			err,
 // 			"transaction failed",
-// 			wrErrors.NewDogownerClientErrorEType())
+// 			wrErrors.NewDogOwnerClientErrorEType())
 
 // 		logger.Errorf("Transaction failed error: %v", wrErr)
 
@@ -160,7 +161,7 @@ OAuthユーザーの作成
 // 		wrErr := wrErrors.NewWRError(
 // 			err,
 // 			"failed to fetch created record",
-// 			wrErrors.NewDogownerServerErrorEType())
+// 			wrErrors.NewDogOwnerServerErrorEType())
 
 // 		logger.Errorf("Failed to fetch created record: %v", wrErr)
 
@@ -200,7 +201,7 @@ func (ar *authRepository) GetDogOwnerByCredential(c echo.Context, ador dto.AuthD
 			wrErr := wrErrors.NewWRError(
 				err,
 				"認証情報がありません",
-				wrErrors.NewDogownerClientErrorEType())
+				wrErrors.NewDogOwnerClientErrorEType())
 
 			logger.Errorf("Not found credential error: %v", wrErr)
 
@@ -210,7 +211,7 @@ func (ar *authRepository) GetDogOwnerByCredential(c echo.Context, ador dto.AuthD
 		wrErr := wrErrors.NewWRError(
 			err,
 			"DBからのデータ取得に失敗しました。",
-			wrErrors.NewDogownerServerErrorEType())
+			wrErrors.NewDogOwnerServerErrorEType())
 
 		logger.Errorf("DB search failure: %v", wrErr)
 
@@ -242,7 +243,7 @@ func (ar *authRepository) UpdateJwtID(c echo.Context, doc *model.DogOwnerCredent
 		wrErr := wrErrors.NewWRError(
 			err,
 			"DBへの更新が失敗しました。",
-			wrErrors.NewDogownerServerErrorEType())
+			wrErrors.NewDogOwnerServerErrorEType())
 
 		logger.Errorf("Failed to update JWT ID: %v", wrErr)
 
@@ -271,7 +272,7 @@ func (ar *authRepository) DeleteJwtID(c echo.Context, doID int64) error {
 		wrErr := wrErrors.NewWRError(
 			err,
 			"DBへの同期が失敗しました。",
-			wrErrors.NewDogownerServerErrorEType())
+			wrErrors.NewDogOwnerServerErrorEType())
 
 		logger.Errorf("Failed to delete JWT ID: %v", wrErr)
 
@@ -307,7 +308,7 @@ func (ar *authRepository) GetJwtID(c echo.Context, doi int64) (string, error) {
 			wrErr := wrErrors.NewWRError(
 				err,
 				"認証情報がありません",
-				wrErrors.NewDogownerClientErrorEType())
+				wrErrors.NewDogOwnerClientErrorEType())
 
 			logger.Errorf("Not found jwt id error: %v", wrErr)
 
@@ -317,7 +318,7 @@ func (ar *authRepository) GetJwtID(c echo.Context, doi int64) (string, error) {
 		wrErr := wrErrors.NewWRError(
 			err,
 			"DBからのデータ取得に失敗しました。",
-			wrErrors.NewDogownerServerErrorEType())
+			wrErrors.NewDogOwnerServerErrorEType())
 
 		logger.Errorf("Failed to get JWT ID: %v", wrErr)
 
@@ -337,7 +338,7 @@ func (ar *authRepository) GetJwtID(c echo.Context, doi int64) (string, error) {
 //
 // return:
 //   - error: error情報
-func (ar *authRepository) checkDuplicate(c echo.Context, field string, value sql.NullString) error {
+func (ar *authRepository) CheckDuplicate(c echo.Context, field string, value sql.NullString) error {
 	logger := log.GetLogger(c).Sugar()
 
 	// 重複のvalidate
@@ -353,7 +354,7 @@ func (ar *authRepository) checkDuplicate(c echo.Context, field string, value sql
 		wrErr := wrErrors.NewWRError(
 			err,
 			"DBからのデータ取得に失敗しました。",
-			wrErrors.NewDogownerServerErrorEType(),
+			wrErrors.NewDogOwnerServerErrorEType(),
 		)
 
 		logger.Errorf("Failed to check existing value error: %v", wrErr)
@@ -365,7 +366,7 @@ func (ar *authRepository) checkDuplicate(c echo.Context, field string, value sql
 		wrErr := wrErrors.NewWRError(
 			nil,
 			fmt.Sprintf("%sの%sが既に登録されています。", field, value.String),
-			wrErrors.NewDogownerClientErrorEType(),
+			wrErrors.NewDogOwnerClientErrorEType(),
 		)
 
 		logger.Errorf("%s already exists error: %v", field, wrErr)
