@@ -120,7 +120,7 @@ func newRouter(e *echo.Echo, dbConn *gorm.DB) {
 	cms := e.Group("cms")
 	cms.POST("/upload/file", cmsController.UploadFile)
 
-  // ヘルスチェック
+	// ヘルスチェック
 	e.GET("/health", func(c echo.Context) error {
 		return c.NoContent(http.StatusOK)
 	})
@@ -181,6 +181,7 @@ func newDogOwner(dbConn *gorm.DB) dogOwnerController.IDogOwnerController {
 
 	// controller層
 	return dogOwnerController.NewDogOwnerController(dogOwnerHandler, authHandler)
+}
 
 func newCms(dbConn *gorm.DB) cmsController.ICmsController {
 	cmsRepository := cmsRepository.NewCmsRepository(dbConn)
