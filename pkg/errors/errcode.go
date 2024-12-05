@@ -8,6 +8,7 @@ const (
 	DOG       int = 2
 	DOG_OWNER int = 3
 	DOGRUN    int = 4
+	CMS       int = 5
 )
 
 const (
@@ -81,6 +82,20 @@ func NewDogrunClientErrorEType() eType {
 */
 func NewDogrunServerErrorEType() eType {
 	return eType{DOGRUN, SERVER}
+}
+
+/*
+cms機能のクライアントエラー
+*/
+func NewCmsClientErrorEType() eType {
+	return eType{CMS, CLIENT}
+}
+
+/*
+cms機能のサーバーエラー
+*/
+func NewCmsServerErrorEType() eType {
+	return eType{CMS, SERVER}
 }
 
 func (t eType) String() string {

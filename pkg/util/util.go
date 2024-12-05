@@ -107,3 +107,18 @@ func UUIDGenerator(l int, handleError func(error) error) (string, error) {
 
 	return base64.RawURLEncoding.EncodeToString(b)[:l], nil
 }
+
+// ConvertStringPointer: awsなどで返ってくる*string型をstringに返す
+// Args:
+//
+//	*string: stringのポインター型
+//
+// Returns:
+//
+//	string: string型の文字列
+func ConvertStringPointer(ptr *string) string {
+	if ptr == nil {
+		return ""
+	}
+	return *ptr
+}
