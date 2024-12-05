@@ -42,7 +42,7 @@ func (cc *cmsController) UploadFile(c echo.Context) error {
 		wrErr := errors.NewWRError(
 			err,
 			"ファイルデータに不正があります。",
-			errors.NewDogownerClientErrorEType(),
+			errors.NewDogOwnerClientErrorEType(),
 		)
 		logger.Error(wrErr)
 		return wrErr
@@ -55,7 +55,7 @@ func (cc *cmsController) UploadFile(c echo.Context) error {
 		wrErr := errors.NewWRError(
 			err,
 			"ファイルデータに不正があります。",
-			errors.NewDogownerClientErrorEType(),
+			errors.NewDogOwnerClientErrorEType(),
 		)
 		logger.Error(wrErr)
 		return wrErr
