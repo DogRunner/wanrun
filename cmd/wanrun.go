@@ -191,7 +191,7 @@ func newCms(dbConn *gorm.DB) cmsController.ICmsController {
 	if err != nil {
 		log.Fatalf("AWSのクレデンシャル取得に失敗: %v", err)
 	}
-	cmsAWS := cmsAWS.NewS3Client(sdkCfg)
+	cmsAWS := cmsAWS.NewS3Provider(sdkCfg)
 	cmsHandler := cmsHandler.NewCmsHandler(cmsAWS, cmsRepository)
 	cmsController := cmsController.NewCmsController(cmsHandler)
 	return cmsController

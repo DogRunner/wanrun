@@ -16,16 +16,16 @@ const (
 	DEFAULT_REGION string = "ap-northeast-1"
 )
 
-type IS3Client interface {
-	PutObject(c echo.Context, sok string, src io.Reader) (*s3.PutObjectOutput, error)
+type IS3Provider interface {
+	PutObject(c echo.Context, sok string, src io.Reader) error
 }
 
-type s3Client struct {
+type s3Provider struct {
 	svc *s3.Client
 }
 
-func NewS3Client(cfg aws.Config) IS3Client {
-	return &s3Client{
+func NewS3Provider(cfg aws.Config) IS3Provider {
+	return &s3Provider{
 		svc: s3.NewFromConfig(cfg),
 	}
 }
@@ -40,10 +40,11 @@ func NewS3Client(cfg aws.Config) IS3Client {
 // return:
 //   - output: s3にアップロードした際のメタデータ
 //   - error: error情報
-func (cs3 *s3Client) PutObject(c echo.Context, sok string, src io.Reader) (*s3.PutObjectOutput, error) {
+func (cs3 *s3Provider) PutObject(c echo.Context, sok string, src io.Reader) error {
 	logger := log.GetLogger(c).Sugar()
 
-	logger.Debug(configs.FetchConfigStr("aws.s3.bucket.name"))
+	logger.Debugf("S3 bucket name: %v", configs.FetchConfigStr("aws.s3.bucket.name"))
+
 	// s3への登録情報
 	input := &s3.PutObjectInput{
 		Bucket: aws.String(configs.FetchConfigStr("aws.s3.bucket.name")),
@@ -70,10 +71,10 @@ func (cs3 *s3Client) PutObject(c echo.Context, sok string, src io.Reader) (*s3.P
 			wrErrors.NewUnexpectedErrorEType(),
 		)
 		logger.Error(wrErr)
-		return nil, wrErr
+		return wrErr
 	}
 
-	return output, nil
+	return nil
 }
 
 // getS3Options: S3オプションの取得
