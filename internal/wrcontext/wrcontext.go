@@ -43,18 +43,18 @@ func GetVerifiedClaims(c echo.Context) (*handler.AccountClaims, error) {
 //
 // return:
 //   - int64:	ユーザーID
-func GetLoginUserId(c echo.Context) (int64, error) {
+func GetLoginUserID(c echo.Context) (int64, error) {
 	logger := log.GetLogger(c).Sugar()
 
 	claims, err := GetVerifiedClaims(c)
 	if err != nil {
 		return 0, err
 	}
-	userId, err := strconv.ParseInt(claims.ID, 10, 64)
+	userID, err := strconv.ParseInt(claims.ID, 10, 64)
 	if err != nil {
 		logger.Error(err)
 		err = errors.NewWRError(nil, "暫定", errors.NewAuthClientErrorEType())
 		return 0, err
 	}
-	return userId, nil
+	return userID, nil
 }

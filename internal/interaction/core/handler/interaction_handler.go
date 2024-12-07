@@ -46,12 +46,12 @@ func (h *bookmarkHandler) AddBookmark(c echo.Context, reqBody dto.AddBookmark) (
 	logger.Info("dogrunの存在チェック済み")
 
 	//ログインユーザーIDの取得
-	userID, err := wrcontext.GetLoginUserId(c)
+	userID, err := wrcontext.GetLoginUserID(c)
 	if err != nil {
 		return nil, err
 	}
 
-	bookmarkIds := []int64{}
+	bookmarkIDs := []int64{}
 
 	//ひとつずつ、すでにブックマーク済みかチェック
 	for _, dogrunID := range reqBody.DogrunIDs {
@@ -69,10 +69,10 @@ func (h *bookmarkHandler) AddBookmark(c echo.Context, reqBody dto.AddBookmark) (
 		if err != nil {
 			return nil, err
 		}
-		bookmarkIds = append(bookmarkIds, bookmarkId)
+		bookmarkIDs = append(bookmarkIDs, bookmarkId)
 	}
 
-	return bookmarkIds, nil
+	return bookmarkIDs, nil
 }
 
 // DeleteBookmark: ブックマークへのdogrunの追加
@@ -89,7 +89,7 @@ func (h *bookmarkHandler) DeleteBookmark(c echo.Context, reqBody dto.DeleteBookm
 	logger.Info("dogrunのお気に入り削除. dogrunID: ", reqBody.DogrunIDs)
 
 	//ログインユーザーIDの取得
-	userID, err := wrcontext.GetLoginUserId(c)
+	userID, err := wrcontext.GetLoginUserID(c)
 	if err != nil {
 		return err
 	}

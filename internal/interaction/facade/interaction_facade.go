@@ -28,7 +28,7 @@ func NewBookmarkFacade(br repository.IBookmarkRepository) IBookmarkFacade {
 //   - error:	エラー
 func (f *bookmarkFacade) GetAllUserBookmarks(c echo.Context) ([]int64, error) {
 	// ログインユーザーIDの取得
-	userID, err := wrcontext.GetLoginUserId(c)
+	userID, err := wrcontext.GetLoginUserID(c)
 	if err != nil {
 		return nil, err
 	}
