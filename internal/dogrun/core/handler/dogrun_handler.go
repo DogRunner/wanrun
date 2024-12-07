@@ -6,11 +6,11 @@ import (
 	"slices"
 	"time"
 
-	"github.com/go-playground/validator/v10"
 	"github.com/labstack/echo/v4"
 	"github.com/wanrun-develop/wanrun/internal/dogrun/adapters/googleplace"
 	"github.com/wanrun-develop/wanrun/internal/dogrun/adapters/repository"
 	"github.com/wanrun-develop/wanrun/internal/dogrun/core/dto"
+	"github.com/wanrun-develop/wanrun/internal/interaction/facade"
 	model "github.com/wanrun-develop/wanrun/internal/models"
 	"github.com/wanrun-develop/wanrun/pkg/errors"
 	"github.com/wanrun-develop/wanrun/pkg/log"
@@ -26,17 +26,18 @@ type IDogrunHandler interface {
 	GetDogrunByID(string)
 	GetDogrunTagMst(echo.Context) ([]dto.TagMstRes, error)
 	SearchAroundDogruns(echo.Context, dto.SearchAroundRectangleCondition) ([]dto.DogrunLists, error)
+	getBookmarkedDogrunIDs(echo.Context, chan<- []int64)
 	GetDogrunPhotoSrc(echo.Context, string, string, string) (string, error)
-	CheckDogrunExistByIds(echo.Context, []int64) error
 }
 
 type dogrunHandler struct {
 	rest googleplace.IRest
 	drr  repository.IDogrunRepository
+	bf   facade.IBookmarkFacade
 }
 
-func NewDogrunHandler(rest googleplace.IRest, drr repository.IDogrunRepository) IDogrunHandler {
-	return &dogrunHandler{rest, drr}
+func NewDogrunHandler(rest googleplace.IRest, drr repository.IDogrunRepository, bf facade.IBookmarkFacade) IDogrunHandler {
+	return &dogrunHandler{rest, drr, bf}
 }
 
 // GetDogRunDetailByPlaceId: placeIdでgoogle検索して返す
@@ -129,11 +130,10 @@ func (h *dogrunHandler) SearchAroundDogruns(c echo.Context, condition dto.Search
 	logger.Debugw("検索条件", "condition", condition)
 
 	payload := googleplace.ConvertReqToSearchTextPayload(condition)
-	// バリデータのインスタンス作成
-	validate := validator.New()
-	// カスタムバリデーションルールの登録
-	_ = validate.RegisterValidation("latitude", dto.VLatitude)
-	_ = validate.RegisterValidation("longitude", dto.VLongitude)
+
+	//ブックマーク済みを並列で取得
+	bookmarkedDogrunIDsCH := make(chan []int64)
+	go h.getBookmarkedDogrunIDs(c, bookmarkedDogrunIDsCH)
 
 	//base情報のFieldを使用
 	var baseFiled googleplace.IFieldMask = googleplace.BaseField{}
@@ -144,9 +144,13 @@ func (h *dogrunHandler) SearchAroundDogruns(c echo.Context, condition dto.Search
 		return nil, err
 	}
 	logger.Infof("googleレスポンスplace数:%d", len(dogrunsG))
+	dogrunGPlaceIDs := []string{}
+	for _, dogrunG := range dogrunsG {
+		dogrunGPlaceIDs = append(dogrunGPlaceIDs, dogrunG.ID)
+	}
 
 	//DBにある指定場所内のドッグランを取得
-	dogrunsD, err := h.drr.GetDogrunByRectanglePointer(c, condition)
+	dogrunsD, err := h.drr.GetDogrunByRectanglePointerOrPlaceId(c, condition, dogrunGPlaceIDs)
 	if err != nil {
 		return nil, err
 	}
@@ -155,12 +159,44 @@ func (h *dogrunHandler) SearchAroundDogruns(c echo.Context, condition dto.Search
 	//検索結果からレスポンスを作成
 	dogrunLists, err := h.trimAroundDogrunDetailInfo(c, dogrunsG, dogrunsD)
 	logger.Infof("レスポンス件数:%d", len(dogrunLists))
-
 	if err != nil {
 		return nil, err
 	}
 
+	//ブックマーク済みdogrunにフラグ付与
+	bookmarkedDogrunIDs := <-bookmarkedDogrunIDsCH
+	if bookmarkedDogrunIDs == nil {
+		err = errors.NewWRError(nil, "ドッグランのブックーマーク取得に失敗しました。", errors.NewDogrunServerErrorEType())
+		logger.Error(err)
+		return nil, err
+	}
+	//mapに変換
+	bookmarkedDogrunIDMap := util.ConvertSliceToMap(bookmarkedDogrunIDs, func(i int64) int64 { return i })
+	for i := range dogrunLists {
+		if _, exist := bookmarkedDogrunIDMap[int64(dogrunLists[i].DogrunID)]; exist {
+			dogrunLists[i].IsBookmarked = true
+		}
+	}
+
 	return dogrunLists, nil
+}
+
+// getBookmarkedDogrunIDs: サブルーチンでログチンユーザーのブックマーク済みDogrunIDを全て取得する
+//
+// args:
+//   - echo.Context:	コンテキスト
+//   - chan<- []int64:	受信専用チェネル　ブックマーク済みドッグランIDs
+//
+// return:
+func (h *dogrunHandler) getBookmarkedDogrunIDs(c echo.Context, bookmarkedDogrunIdsCH chan<- []int64) {
+	dogrunIDs, err := h.bf.GetAllUserBookmarks(c)
+	if err != nil {
+		bookmarkedDogrunIdsCH <- nil // 必要に応じてエラー状態を送る
+		close(bookmarkedDogrunIdsCH) // チャネルを閉じる
+		return
+	}
+	bookmarkedDogrunIdsCH <- dogrunIDs
+	close(bookmarkedDogrunIdsCH) // チャネルを閉じる
 }
 
 /*
@@ -730,39 +766,4 @@ func (h *dogrunHandler) persistenceDogrunPlaceId(c echo.Context, placeId string)
 	}
 	logger.Infof("PKの生成  %s->%s", placeId, id)
 	return id, nil
-}
-
-// CheckDogrunExistById: dogrunの存在チェック
-//
-// args:
-//   - echo.Context:	コンテキスト
-//   - []int64:	ドッグランIDs
-//
-// return:
-//   - error:	存在しない場合エラー
-func (h *dogrunHandler) CheckDogrunExistByIds(c echo.Context, dogrunIDs []int64) error {
-	logger := log.GetLogger(c).Sugar()
-
-	dogrunResults, err := h.drr.FindDogrunByIDs(dogrunIDs)
-	if err != nil {
-		err = errors.NewWRError(err, "dogrun存在チェックでエラー", errors.NewDogrunClientErrorEType())
-		return err
-	}
-
-	if len(dogrunResults) != len(dogrunIDs) {
-		dogrunsMap := make(map[int64]struct{})
-		for _, dogrun := range dogrunResults {
-			dogrunsMap[dogrun.DogrunID.Int64] = struct{}{}
-		}
-		notExistsIds := []int64{}
-		for _, targetId := range dogrunIDs {
-			if _, exists := dogrunsMap[targetId]; !exists {
-				notExistsIds = append(notExistsIds, targetId)
-			}
-		}
-		err = errors.NewWRError(nil, fmt.Sprintf("指定されたドッグランID:%dが存在しません", notExistsIds), errors.NewDogrunClientErrorEType())
-		logger.Error("不正なdogrun idの指定", err)
-		return err
-	}
-	return nil
 }

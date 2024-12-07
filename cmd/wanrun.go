@@ -20,9 +20,11 @@ import (
 	dogrunR "github.com/wanrun-develop/wanrun/internal/dogrun/adapters/repository"
 	dogrunC "github.com/wanrun-develop/wanrun/internal/dogrun/controller"
 	dogrunH "github.com/wanrun-develop/wanrun/internal/dogrun/core/handler"
+	dogrunFacade "github.com/wanrun-develop/wanrun/internal/dogrun/facade"
 	interactionR "github.com/wanrun-develop/wanrun/internal/interaction/adapters/repository"
 	interactionC "github.com/wanrun-develop/wanrun/internal/interaction/controller"
 	interactionH "github.com/wanrun-develop/wanrun/internal/interaction/core/handler"
+	interactionFacade "github.com/wanrun-develop/wanrun/internal/interaction/facade"
 
 	"github.com/wanrun-develop/wanrun/pkg/errors"
 	logger "github.com/wanrun-develop/wanrun/pkg/log"
@@ -116,9 +118,13 @@ func newDog(dbConn *gorm.DB) dogController.IDogController {
 }
 
 func newDogrun(dbConn *gorm.DB) dogrunC.IDogrunController {
+	//facadeの準備
+	interactionRepository := interactionR.NewBookmarkRepository(dbConn)
+	dogrunFacade := interactionFacade.NewBookmarkFacade(interactionRepository)
+
 	dogrunRest := googleplace.NewRest()
 	dogrunRepository := dogrunR.NewDogrunRepository(dbConn)
-	dogrunHandler := dogrunH.NewDogrunHandler(dogrunRest, dogrunRepository)
+	dogrunHandler := dogrunH.NewDogrunHandler(dogrunRest, dogrunRepository, dogrunFacade)
 	return dogrunC.NewDogrunController(dogrunHandler)
 }
 
@@ -137,12 +143,11 @@ func newAuthMiddleware(dbConn *gorm.DB) authMW.IAuthJwt {
 }
 
 func newInteraction(dbConn *gorm.DB) interactionC.IBookmarkController {
-	//dogrun
-	dogrunRest := googleplace.NewRest()
+	//facadeの準備
 	dogrunRepository := dogrunR.NewDogrunRepository(dbConn)
-	dogrunHandler := dogrunH.NewDogrunHandler(dogrunRest, dogrunRepository)
+	dogrunFacade := dogrunFacade.NewDogrunFacade(dogrunRepository)
 
 	interactionRepository := interactionR.NewBookmarkRepository(dbConn)
-	interactionHandler := interactionH.NewBookmarkHandler(interactionRepository, dogrunHandler)
+	interactionHandler := interactionH.NewBookmarkHandler(interactionRepository, dogrunFacade)
 	return interactionC.NewBookmarkController(interactionHandler)
 }

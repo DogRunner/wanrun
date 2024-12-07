@@ -4,7 +4,7 @@ import (
 	"fmt"
 
 	"github.com/labstack/echo/v4"
-	"github.com/wanrun-develop/wanrun/internal/dogrun/core/handler"
+	"github.com/wanrun-develop/wanrun/internal/dogrun/facade"
 	"github.com/wanrun-develop/wanrun/internal/interaction/adapters/repository"
 	"github.com/wanrun-develop/wanrun/internal/interaction/core/dto"
 	"github.com/wanrun-develop/wanrun/internal/wrcontext"
@@ -18,12 +18,12 @@ type IBookmarkHandler interface {
 }
 
 type bookmarkHandler struct {
-	r   repository.IBookmarkRepository
-	drh handler.IDogrunHandler
+	r  repository.IBookmarkRepository
+	df facade.IDogrunFacade
 }
 
-func NewBookmarkHandler(br repository.IBookmarkRepository, dh handler.IDogrunHandler) IBookmarkHandler {
-	return &bookmarkHandler{br, dh}
+func NewBookmarkHandler(br repository.IBookmarkRepository, df facade.IDogrunFacade) IBookmarkHandler {
+	return &bookmarkHandler{br, df}
 }
 
 // AddBookmark: ブックマークへのdogrunの追加
@@ -39,7 +39,7 @@ func (h *bookmarkHandler) AddBookmark(c echo.Context, reqBody dto.AddBookmark) (
 
 	logger := log.GetLogger(c).Sugar()
 	logger.Info("dogrunのお気に入り登録. dogrunID: ", reqBody.DogrunIDs)
-	err := h.drh.CheckDogrunExistByIds(c, reqBody.DogrunIDs)
+	err := h.df.CheckDogrunExistByIDs(c, reqBody.DogrunIDs)
 	if err != nil {
 		return nil, err
 	}

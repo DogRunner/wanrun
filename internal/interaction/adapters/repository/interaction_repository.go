@@ -10,6 +10,7 @@ import (
 )
 
 type IBookmarkRepository interface {
+	GetBookmarks(echo.Context, int64) ([]model.DogrunBookmark, error)
 	AddBookmark(echo.Context, int64, int64) (int64, error)
 	FindDogrunBookmark(echo.Context, int64, int64) (model.DogrunBookmark, error)
 	DeleteBookmark(echo.Context, []int64, int64) error
@@ -21,6 +22,30 @@ type bookmarkRepository struct {
 
 func NewBookmarkRepository(db *gorm.DB) IBookmarkRepository {
 	return &bookmarkRepository{db}
+}
+
+// GetBookmarks: dogownerのブックマークを取得
+//
+// args:
+//   - echo.Context:	コンテキスト
+//   - int64:	ドッグオーナーID
+//
+// return:
+//   - []model.DogrunBookmark:	検索結果
+//   - error:	エラー
+func (r *bookmarkRepository) GetBookmarks(c echo.Context, dogownerID int64) ([]model.DogrunBookmark, error) {
+	logger := log.GetLogger(c).Sugar()
+
+	bookmarks := []model.DogrunBookmark{}
+	if err := r.db.
+		Where("dog_owner_id = ?", dogownerID).
+		Find(&bookmarks).Error; err != nil {
+		logger.Error(err)
+		err := errors.NewWRError(err, "dogrun_bookmarksの検索に失敗しました。", errors.NewInteractionServerErrorEType())
+		return nil, err
+	}
+
+	return bookmarks, nil
 }
 
 // AddBookmark: ドックランのブックマーク登録

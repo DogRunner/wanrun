@@ -14,7 +14,7 @@ type IDogrunRepository interface {
 	GetDogrunByPlaceID(echo.Context, string) (model.Dogrun, error)
 	GetDogrunByID(string) (model.Dogrun, error)
 	FindDogrunByIDs([]int64) ([]model.Dogrun, error)
-	GetDogrunByRectanglePointer(echo.Context, dto.SearchAroundRectangleCondition) ([]model.Dogrun, error)
+	GetDogrunByRectanglePointerOrPlaceId(echo.Context, dto.SearchAroundRectangleCondition, []string) ([]model.Dogrun, error)
 	GetTagMst(echo.Context) ([]model.TagMst, error)
 	RegistDogrunPlaceId(echo.Context, string) (int, error)
 }
@@ -72,15 +72,24 @@ func (drr *dogrunRepository) FindDogrunByIDs(ids []int64) ([]model.Dogrun, error
 	return dogruns, nil
 }
 
-/*
-リクエストのボディの条件に基づいて、指定範囲内のドッグランを取得する
-*/
-func (drr *dogrunRepository) GetDogrunByRectanglePointer(c echo.Context, condition dto.SearchAroundRectangleCondition) ([]model.Dogrun, error) {
+// GetDogrunByRectanglePointerOrPlaceId: 条件の範囲内　または　指定のPlaceIDのdogrunを取得
+//
+// args:
+//   - echo.Context:	コンテキスト
+//   - to.SearchAroundRectangleCondition:	範囲条件
+//   - []string:	placeIDs
+//
+// return:
+//   - []model.Dogrun:	ドッグランの検索結果
+//   - error:	エラー
+func (drr *dogrunRepository) GetDogrunByRectanglePointerOrPlaceId(c echo.Context, condition dto.SearchAroundRectangleCondition, placeIDs []string) ([]model.Dogrun, error) {
 	logger := log.GetLogger(c).Sugar()
 	dogruns := []model.Dogrun{}
 	if err := drr.db.Preload("DogrunTags").
-		Where("longitude BETWEEN ? AND ?", condition.Target.Southwest.Longitude, condition.Target.Northeast.Longitude).
-		Where("latitude BETWEEN ? AND ?", condition.Target.Southwest.Latitude, condition.Target.Northeast.Latitude).
+		Where("(longitude BETWEEN ? AND ? ) AND (latitude BETWEEN ? AND ?)",
+			condition.Target.Southwest.Longitude, condition.Target.Northeast.Longitude,
+			condition.Target.Southwest.Latitude, condition.Target.Northeast.Latitude).
+		Or("place_id IN ?", placeIDs).
 		Find(&dogruns).Error; err != nil {
 		logger.Error(err)
 		return nil, errors.NewWRError(err, "DBからのデータ取得に失敗", errors.NewDogrunServerErrorEType())

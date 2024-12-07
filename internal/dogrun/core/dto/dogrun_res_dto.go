@@ -38,6 +38,7 @@ type DogrunLists struct {
 	UserRatingCount   int             `json:"userRatingCount,omitempty"`
 	DogrunTags        []int64         `json:"dogrunTagId,omitempty"`
 	Photos            []PhotoInfo     `json:"photos,omitempty"`
+	IsBookmarked      bool            `json:"isBookmarked"`
 }
 
 // 営業日情報
