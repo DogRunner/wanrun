@@ -36,13 +36,14 @@ services:
       POSTGRES_DB: ${POSTGRES_DB}
       POSTGRES_HOST: ${POSTGRES_HOST}
       POSTGRES_PORT: ${POSTGRES_PORT}
-      GO_ENV: ${GO_ENV}
+      ENV: ${ENV}
       SECRET_KEY: ${SECRET_KEY}
       GOOGLE_PLACE_API_KEY: ${GOOGLE_PLACE_API_KEY}
       JWT_EXP_TIME: ${JWT_EXP_TIME}
       AWS_ACCESS_KEY: ${AWS_ACCESS_KEY}
       AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY}
       AWS_S3_BUCKET_NAME: ${AWS_S3_BUCKET_NAME}
+      STAGE: ${STAGE}
     depends_on:
       postgres:
         condition: service_healthy
@@ -50,8 +51,44 @@ services:
       - ./:/app
     networks:
       - wanrun
-networks: 
+  minio:
+    container_name: minio
+    image: quay.io/minio/minio:latest
+    command: ['server', '/data', '--console-address', ':9001']
+    environment:
+      MINIO_ROOT_USER: admin
+      MINIO_ROOT_PASSWORD: adminpass
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    volumes:
+      - ./misc/minio/data:/data
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+    networks:
+      - wanrun
+  mc:
+    image: minio/mc
+    container_name: mc
+    depends_on:
+      minio:
+        condition: service_healthy
+    entrypoint: ["/bin/sh", "/scripts/mc-init.sh"]
+    environment:
+      MINIO_ROOT_USER: admin
+      MINIO_ROOT_PASSWORD: adminpass
+    volumes:
+      - ./misc/scripts:/scripts
+      - ./misc/s3_local_init_data:/s3_local_init_data
+    networks:
+      - wanrun
+networks:
   wanrun:
+    driver: bridge
 # データの永続化
 volumes:
   postgres:

@@ -1,7 +1,9 @@
 package util
 
 import (
+	"crypto/rand"
 	"database/sql"
+	"encoding/base64"
 	"strings"
 	"time"
 )
@@ -101,4 +103,40 @@ func ConvertSliceToMap[T any, K comparable](slice []T, keySelector func(T) K) ma
 		result[key] = item
 	}
 	return result
+}
+
+// UUIDGenerator: 指定された長さの一意のIDを生成
+// Args:
+//
+//	length: 生成されるIDの長さを指定
+//	handleError: エラーを受け取りエラーを返す、カスタムエラーを処理する関数
+//
+// Returns:
+//
+//	string: ユニークなID
+//	error: error情報
+func UUIDGenerator(l int, handleError func(error) error) (string, error) {
+	b := make([]byte, l)
+	_, err := rand.Read(b)
+
+	if err != nil {
+		return "", handleError(err)
+	}
+
+	return base64.RawURLEncoding.EncodeToString(b)[:l], nil
+}
+
+// ConvertStringPointer: awsなどで返ってくる*string型をstringに返す
+// Args:
+//
+//	*string: stringのポインター型
+//
+// Returns:
+//
+//	string: string型の文字列
+func ConvertStringPointer(ptr *string) string {
+	if ptr == nil {
+		return ""
+	}
+	return *ptr
 }

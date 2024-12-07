@@ -9,6 +9,7 @@ const (
 	DOG_OWNER   int = 3
 	DOGRUN      int = 4
 	INTERACTION int = 5
+	CMS         int = 5
 )
 
 const (
@@ -64,14 +65,14 @@ func NewDogServerErrorEType() eType {
 /*
 ドッグオーナー機能のクライアントエラー
 */
-func NewDogownerClientErrorEType() eType {
+func NewDogOwnerClientErrorEType() eType {
 	return eType{DOG_OWNER, CLIENT}
 }
 
 /*
 ドッグオーナー機能のサーバーエラー
 */
-func NewDogownerServerErrorEType() eType {
+func NewDogOwnerServerErrorEType() eType {
 	return eType{DOG_OWNER, SERVER}
 }
 
@@ -101,4 +102,18 @@ func NewInteractionClientErrorEType() eType {
 */
 func NewInteractionServerErrorEType() eType {
 	return eType{INTERACTION, SERVER}
+}
+
+/*
+cms機能のクライアントエラー
+*/
+func NewCmsClientErrorEType() eType {
+	return eType{CMS, CLIENT}
+}
+
+/*
+cms機能のサーバーエラー
+*/
+func NewCmsServerErrorEType() eType {
+	return eType{CMS, SERVER}
 }

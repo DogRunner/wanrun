@@ -13,6 +13,7 @@ import (
 	"github.com/wanrun-develop/wanrun/internal/auth/core/handler"
 	"github.com/wanrun-develop/wanrun/pkg/errors"
 	"github.com/wanrun-develop/wanrun/pkg/log"
+	"golang.org/x/exp/slices"
 )
 
 type IAuthJwt interface {
@@ -32,6 +33,14 @@ const (
 	TOKEN_LOOK_UP string = "header:Authorization:Bearer " // `Bearer `しか切り取れないのでスペースが多い場合は未対応
 )
 
+// スキップ対象のパスを定義
+var skipPaths = []string{
+	"/auth/token",
+	"/auth/signUp",
+	"/auth/dogOwner/signUp",
+	"/health",
+}
+
 // NewJwtValidationMiddleware: JWT検証用のミドルウェア設定を生成
 //
 // args:
@@ -50,7 +59,7 @@ func (aj *authJwt) NewJwtValidationMiddleware() echo.MiddlewareFunc {
 			ContextKey:  CONTEXT_KEY,   // カスタムキーを設定
 			Skipper: func(c echo.Context) bool { // スキップするパスを指定
 				path := c.Path()
-				return path == "/auth/token" || path == "/auth/signUp"
+				return slices.Contains(skipPaths, path)
 			},
 			SuccessHandler: func(c echo.Context) {
 				// contextからJWTのclaims取得と検証
@@ -95,7 +104,7 @@ func getJwtClaimsAndVerification(c echo.Context) (*handler.AccountClaims, error)
 		wrErr := errors.NewWRError(
 			nil,
 			"JWTトークンが見つかりません。",
-			errors.NewDogownerClientErrorEType(),
+			errors.NewDogOwnerClientErrorEType(),
 		)
 		logger.Error(wrErr)
 		return nil, wrErr
@@ -106,7 +115,7 @@ func getJwtClaimsAndVerification(c echo.Context) (*handler.AccountClaims, error)
 		wrErr := errors.NewWRError(
 			nil,
 			"無効なJWTトークンです。",
-			errors.NewDogownerClientErrorEType(),
+			errors.NewDogOwnerClientErrorEType(),
 		)
 		logger.Error(wrErr)
 		return nil, wrErr
@@ -118,7 +127,7 @@ func getJwtClaimsAndVerification(c echo.Context) (*handler.AccountClaims, error)
 		wrErr := errors.NewWRError(
 			nil,
 			"クレーム情報の取得に失敗しました。",
-			errors.NewDogownerClientErrorEType(),
+			errors.NewDogOwnerClientErrorEType(),
 		)
 		logger.Error(wrErr)
 		return nil, wrErr
@@ -129,7 +138,7 @@ func getJwtClaimsAndVerification(c echo.Context) (*handler.AccountClaims, error)
 		wrErr := errors.NewWRError(
 			nil,
 			"JWTトークンの有効期限が切れています。",
-			errors.NewDogownerClientErrorEType(),
+			errors.NewDogOwnerClientErrorEType(),
 		)
 		logger.Error(wrErr)
 		return nil, wrErr
@@ -156,7 +165,7 @@ func (aj *authJwt) jwtIDValid(c echo.Context, ac *handler.AccountClaims) error {
 		wrErr := errors.NewWRError(
 			nil,
 			"認証情報が違います。",
-			errors.NewDogownerClientErrorEType(),
+			errors.NewDogOwnerClientErrorEType(),
 		)
 		logger.Error(wrErr)
 		return wrErr
@@ -174,7 +183,7 @@ func (aj *authJwt) jwtIDValid(c echo.Context, ac *handler.AccountClaims) error {
 		wrErr := errors.NewWRError(
 			nil,
 			"jwt_idが一致しません。",
-			errors.NewDogownerClientErrorEType(),
+			errors.NewDogOwnerClientErrorEType(),
 		)
 		logger.Error(wrErr)
 		return wrErr
