@@ -6,8 +6,8 @@ import (
 	"github.com/go-playground/validator/v10"
 	"github.com/labstack/echo/v4"
 	authHandler "github.com/wanrun-develop/wanrun/internal/auth/core/handler"
-	"github.com/wanrun-develop/wanrun/internal/dogOwner/core/dto"
-	dogOwnerHandler "github.com/wanrun-develop/wanrun/internal/dogOwner/core/handler"
+	doDTO "github.com/wanrun-develop/wanrun/internal/dogowner/core/dto"
+	dogOwnerHandler "github.com/wanrun-develop/wanrun/internal/dogowner/core/handler"
 	"github.com/wanrun-develop/wanrun/pkg/errors"
 	"github.com/wanrun-develop/wanrun/pkg/log"
 )
@@ -41,7 +41,7 @@ func NewDogOwnerController(
 func (doc *dogOwnerController) DogOwnerSignUp(c echo.Context) error {
 	logger := log.GetLogger(c).Sugar()
 
-	doReq := dto.DogOwnerReq{}
+	doReq := doDTO.DogOwnerReq{}
 
 	if err := c.Bind(&doReq); err != nil {
 		wrErr := errors.NewWRError(
@@ -68,14 +68,7 @@ func (doc *dogOwnerController) DogOwnerSignUp(c echo.Context) error {
 	}
 
 	// dogOwnerのSignUp
-	dogOwnerDetail, wrErr := doc.doh.DogOwnerSignUp(c, doReq)
-
-	if wrErr != nil {
-		return wrErr
-	}
-
-	// 署名済みのjwt token取得
-	token, wrErr := doc.ah.GetSignedJwt(c, dogOwnerDetail)
+	token, wrErr := doc.doh.DogOwnerSignUp(c, doReq)
 
 	if wrErr != nil {
 		return wrErr
