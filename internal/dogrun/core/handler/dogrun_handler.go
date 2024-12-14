@@ -751,6 +751,28 @@ func (h *dogrunHandler) GenerateQRCode(c echo.Context, qcr dto.QRCodeReq) ([]byt
 	// 有効期限は、その日のみに限る
 	expiry := time.Date(now.Year(), now.Month(), now.Day(), 23, 59, 59, 0, now.Location())
 
+	dogrun, err := h.drr.GetDogrunByID(qcr.DogRunID)
+
+	if err != nil {
+		wrErr := errors.NewWRError(
+			err,
+			"ドッグラン検索が失敗しました。",
+			errors.NewDogrunServerErrorEType(),
+		)
+		logger.Error(wrErr)
+		return nil, wrErr
+	}
+
+	// 対象のドッグランの存在確認
+	if dogrun.DogrunID.Int64 == 0 {
+		wrErr := errors.NewWRError(
+			nil,
+			"対象のドッグランが存在しません。",
+			errors.NewDogrunServerErrorEType(),
+		)
+		return nil, wrErr
+	}
+
 	qrData := dto.QRCodeDTO{
 		DogRunID:  qcr.DogRunID,
 		Timestamp: time.Now().Format(time.RFC3339),
