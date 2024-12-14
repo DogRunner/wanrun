@@ -129,15 +129,8 @@ func (ac *authController) LogIn(c echo.Context) error {
 		return wrErr
 	}
 
-	// dogOwnerの情報取得
-	DogOwnerDetail, wrErr := ac.ah.FetchDogOwnerInfo(c, ador)
-
-	if wrErr != nil {
-		return wrErr
-	}
-
-	// 署名済みのjwt token取得
-	token, wrErr := ac.ah.GetSignedJwtTemporary(c, DogOwnerDetail)
+	// LogIn機能
+	token, wrErr := ac.ah.LogIn(c, ador)
 
 	if wrErr != nil {
 		return wrErr

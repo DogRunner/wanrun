@@ -3,22 +3,22 @@ package handler
 import (
 	"github.com/labstack/echo/v4"
 	authRepository "github.com/wanrun-develop/wanrun/internal/auth/adapters/repository"
-	authScopeRepository "github.com/wanrun-develop/wanrun/internal/auth/adapters/scopeRepository"
-	dogOwnerRepository "github.com/wanrun-develop/wanrun/internal/dogOwner/adapters/repository"
-	dogOwnerScopeRepository "github.com/wanrun-develop/wanrun/internal/dogOwner/adapters/scopeRepository"
-	"github.com/wanrun-develop/wanrun/internal/dogOwner/core/dto"
+	authScopeRepository "github.com/wanrun-develop/wanrun/internal/auth/adapters/scoperepository"
+	authHandler "github.com/wanrun-develop/wanrun/internal/auth/core/handler"
+	dogOwnerRepository "github.com/wanrun-develop/wanrun/internal/dogowner/adapters/repository"
+	dogOwnerScopeRepository "github.com/wanrun-develop/wanrun/internal/dogowner/adapters/scoperepository"
+	"github.com/wanrun-develop/wanrun/internal/dogowner/core/dto"
 	model "github.com/wanrun-develop/wanrun/internal/models"
 	"github.com/wanrun-develop/wanrun/internal/transaction"
 	wrErrors "github.com/wanrun-develop/wanrun/pkg/errors"
 	"github.com/wanrun-develop/wanrun/pkg/log"
-	"github.com/wanrun-develop/wanrun/pkg/util"
 	wrUtil "github.com/wanrun-develop/wanrun/pkg/util"
 	"golang.org/x/crypto/bcrypt"
 	"gorm.io/gorm"
 )
 
 type IDogOwnerHandler interface {
-	DogOwnerSignUp(c echo.Context, doReq dto.DogOwnerReq) (dto.DogOwnerDTO, error)
+	DogOwnerSignUp(c echo.Context, doReq dto.DogOwnerReq) (string, error)
 }
 
 type dogOwnerHandler struct {
@@ -45,16 +45,16 @@ func NewDogOwnerHandler(
 	}
 }
 
-// DogOwnerSignUp: dogOwnerの登録処理
+// DogOwnerSignUp: dogOwnerの登録し、検証済みのJWTを返す
 //
 // args:
 //   - echo.Context: Echoのコンテキスト。リクエストやレスポンスにアクセスするために使用されます。
 //   - dto.DogOwnerReq: dogOwnerに対するリクエスト情報
 //
 // return:
-//   - dto.dogOwnerDTO: dogOwnerのレスポンス情報
+//   - string
 //   - error: error情報
-func (doh *dogOwnerHandler) DogOwnerSignUp(c echo.Context, doReq dto.DogOwnerReq) (dto.DogOwnerDTO, error) {
+func (doh *dogOwnerHandler) DogOwnerSignUp(c echo.Context, doReq dto.DogOwnerReq) (string, error) {
 	logger := log.GetLogger(c).Sugar()
 
 	// パスワードのハッシュ化
@@ -63,24 +63,24 @@ func (doh *dogOwnerHandler) DogOwnerSignUp(c echo.Context, doReq dto.DogOwnerReq
 	if err != nil {
 		wrErr := wrErrors.NewWRError(
 			err,
-			"パスワードに不正な文字列が入っております。",
+			"パスワードに不正な文字列が入っています。",
 			wrErrors.NewDogOwnerClientErrorEType(),
 		)
 		logger.Error(wrErr)
-		return dto.DogOwnerDTO{}, wrErr
+		return "", wrErr
 	}
 
 	// EmailとPhoneNumberのバリデーション
 	if wrErr := validateEmailOrPhoneNumber(doReq); wrErr != nil {
 		logger.Error(wrErr)
-		return dto.DogOwnerDTO{}, wrErr
+		return "", wrErr
 	}
 
 	// JWT IDの生成
-	jwtID, wrErr := generateJwtID(c, 15)
+	jwtID, wrErr := authHandler.GenerateJwtID(c)
 
 	if wrErr != nil {
-		return dto.DogOwnerDTO{}, wrErr
+		return "", wrErr
 	}
 
 	// requestからDogOwnerの構造体に詰め替え
@@ -103,12 +103,12 @@ func (doh *dogOwnerHandler) DogOwnerSignUp(c echo.Context, doReq dto.DogOwnerReq
 
 	// Emailの重複チェック
 	if wrErr := doh.ar.CheckDuplicate(c, model.EmailField, dogOwnerCredential.Email); wrErr != nil {
-		return dto.DogOwnerDTO{}, wrErr
+		return "", wrErr
 	}
 
 	// PhoneNumberの重複チェック
 	if wrErr := doh.ar.CheckDuplicate(c, model.PhoneNumberField, dogOwnerCredential.PhoneNumber); wrErr != nil {
-		return dto.DogOwnerDTO{}, wrErr
+		return "", wrErr
 	}
 
 	// dogOwnerの作成する1トランザクション
@@ -134,7 +134,7 @@ func (doh *dogOwnerHandler) DogOwnerSignUp(c echo.Context, doReq dto.DogOwnerReq
 
 	}); err != nil {
 		logger.Error("Transaction failed:", err)
-		return dto.DogOwnerDTO{}, err
+		return "", err
 	}
 
 	// 正常に終了
@@ -148,7 +148,14 @@ func (doh *dogOwnerHandler) DogOwnerSignUp(c echo.Context, doReq dto.DogOwnerReq
 
 	logger.Infof("dogOwnerDetail: %v", dogOwnerDetail)
 
-	return dogOwnerDetail, nil
+	// 署名済みのjwt token取得
+	token, wrErr := authHandler.GetSignedJwt(c, dogOwnerDetail)
+
+	if wrErr != nil {
+		return "", wrErr
+	}
+
+	return token, nil
 }
 
 // validateEmailOrPhoneNumber: EmailかPhoneNumberの識別バリデーション。パスワード認証は、EmailかPhoneNumberで登録するため
@@ -181,31 +188,4 @@ func validateEmailOrPhoneNumber(doReq dto.DogOwnerReq) error {
 
 	// どちらか片方だけが入力されている場合は正常
 	return nil
-}
-
-// generateJwtID: JwtIDの生成。引数の数だけランダムの文字列を生成
-//
-// args:
-//   - echo.Context: Echoのコンテキスト。リクエストやレスポンスにアクセスするために使用
-//   - int: 生成されるIDの長さを指定
-//
-// return:
-//   - string: JwtID
-//   - error: error情報
-func generateJwtID(c echo.Context, l int) (string, error) {
-	logger := log.GetLogger(c).Sugar()
-
-	// カスタムエラー処理
-	handleError := func(err error) error {
-		wrErr := wrErrors.NewWRError(
-			err,
-			"JwtID生成に失敗しました",
-			wrErrors.NewDogOwnerServerErrorEType(),
-		)
-		logger.Error(wrErr)
-		return wrErr
-	}
-
-	// UUIDを生成
-	return util.UUIDGenerator(l, handleError)
 }
