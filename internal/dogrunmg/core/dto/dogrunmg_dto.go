@@ -1,8 +1,8 @@
 package dto
 
-type DogOwnerReq struct {
+type DogrunmgReq struct {
 	Password     string `json:"password" validate:"required"`
-	DogOwnerName string `json:"dogOwnerName" validate:"required"`
+	DogrunmgName string `json:"dogrunmgName" validate:"required"`
 	Email        string `json:"email"`
 	PhoneNumber  string `json:"phoneNumber"`
 }

@@ -4,10 +4,11 @@ import (
 	"github.com/labstack/echo/v4"
 	authRepository "github.com/wanrun-develop/wanrun/internal/auth/adapters/repository"
 	authScopeRepository "github.com/wanrun-develop/wanrun/internal/auth/adapters/scoperepository"
+	authDTO "github.com/wanrun-develop/wanrun/internal/auth/core/dto"
 	authHandler "github.com/wanrun-develop/wanrun/internal/auth/core/handler"
 	dogOwnerRepository "github.com/wanrun-develop/wanrun/internal/dogowner/adapters/repository"
 	dogOwnerScopeRepository "github.com/wanrun-develop/wanrun/internal/dogowner/adapters/scoperepository"
-	"github.com/wanrun-develop/wanrun/internal/dogowner/core/dto"
+	doDTO "github.com/wanrun-develop/wanrun/internal/dogowner/core/dto"
 	model "github.com/wanrun-develop/wanrun/internal/models"
 	"github.com/wanrun-develop/wanrun/internal/transaction"
 	wrErrors "github.com/wanrun-develop/wanrun/pkg/errors"
@@ -18,7 +19,7 @@ import (
 )
 
 type IDogOwnerHandler interface {
-	DogOwnerSignUp(c echo.Context, doReq dto.DogOwnerReq) (string, error)
+	DogOwnerSignUp(c echo.Context, doReq doDTO.DogOwnerReq) (string, error)
 }
 
 type dogOwnerHandler struct {
@@ -49,12 +50,12 @@ func NewDogOwnerHandler(
 //
 // args:
 //   - echo.Context: Echoのコンテキスト。リクエストやレスポンスにアクセスするために使用されます。
-//   - dto.DogOwnerReq: dogOwnerに対するリクエスト情報
+//   - doDTO.DogOwnerReq: dogOwnerに対するリクエスト情報
 //
 // return:
 //   - string
 //   - error: error情報
-func (doh *dogOwnerHandler) DogOwnerSignUp(c echo.Context, doReq dto.DogOwnerReq) (string, error) {
+func (doh *dogOwnerHandler) DogOwnerSignUp(c echo.Context, doReq doDTO.DogOwnerReq) (string, error) {
 	logger := log.GetLogger(c).Sugar()
 
 	// パスワードのハッシュ化
@@ -141,9 +142,10 @@ func (doh *dogOwnerHandler) DogOwnerSignUp(c echo.Context, doReq dto.DogOwnerReq
 	logger.Infof("Successfully created SignUp DogOwner: %v", dogOwnerCredential)
 
 	// 作成したDogOwnerの情報をdto詰め替え
-	dogOwnerDetail := dto.DogOwnerDTO{
-		DogOwnerID: dogOwnerCredential.AuthDogOwner.DogOwnerID.Int64,
-		JwtID:      dogOwnerCredential.AuthDogOwner.JwtID.String,
+	dogOwnerDetail := authDTO.UserAuthInfoDTO{
+		UserID:   dogOwnerCredential.AuthDogOwner.DogOwnerID.Int64,
+		JwtID:    dogOwnerCredential.AuthDogOwner.JwtID.String,
+		RoleName: authHandler.DOGOWNER_ROLE_NAME,
 	}
 
 	logger.Infof("dogOwnerDetail: %v", dogOwnerDetail)
@@ -165,7 +167,7 @@ func (doh *dogOwnerHandler) DogOwnerSignUp(c echo.Context, doReq dto.DogOwnerReq
 //
 // return:
 //   - error: err情報
-func validateEmailOrPhoneNumber(doReq dto.DogOwnerReq) error {
+func validateEmailOrPhoneNumber(doReq doDTO.DogOwnerReq) error {
 	// 両方が空の場合はエラー
 	if doReq.Email == "" && doReq.PhoneNumber == "" {
 		wrErr := wrErrors.NewWRError(
