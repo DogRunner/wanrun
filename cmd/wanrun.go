@@ -14,7 +14,6 @@ import (
 	"github.com/wanrun-develop/wanrun/configs"
 	"github.com/wanrun-develop/wanrun/internal"
 	authRepository "github.com/wanrun-develop/wanrun/internal/auth/adapters/repository"
-	authScopeRepository "github.com/wanrun-develop/wanrun/internal/auth/adapters/scoperepository"
 	authController "github.com/wanrun-develop/wanrun/internal/auth/controller"
 	authFacade "github.com/wanrun-develop/wanrun/internal/auth/core/facade"
 	authHandler "github.com/wanrun-develop/wanrun/internal/auth/core/handler"
@@ -28,16 +27,15 @@ import (
 	dogController "github.com/wanrun-develop/wanrun/internal/dog/controller"
 	dogHandler "github.com/wanrun-develop/wanrun/internal/dog/core/handler"
 	dogOwnerRepository "github.com/wanrun-develop/wanrun/internal/dogowner/adapters/repository"
-	dogOwnerScopeRepository "github.com/wanrun-develop/wanrun/internal/dogowner/adapters/scoperepository"
 	dogOwnerController "github.com/wanrun-develop/wanrun/internal/dogowner/controller"
 	dogOwnerHandler "github.com/wanrun-develop/wanrun/internal/dogowner/core/handler"
 	"github.com/wanrun-develop/wanrun/internal/dogrun/adapters/googleplace"
 	dogrunR "github.com/wanrun-develop/wanrun/internal/dogrun/adapters/repository"
 	dogrunC "github.com/wanrun-develop/wanrun/internal/dogrun/controller"
 	dogrunH "github.com/wanrun-develop/wanrun/internal/dogrun/core/handler"
-	dogrunmgScopeRepository "github.com/wanrun-develop/wanrun/internal/dogrunmg/adapters/scoperepository"
+	dogrunmgRepository "github.com/wanrun-develop/wanrun/internal/dogrunmg/adapters/repository"
 	dogrunmgFacade "github.com/wanrun-develop/wanrun/internal/dogrunmg/core/facade"
-	orgScopeRepository "github.com/wanrun-develop/wanrun/internal/org/adapters/scoperepository"
+	orgRepository "github.com/wanrun-develop/wanrun/internal/org/adapters/repository"
 	orgController "github.com/wanrun-develop/wanrun/internal/org/controller"
 	orgHandler "github.com/wanrun-develop/wanrun/internal/org/core/handler"
 	"github.com/wanrun-develop/wanrun/internal/transaction"
@@ -172,24 +170,24 @@ func newAuthMiddleware(dbConn *gorm.DB) authMW.IAuthJwt {
 // dogOwnerの初期化
 func newDogOwner(dbConn *gorm.DB) dogOwnerController.IDogOwnerController {
 	// repository層
-	dogOwnerRepository := dogOwnerRepository.NewDogRepository(dbConn)
-	authRepository := authRepository.NewAuthRepository(dbConn)
+	dor := dogOwnerRepository.NewDogRepository(dbConn)
+	ar := authRepository.NewAuthRepository(dbConn)
 
 	// transaction層
 	transactionManager := transaction.NewTransactionManager(dbConn)
 
 	// scopeRepository層
-	dogOwnerScopeRepository := dogOwnerScopeRepository.NewDogOwnerScopeRepository()
-	authScopeRepository := authScopeRepository.NewAuthScopeRepository()
+	dosr := dogOwnerRepository.NewDogOwnerScopeRepository()
+	asr := authRepository.NewAuthScopeRepository()
 
 	// handler層
-	authHandler := authHandler.NewAuthHandler(authRepository)
+	authHandler := authHandler.NewAuthHandler(ar)
 	dogOwnerHandler := dogOwnerHandler.NewDogOwnerHandler(
-		dogOwnerScopeRepository,
+		dosr,
 		transactionManager,
-		authScopeRepository,
-		dogOwnerRepository,
-		authRepository,
+		asr,
+		dor,
+		ar,
 	)
 
 	// controller層
@@ -236,9 +234,9 @@ func newOrg(dbConn *gorm.DB) orgController.IOrgController {
 	// orgRepository := orgRepository.NewOrgRepository(dbConn)
 
 	// scopeRepository層
-	orgScopeRepository := orgScopeRepository.NewOrgScopeRepository()
-	dogrunmgScopeRepository := dogrunmgScopeRepository.NewDogrunmgScopeRepository()
-	authScopeRepository := authScopeRepository.NewAuthScopeRepository()
+	orgScopeRepository := orgRepository.NewOrgScopeRepository()
+	dogrunmgScopeRepository := dogrunmgRepository.NewDogrunmgScopeRepository()
+	authScopeRepository := authRepository.NewAuthScopeRepository()
 
 	// transaction層
 	transactionManager := transaction.NewTransactionManager(dbConn)

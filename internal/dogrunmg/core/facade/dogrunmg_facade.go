@@ -2,7 +2,7 @@ package facade
 
 import (
 	"github.com/labstack/echo/v4"
-	dogrunmgScopeRepository "github.com/wanrun-develop/wanrun/internal/dogrunmg/adapters/scoperepository"
+	dogrunmgRepository "github.com/wanrun-develop/wanrun/internal/dogrunmg/adapters/repository"
 	model "github.com/wanrun-develop/wanrun/internal/models"
 	"gorm.io/gorm"
 )
@@ -12,11 +12,11 @@ type IDogrunmgFacade interface {
 }
 
 type dogrunmgFacade struct {
-	dmsr dogrunmgScopeRepository.IDogrunmgScopeRepository
+	dmsr dogrunmgRepository.IDogrunmgScopeRepository
 }
 
 func NewDogrunmgFacade(
-	dmsr dogrunmgScopeRepository.IDogrunmgScopeRepository,
+	dmsr dogrunmgRepository.IDogrunmgScopeRepository,
 ) IDogrunmgFacade {
 	return &dogrunmgFacade{
 		dmsr: dmsr,

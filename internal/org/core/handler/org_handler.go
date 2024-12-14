@@ -7,7 +7,7 @@ import (
 	authHandler "github.com/wanrun-develop/wanrun/internal/auth/core/handler"
 	dogrunmgFacade "github.com/wanrun-develop/wanrun/internal/dogrunmg/core/facade"
 	model "github.com/wanrun-develop/wanrun/internal/models"
-	orgScopeRepository "github.com/wanrun-develop/wanrun/internal/org/adapters/scoperepository"
+	orgRepository "github.com/wanrun-develop/wanrun/internal/org/adapters/repository"
 	"github.com/wanrun-develop/wanrun/internal/org/core/dto"
 	"github.com/wanrun-develop/wanrun/internal/transaction"
 	wrErrors "github.com/wanrun-develop/wanrun/pkg/errors"
@@ -22,14 +22,14 @@ type IOrgHandler interface {
 }
 
 type orgHandler struct {
-	osr orgScopeRepository.IOrgScopeRepository
+	osr orgRepository.IOrgScopeRepository
 	tm  transaction.ITransactionManager
 	dmf dogrunmgFacade.IDogrunmgFacade
 	af  authFacade.IAuthFacade
 }
 
 func NewOrgHandler(
-	osr orgScopeRepository.IOrgScopeRepository,
+	osr orgRepository.IOrgScopeRepository,
 	tm transaction.ITransactionManager,
 	dmf dogrunmgFacade.IDogrunmgFacade,
 	af authFacade.IAuthFacade,

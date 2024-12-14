@@ -2,7 +2,7 @@ package facade
 
 import (
 	"github.com/labstack/echo/v4"
-	authScopeRepository "github.com/wanrun-develop/wanrun/internal/auth/adapters/scoperepository"
+	authRepository "github.com/wanrun-develop/wanrun/internal/auth/adapters/repository"
 	model "github.com/wanrun-develop/wanrun/internal/models"
 	"gorm.io/gorm"
 )
@@ -12,11 +12,11 @@ type IAuthFacade interface {
 }
 
 type authFacade struct {
-	asr authScopeRepository.IAuthScopeRepository
+	asr authRepository.IAuthScopeRepository
 }
 
 func NewAuthFacade(
-	asr authScopeRepository.IAuthScopeRepository,
+	asr authRepository.IAuthScopeRepository,
 ) IAuthFacade {
 	return &authFacade{
 		asr: asr,
