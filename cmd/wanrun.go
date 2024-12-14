@@ -16,6 +16,7 @@ import (
 	authRepository "github.com/wanrun-develop/wanrun/internal/auth/adapters/repository"
 	authScopeRepository "github.com/wanrun-develop/wanrun/internal/auth/adapters/scoperepository"
 	authController "github.com/wanrun-develop/wanrun/internal/auth/controller"
+	authFacade "github.com/wanrun-develop/wanrun/internal/auth/core/facade"
 	authHandler "github.com/wanrun-develop/wanrun/internal/auth/core/handler"
 	authMW "github.com/wanrun-develop/wanrun/internal/auth/middleware"
 	cmsAWS "github.com/wanrun-develop/wanrun/internal/cms/adapters/aws"
@@ -34,6 +35,11 @@ import (
 	dogrunR "github.com/wanrun-develop/wanrun/internal/dogrun/adapters/repository"
 	dogrunC "github.com/wanrun-develop/wanrun/internal/dogrun/controller"
 	dogrunH "github.com/wanrun-develop/wanrun/internal/dogrun/core/handler"
+	dogrunmgScopeRepository "github.com/wanrun-develop/wanrun/internal/dogrunmg/adapters/scoperepository"
+	dogrunmgFacade "github.com/wanrun-develop/wanrun/internal/dogrunmg/core/facade"
+	orgScopeRepository "github.com/wanrun-develop/wanrun/internal/org/adapters/scoperepository"
+	orgController "github.com/wanrun-develop/wanrun/internal/org/controller"
+	orgHandler "github.com/wanrun-develop/wanrun/internal/org/core/handler"
 	"github.com/wanrun-develop/wanrun/internal/transaction"
 
 	"github.com/wanrun-develop/wanrun/pkg/errors"
@@ -126,6 +132,11 @@ func newRouter(e *echo.Echo, dbConn *gorm.DB) {
 	e.GET("/health", func(c echo.Context) error {
 		return c.NoContent(http.StatusOK)
 	})
+
+	// org関連
+	orgController := newOrg(dbConn)
+	org := e.Group("org")
+	org.POST("/contract", orgController.OrgSignUp)
 }
 
 // dogの初期化
@@ -218,4 +229,32 @@ func loadAWSConfig() (aws.Config, error) {
 	return config.LoadDefaultConfig(context.Background(),
 		config.WithRegion(cmsAWS.DEFAULT_REGION),
 	)
+}
+
+func newOrg(dbConn *gorm.DB) orgController.IOrgController {
+	// repository層
+	// orgRepository := orgRepository.NewOrgRepository(dbConn)
+
+	// scopeRepository層
+	orgScopeRepository := orgScopeRepository.NewOrgScopeRepository()
+	dogrunmgScopeRepository := dogrunmgScopeRepository.NewDogrunmgScopeRepository()
+	authScopeRepository := authScopeRepository.NewAuthScopeRepository()
+
+	// transaction層
+	transactionManager := transaction.NewTransactionManager(dbConn)
+
+	// facade層
+	dogrunmgFacade := dogrunmgFacade.NewDogrunmgFacade(dogrunmgScopeRepository)
+	authFacade := authFacade.NewAuthFacade(authScopeRepository)
+
+	// handler層
+	orgHandler := orgHandler.NewOrgHandler(
+		orgScopeRepository,
+		transactionManager,
+		dogrunmgFacade,
+		authFacade,
+	)
+
+	// controller層
+	return orgController.NewOrgController(orgHandler)
 }
