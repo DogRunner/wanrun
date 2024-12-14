@@ -4,6 +4,8 @@ import (
 	"database/sql"
 	"strings"
 	"time"
+
+	"github.com/google/uuid"
 )
 
 func IsStrEmpty(s string) bool {
@@ -83,4 +85,36 @@ func ChooseTimeValidValue(sqlTime sql.NullTime, t time.Time) time.Time {
 		return sqlTime.Time
 	}
 	return t
+}
+
+// UUIDGenerator: UUIDを生成する
+// Args:
+//
+//	handleError: エラーを処理するカスタム関数
+//
+// Returns:
+//
+//	string: UUID
+//	error: エラー情報
+func UUIDGenerator(handleError func(error) error) (string, error) {
+	u, err := uuid.NewRandom()
+	if err != nil {
+		return "", handleError(err)
+	}
+	return u.String(), nil
+}
+
+// ConvertStringPointer: awsなどで返ってくる*string型をstringに返す
+// Args:
+//
+//	*string: stringのポインター型
+//
+// Returns:
+//
+//	string: string型の文字列
+func ConvertStringPointer(ptr *string) string {
+	if ptr == nil {
+		return ""
+	}
+	return *ptr
 }

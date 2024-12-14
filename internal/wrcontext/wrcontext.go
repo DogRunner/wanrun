@@ -1,6 +1,8 @@
 package wrcontext
 
 import (
+	"strconv"
+
 	"github.com/labstack/echo/v4"
 	"github.com/wanrun-develop/wanrun/internal/auth/core/handler"
 	"github.com/wanrun-develop/wanrun/internal/auth/middleware"
@@ -23,11 +25,40 @@ func GetVerifiedClaims(c echo.Context) (*handler.AccountClaims, error) {
 		wrErr := errors.NewWRError(
 			nil,
 			"クレーム情報が見つかりません。",
-			errors.NewDogownerClientErrorEType(),
+			errors.NewDogOwnerClientErrorEType(),
 		)
 		logger.Error(wrErr)
 		return nil, wrErr
 	}
 
 	return claims, nil
+}
+
+// GetLoginUserId: ログインユーザーIDの取得
+//
+//	コンテキストのjwt解析済みclaimからユーザーID取得
+//
+// args:
+//   - echo.Context:	コンテキスト
+//
+// return:
+//   - int64:	ユーザーID
+func GetLoginUserId(c echo.Context) (int64, error) {
+	logger := log.GetLogger(c).Sugar()
+
+	claims, err := GetVerifiedClaims(c)
+	if err != nil {
+		return 0, err
+	}
+	userId, err := strconv.ParseInt(claims.ID, 10, 64)
+	if err != nil {
+		logger.Error(err)
+		err = errors.NewWRError(
+			nil,
+			"型の形式が異なっています。",
+			errors.NewAuthClientErrorEType(),
+		)
+		return 0, err
+	}
+	return userId, nil
 }
