@@ -763,7 +763,7 @@ func (h *dogrunHandler) GenerateQRCode(c echo.Context, qcr dto.QRCodeReq) ([]byt
 		wrErr := errors.NewWRError(
 			err,
 			"QRCode用データのJSON変換に失敗しました。",
-			errors.NewDogownerServerErrorEType(),
+			errors.NewDogrunServerErrorEType(),
 		)
 		logger.Error(wrErr)
 		return nil, wrErr
@@ -775,7 +775,7 @@ func (h *dogrunHandler) GenerateQRCode(c echo.Context, qcr dto.QRCodeReq) ([]byt
 		wrErr := errors.NewWRError(
 			err,
 			"QRCodeの生成に失敗しました。",
-			errors.NewDogownerServerErrorEType(),
+			errors.NewDogrunServerErrorEType(),
 		)
 		logger.Error(wrErr)
 		return nil, wrErr

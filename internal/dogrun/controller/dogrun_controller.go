@@ -163,12 +163,27 @@ func (dc *dogrunController) CreateQRCode(c echo.Context) error {
 		wrErr := errors.NewWRError(
 			err,
 			"入力項目に不正があります。",
-			errors.NewDogownerClientErrorEType(),
+			errors.NewDogrunClientErrorEType(),
 		)
 		logger.Error(wrErr)
 		return wrErr
 	}
 
+	// バリデータのインスタンス作成
+	validate := validator.New()
+
+	//リクエストボディのバリデーション
+	if err := validate.Struct(&qcr); err != nil {
+		err = errors.NewWRError(
+			err,
+			"必須の項目に不正があります。",
+			errors.NewDogrunClientErrorEType(),
+		)
+		logger.Error(err)
+		return err
+	}
+
+	// QRコードの生成処理
 	qrCode, wrErr := dc.h.GenerateQRCode(c, qcr)
 
 	if wrErr != nil {

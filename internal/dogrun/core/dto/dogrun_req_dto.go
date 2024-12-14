@@ -43,7 +43,7 @@ type rectangleTarget struct {
 QRのリクエストボディ
 */
 type QRCodeReq struct {
-	DogRunID string `json:"dogRunID"`
+	DogRunID string `json:"dogRunID" validate:"required"`
 }
 
 type QRCodeDTO struct {
