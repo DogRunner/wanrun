@@ -11,7 +11,8 @@ import (
 	"github.com/wanrun-develop/wanrun/configs"
 	"github.com/wanrun-develop/wanrun/internal/auth/adapters/repository"
 	"github.com/wanrun-develop/wanrun/internal/auth/core/handler"
-	"github.com/wanrun-develop/wanrun/pkg/errors"
+	model "github.com/wanrun-develop/wanrun/internal/models"
+	wrErrs "github.com/wanrun-develop/wanrun/pkg/errors"
 	"github.com/wanrun-develop/wanrun/pkg/log"
 	"golang.org/x/exp/slices"
 )
@@ -39,6 +40,7 @@ var skipPaths = []string{
 	"/auth/signUp",
 	"/dogowner/signUp",
 	"/health",
+	"/org/contract",
 }
 
 // NewJwtValidationMiddleware: JWT検証用のミドルウェア設定を生成
@@ -66,16 +68,14 @@ func (aj *authJwt) NewJwtValidationMiddleware() echo.MiddlewareFunc {
 				claims, wrErr := getJwtClaimsAndVerification(c)
 
 				if wrErr != nil {
-					neRes := errors.NewErrorRes(wrErr)
+					neRes := wrErrs.NewErrorRes(wrErr)
 					_ = c.JSON(http.StatusUnauthorized, neRes)
 					return
 				}
 
 				// リクエストのJWT内に含まれる`jwt_id`が、DBの`jwt_id`と一致するかを検証
-				wrErr = aj.jwtIDValid(c, claims)
-
-				if wrErr != nil {
-					neRes := errors.NewErrorRes(wrErr)
+				if wrErr = aj.jwtIDValid(c, claims); wrErr != nil {
+					neRes := wrErrs.NewErrorRes(wrErr)
 					_ = c.JSON(http.StatusUnauthorized, neRes)
 					return
 				}
@@ -101,10 +101,10 @@ func getJwtClaimsAndVerification(c echo.Context) (*handler.AccountClaims, error)
 	// JWTトークンをコンテキストから取得
 	token, ok := c.Get(CONTEXT_KEY).(*jwt.Token)
 	if !ok || token == nil {
-		wrErr := errors.NewWRError(
+		wrErr := wrErrs.NewWRError(
 			nil,
 			"JWTトークンが見つかりません。",
-			errors.NewDogOwnerClientErrorEType(),
+			wrErrs.NewAuthClientErrorEType(),
 		)
 		logger.Error(wrErr)
 		return nil, wrErr
@@ -112,10 +112,10 @@ func getJwtClaimsAndVerification(c echo.Context) (*handler.AccountClaims, error)
 
 	// トークンが有効か確認
 	if !token.Valid {
-		wrErr := errors.NewWRError(
+		wrErr := wrErrs.NewWRError(
 			nil,
 			"無効なJWTトークンです。",
-			errors.NewDogOwnerClientErrorEType(),
+			wrErrs.NewAuthClientErrorEType(),
 		)
 		logger.Error(wrErr)
 		return nil, wrErr
@@ -124,10 +124,10 @@ func getJwtClaimsAndVerification(c echo.Context) (*handler.AccountClaims, error)
 	// クレーム情報を取得
 	claims, ok := token.Claims.(*handler.AccountClaims)
 	if !ok {
-		wrErr := errors.NewWRError(
+		wrErr := wrErrs.NewWRError(
 			nil,
 			"クレーム情報の取得に失敗しました。",
-			errors.NewDogOwnerClientErrorEType(),
+			wrErrs.NewAuthClientErrorEType(),
 		)
 		logger.Error(wrErr)
 		return nil, wrErr
@@ -135,10 +135,10 @@ func getJwtClaimsAndVerification(c echo.Context) (*handler.AccountClaims, error)
 
 	// ExpiresAtの有効期限を確認
 	if claims.ExpiresAt != nil && claims.ExpiresAt.Before(time.Now()) {
-		wrErr := errors.NewWRError(
+		wrErr := wrErrs.NewWRError(
 			nil,
 			"JWTトークンの有効期限が切れています。",
-			errors.NewDogOwnerClientErrorEType(),
+			wrErrs.NewAuthClientErrorEType(),
 		)
 		logger.Error(wrErr)
 		return nil, wrErr
@@ -151,39 +151,82 @@ func getJwtClaimsAndVerification(c echo.Context) (*handler.AccountClaims, error)
 //
 // args:
 //   - echo.Context: Echoのコンテキスト。リクエストやレスポンスにアクセスするために使用
-//   - *AccountClaims: contextから取得したJWTのクレーム情報
+//   - *handler.AccountClaims: contextから取得したJWTのクレーム情報
 //
 // return:
 //   - error: error情報
-func (aj *authJwt) jwtIDValid(c echo.Context, ac *handler.AccountClaims) error {
+func (aj *authJwt) jwtIDValid(
+	c echo.Context,
+	ac *handler.AccountClaims,
+) error {
 	logger := log.GetLogger(c).Sugar()
 
-	// dogOwnerIDをstringからint64変換
-	dogOwnerID, err := strconv.ParseInt(ac.ID, 10, 64)
-
+	// 共通処理: IDのパース
+	id, err := strconv.ParseInt(ac.ID, 10, 64)
 	if err != nil {
-		wrErr := errors.NewWRError(
+		wrErr := wrErrs.NewWRError(
 			nil,
-			"認証情報が違います。",
-			errors.NewDogOwnerClientErrorEType(),
+			"認証情報が異なります",
+			wrErrs.NewAuthClientErrorEType(),
 		)
 		logger.Error(wrErr)
 		return wrErr
 	}
 
-	// 対象のdogOwnerからjwt_idの取得
-	jwtID, wrErr := aj.ar.GetJwtID(c, dogOwnerID)
+	var getJwtFunc func() (string, error)
 
+	// Roleによる設定分岐: 共通処理に必要な関数
+	switch ac.Role {
+	// dogowner
+	case handler.DOGOWNER_ROLE_NAME:
+		drOwnerModel := &model.AuthDogOwner{}
+		drOwnerResult := &model.AuthDogOwner{}
+
+		getJwtFunc = func() (string, error) {
+			return aj.ar.GetJwtID(
+				c,
+				id,
+				drOwnerModel,
+				drOwnerResult,
+				"dog_owner_id",
+			)
+		}
+	// dogrunmg
+	case handler.DOGRUNMG_ROLE_NAME:
+		drmgModel := &model.AuthDogrunmg{}
+		drmgResult := &model.AuthDogrunmg{}
+
+		getJwtFunc = func() (string, error) {
+			return aj.ar.GetJwtID(
+				c,
+				id,
+				drmgModel,
+				drmgResult,
+				"dogrun_manager_id",
+			)
+		}
+	default:
+		wrErr := wrErrs.NewWRError(
+			nil,
+			"不明なユーザーRoleです。",
+			wrErrs.NewUnexpectedErrorEType(),
+		)
+		logger.Error(wrErr)
+		return wrErr
+	}
+
+	// JWT ID取得
+	jwtID, wrErr := getJwtFunc()
 	if wrErr != nil {
 		return wrErr
 	}
 
-	// フロントエンドからのリクエストのclaimsの`jti`とDBの`jwt_id`が一致するかどうか
+	// JTIの一致確認
 	if jwtID != ac.JTI {
-		wrErr := errors.NewWRError(
+		wrErr := wrErrs.NewWRError(
 			nil,
 			"jwt_idが一致しません。",
-			errors.NewDogOwnerClientErrorEType(),
+			wrErrs.NewAuthClientErrorEType(),
 		)
 		logger.Error(wrErr)
 		return wrErr
