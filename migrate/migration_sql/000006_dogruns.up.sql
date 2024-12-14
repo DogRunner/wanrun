@@ -7,10 +7,9 @@ CREATE TABLE IF NOT EXISTS dogruns (
     latitude decimal(18, 15),
     longitude decimal(18, 15),
     postcode varchar(8),
-    business_day int,
-    holiday int,
-    open_time time,
-    close_time time,
+    tel varchar(18),
+    url varchar(256),
+    business_hour_desc varchar(512),
     description text,
     reg_at timestamp not null,
     upd_at timestamp not null
