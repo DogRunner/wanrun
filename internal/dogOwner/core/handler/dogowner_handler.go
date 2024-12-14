@@ -3,11 +3,9 @@ package handler
 import (
 	"github.com/labstack/echo/v4"
 	authRepository "github.com/wanrun-develop/wanrun/internal/auth/adapters/repository"
-	authScopeRepository "github.com/wanrun-develop/wanrun/internal/auth/adapters/scoperepository"
 	authDTO "github.com/wanrun-develop/wanrun/internal/auth/core/dto"
 	authHandler "github.com/wanrun-develop/wanrun/internal/auth/core/handler"
 	dogOwnerRepository "github.com/wanrun-develop/wanrun/internal/dogowner/adapters/repository"
-	dogOwnerScopeRepository "github.com/wanrun-develop/wanrun/internal/dogowner/adapters/scoperepository"
 	doDTO "github.com/wanrun-develop/wanrun/internal/dogowner/core/dto"
 	model "github.com/wanrun-develop/wanrun/internal/models"
 	"github.com/wanrun-develop/wanrun/internal/transaction"
@@ -23,17 +21,17 @@ type IDogOwnerHandler interface {
 }
 
 type dogOwnerHandler struct {
-	dosr dogOwnerScopeRepository.IDogOwnerScopeRepository
+	dosr dogOwnerRepository.IDogOwnerScopeRepository
 	tm   transaction.ITransactionManager
-	asr  authScopeRepository.IAuthScopeRepository
+	asr  authRepository.IAuthScopeRepository
 	dor  dogOwnerRepository.IDogOwnerRepository
 	ar   authRepository.IAuthRepository
 }
 
 func NewDogOwnerHandler(
-	dosr dogOwnerScopeRepository.IDogOwnerScopeRepository,
+	dosr dogOwnerRepository.IDogOwnerScopeRepository,
 	tm transaction.ITransactionManager,
-	asr authScopeRepository.IAuthScopeRepository,
+	asr authRepository.IAuthScopeRepository,
 	dor dogOwnerRepository.IDogOwnerRepository,
 	ar authRepository.IAuthRepository,
 ) IDogOwnerHandler {
