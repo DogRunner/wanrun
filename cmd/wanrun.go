@@ -13,31 +13,54 @@ import (
 
 	"github.com/wanrun-develop/wanrun/configs"
 	"github.com/wanrun-develop/wanrun/internal"
+
+	//auth
 	authRepository "github.com/wanrun-develop/wanrun/internal/auth/adapters/repository"
 	authController "github.com/wanrun-develop/wanrun/internal/auth/controller"
 	authFacade "github.com/wanrun-develop/wanrun/internal/auth/core/facade"
 	authHandler "github.com/wanrun-develop/wanrun/internal/auth/core/handler"
 	authMW "github.com/wanrun-develop/wanrun/internal/auth/middleware"
+
+	//cms
 	cmsAWS "github.com/wanrun-develop/wanrun/internal/cms/adapters/aws"
 	cmsRepository "github.com/wanrun-develop/wanrun/internal/cms/adapters/repository"
 	cmsController "github.com/wanrun-develop/wanrun/internal/cms/controller"
 	cmsHandler "github.com/wanrun-develop/wanrun/internal/cms/core/handler"
-	"github.com/wanrun-develop/wanrun/internal/db"
+
+	//dog
 	dogRepository "github.com/wanrun-develop/wanrun/internal/dog/adapters/repository"
 	dogController "github.com/wanrun-develop/wanrun/internal/dog/controller"
 	dogHandler "github.com/wanrun-develop/wanrun/internal/dog/core/handler"
+
+	//dogowner
 	dogOwnerRepository "github.com/wanrun-develop/wanrun/internal/dogowner/adapters/repository"
 	dogOwnerController "github.com/wanrun-develop/wanrun/internal/dogowner/controller"
 	dogOwnerHandler "github.com/wanrun-develop/wanrun/internal/dogowner/core/handler"
+
+	//dogrun
 	"github.com/wanrun-develop/wanrun/internal/dogrun/adapters/googleplace"
 	dogrunR "github.com/wanrun-develop/wanrun/internal/dogrun/adapters/repository"
 	dogrunC "github.com/wanrun-develop/wanrun/internal/dogrun/controller"
 	dogrunH "github.com/wanrun-develop/wanrun/internal/dogrun/core/handler"
+	dogrunFacade "github.com/wanrun-develop/wanrun/internal/dogrun/facade"
+
+	//dogrunmg
 	dogrunmgRepository "github.com/wanrun-develop/wanrun/internal/dogrunmg/adapters/repository"
 	dogrunmgFacade "github.com/wanrun-develop/wanrun/internal/dogrunmg/core/facade"
+
+	//org
 	orgRepository "github.com/wanrun-develop/wanrun/internal/org/adapters/repository"
 	orgController "github.com/wanrun-develop/wanrun/internal/org/controller"
 	orgHandler "github.com/wanrun-develop/wanrun/internal/org/core/handler"
+
+	//interaction
+	interactionR "github.com/wanrun-develop/wanrun/internal/interaction/adapters/repository"
+	interactionC "github.com/wanrun-develop/wanrun/internal/interaction/controller"
+	interactionH "github.com/wanrun-develop/wanrun/internal/interaction/core/handler"
+	interactionFacade "github.com/wanrun-develop/wanrun/internal/interaction/facade"
+
+	//other
+	"github.com/wanrun-develop/wanrun/internal/db"
 	"github.com/wanrun-develop/wanrun/internal/transaction"
 
 	"github.com/wanrun-develop/wanrun/pkg/errors"
@@ -121,6 +144,12 @@ func newRouter(e *echo.Echo, dbConn *gorm.DB) {
 	auth.POST("/revoke", authController.Revoke)
 	// auth.GET("/google/oauth", authController.GoogleOAuth)
 
+	//interaction関連
+	interactionController := newInteraction(dbConn)
+	bookmark := e.Group("bookmark")
+	bookmark.POST("/dogrun", interactionController.AddBookmark)
+	bookmark.DELETE("/dogrun", interactionController.DeleteBookmarks)
+
 	// cms関連
 	cmsController := newCms(dbConn)
 	cms := e.Group("cms")
@@ -147,9 +176,13 @@ func newDog(dbConn *gorm.DB) dogController.IDogController {
 }
 
 func newDogrun(dbConn *gorm.DB) dogrunC.IDogrunController {
+	//facadeの準備
+	interactionRepository := interactionR.NewBookmarkRepository(dbConn)
+	dogrunFacade := interactionFacade.NewBookmarkFacade(interactionRepository)
+
 	dogrunRest := googleplace.NewRest()
 	dogrunRepository := dogrunR.NewDogrunRepository(dbConn)
-	dogrunHandler := dogrunH.NewDogrunHandler(dogrunRest, dogrunRepository)
+	dogrunHandler := dogrunH.NewDogrunHandler(dogrunRest, dogrunRepository, dogrunFacade)
 	return dogrunC.NewDogrunController(dogrunHandler)
 }
 
@@ -165,6 +198,17 @@ func newAuth(dbConn *gorm.DB) authController.IAuthController {
 func newAuthMiddleware(dbConn *gorm.DB) authMW.IAuthJwt {
 	authRepository := authRepository.NewAuthRepository(dbConn)
 	return authMW.NewAuthJwt(authRepository)
+}
+
+func newInteraction(dbConn *gorm.DB) interactionC.IBookmarkController {
+	//facadeの準備
+	dogrunRepository := dogrunR.NewDogrunRepository(dbConn)
+	dogrunFacade := dogrunFacade.NewDogrunFacade(dogrunRepository)
+
+	interactionRepository := interactionR.NewBookmarkRepository(dbConn)
+	interactionHandler := interactionH.NewBookmarkHandler(interactionRepository, dogrunFacade)
+
+	return interactionC.NewBookmarkController(interactionHandler)
 }
 
 // dogOwnerの初期化

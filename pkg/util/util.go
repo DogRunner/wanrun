@@ -87,6 +87,23 @@ func ChooseTimeValidValue(sqlTime sql.NullTime, t time.Time) time.Time {
 	return t
 }
 
+// ConvertSliceToMap: sliceをmapに変換するutil関数
+//
+// args:
+//   - []T:	mapにしたいスライス
+//   - func(T) K:	mapのkeyを抽出する関数
+//
+// return:
+//   - map[K]T:	変換したmap
+func ConvertSliceToMap[T any, K comparable](slice []T, keySelector func(T) K) map[K]T {
+	result := make(map[K]T)
+	for _, item := range slice {
+		key := keySelector(item)
+		result[key] = item
+	}
+	return result
+}
+
 // UUIDGenerator: UUIDを生成する
 // Args:
 //

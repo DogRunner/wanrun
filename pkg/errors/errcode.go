@@ -3,14 +3,15 @@ package errors
 import "fmt"
 
 const (
-	OTHER     int = 0
-	AUTH      int = 1
-	DOG       int = 2
-	DOG_OWNER int = 3
-	DOGRUN    int = 4
-	CMS       int = 5
-	ORG       int = 6
-	DOGRUNMG  int = 7
+	OTHER       int = 0
+	AUTH        int = 1
+	DOG         int = 2
+	DOG_OWNER   int = 3
+	DOGRUN      int = 4
+	CMS         int = 5
+	ORG         int = 6
+	DOGRUNMG    int = 7
+	INTERACTION int = 8
 )
 
 const (
@@ -21,6 +22,11 @@ const (
 type eType struct {
 	service   int
 	errorType int
+}
+
+func (t eType) String() string {
+	// カスタムフォーマットで文字列を返す
+	return fmt.Sprintf("%d-%d", t.service, t.errorType)
 }
 
 /*
@@ -87,6 +93,20 @@ func NewDogrunServerErrorEType() eType {
 }
 
 /*
+インタラクション機能のクライアントエラー
+*/
+func NewInteractionClientErrorEType() eType {
+	return eType{INTERACTION, CLIENT}
+}
+
+/*
+インタラクション機能のサーバーエラー
+*/
+func NewInteractionServerErrorEType() eType {
+	return eType{INTERACTION, SERVER}
+}
+
+/*
 cms機能のクライアントエラー
 */
 func NewCmsClientErrorEType() eType {
@@ -126,9 +146,4 @@ dogrunmg機能のサーバーエラー
 */
 func NewDogrunmgServerErrorEType() eType {
 	return eType{DOGRUNMG, SERVER}
-}
-
-func (t eType) String() string {
-	// カスタムフォーマットで文字列を返す
-	return fmt.Sprintf("%d-%d", t.service, t.errorType)
 }

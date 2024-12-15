@@ -17,3 +17,6 @@ alter table dogrun_tags drop constraint dev_dogrun_tags_tag_id_fkey;
 alter table auth_dog_owners drop constraint dev_auth_dog_owners_dog_owner_id_fkey;
 
 alter table auth_dogrun_managers drop constraint dev_auth_dogrun_managers_dogrun_manager_id_fkey;
+
+alter table dogrun_bookmarks drop constraint dev_dogrun_bookmarks_dogrun_id_fkey;
+alter table dogrun_bookmarks drop constraint dev_dogrun_bookmarks_dog_owner_id_fkey; 
