@@ -12,6 +12,13 @@ import (
 func Test(c echo.Context) error {
 	logger := log.GetLogger(c).Sugar()
 
+	// dogOwnerID情報の取得
+	dogOwnerID, wrErr := wrcontext.GetLoginUserID(c)
+
+	if wrErr != nil {
+		return wrErr
+	}
+
 	// claims情報の取得
 	claims, wrErr := wrcontext.GetVerifiedClaims(c)
 
@@ -19,11 +26,6 @@ func Test(c echo.Context) error {
 		return wrErr
 	}
 
-	// dogOwnerIDの取得
-	dogOwnerID, wrErr := claims.GetDogOwnerIDAsInt64(c)
-	if wrErr != nil {
-		return wrErr
-	}
 	// jti情報
 	jti := claims.JTI
 	// 有効期限

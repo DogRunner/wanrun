@@ -22,15 +22,15 @@ const (
 )
 
 type ICmsHandler interface {
-	HandleFileUpload(c echo.Context, fuq dto.FileUploadReq) error
+	HandleFileUpload(c echo.Context, fuq dto.FileUploadReq) (dto.FileUploadRes, error)
 }
 
 type cmsHandler struct {
-	cs3 aws.IS3Client
+	cs3 aws.IS3Provider
 	cr  repository.ICmsRepository
 }
 
-func NewCmsHandler(cs3 aws.IS3Client, cr repository.ICmsRepository) ICmsHandler {
+func NewCmsHandler(cs3 aws.IS3Provider, cr repository.ICmsRepository) ICmsHandler {
 	return &cmsHandler{cs3, cr}
 }
 
@@ -42,44 +42,45 @@ func NewCmsHandler(cs3 aws.IS3Client, cr repository.ICmsRepository) ICmsHandler 
 //
 // return:
 //   - error: error情報
-func (ch *cmsHandler) HandleFileUpload(c echo.Context, fuq dto.FileUploadReq) error {
+func (ch *cmsHandler) HandleFileUpload(c echo.Context, fuq dto.FileUploadReq) (dto.FileUploadRes, error) {
 	// fileIDの生成
-	fileID, wrErr := generateFileID(c, 10)
+	fileID, wrErr := generateFileID(c)
 
 	if wrErr != nil {
-		return wrErr
+		return dto.FileUploadRes{}, wrErr
 	}
 
 	// s3オブジェクトキーの生成
 	s3ObjectKey := generateS3ObjectKey(fileID, fuq)
 
 	// s3へのアップロード
-	s3MetaData, wrErr := ch.cs3.PutObject(c, s3ObjectKey, fuq.Src)
-
-	if wrErr != nil {
-		return wrErr
+	if wrErr := ch.cs3.PutObject(c, s3ObjectKey, fuq.Src); wrErr != nil {
+		return dto.FileUploadRes{}, wrErr
 	}
 
 	// fileのサイズ取得
 	fileSize, wrErr := getFileSize(c, fuq.Src)
 	if wrErr != nil {
-		return wrErr
+		return dto.FileUploadRes{}, wrErr
 	}
 
 	s3FI := model.S3FileInfo{
 		FileID:      wrUtil.NewSqlNullString(fileID),
 		FileSize:    wrUtil.NewSqlNullInt64(fileSize),
-		S3ETag:      wrUtil.NewSqlNullString(wrUtil.ConvertStringPointer(s3MetaData.ETag)),
 		S3ObjectKey: wrUtil.NewSqlNullString(s3ObjectKey),
 		DogOwnerID:  wrUtil.NewSqlNullInt64(fuq.DogOwnerID),
 	}
 
 	// S3FileInfoの登録
 	if wrErr := ch.cr.CreateS3FileInfo(c, s3FI); wrErr != nil {
-		return wrErr
+		return dto.FileUploadRes{}, wrErr
 	}
 
-	return nil
+	fuRes := dto.FileUploadRes{
+		FileID: s3FI.FileID.String,
+	}
+
+	return fuRes, nil
 }
 
 // generateS3ObjectKey: S3ObjectKeyの生成
@@ -104,12 +105,11 @@ func generateS3ObjectKey(fileID string, fuq dto.FileUploadReq) string {
 //
 // args:
 //   - echo.Context: Echoのコンテキスト。リクエストやレスポンスにアクセスするために使用
-//   - int: 生成されるIDの長さを指定
 //
 // return:
 //   - string: fileID
 //   - error: error情報
-func generateFileID(c echo.Context, l int) (string, error) {
+func generateFileID(c echo.Context) (string, error) {
 	logger := log.GetLogger(c).Sugar()
 
 	// カスタムエラー処理
@@ -124,7 +124,7 @@ func generateFileID(c echo.Context, l int) (string, error) {
 	}
 
 	// UUIDを生成
-	return util.UUIDGenerator(l, handleError)
+	return util.UUIDGenerator(handleError)
 }
 
 // getFileSize: fileサイズの取得

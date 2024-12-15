@@ -43,6 +43,7 @@ func GetVerifiedClaims(c echo.Context) (*handler.AccountClaims, error) {
 //
 // return:
 //   - int64:	ユーザーID
+
 func GetLoginUserID(c echo.Context) (int64, error) {
 	logger := log.GetLogger(c).Sugar()
 
@@ -53,7 +54,11 @@ func GetLoginUserID(c echo.Context) (int64, error) {
 	userID, err := strconv.ParseInt(claims.ID, 10, 64)
 	if err != nil {
 		logger.Error(err)
-		err = errors.NewWRError(nil, "暫定", errors.NewAuthClientErrorEType())
+		err = errors.NewWRError(
+			nil,
+			"型の形式が異なっています。",
+			errors.NewAuthClientErrorEType(),
+		)
 		return 0, err
 	}
 	return userID, nil

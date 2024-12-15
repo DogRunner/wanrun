@@ -1,11 +1,11 @@
 package util
 
 import (
-	"crypto/rand"
 	"database/sql"
-	"encoding/base64"
 	"strings"
 	"time"
+
+	"github.com/google/uuid"
 )
 
 func IsStrEmpty(s string) bool {
@@ -104,25 +104,21 @@ func ConvertSliceToMap[T any, K comparable](slice []T, keySelector func(T) K) ma
 	return result
 }
 
-// UUIDGenerator: 指定された長さの一意のIDを生成
+// UUIDGenerator: UUIDを生成する
 // Args:
 //
-//	length: 生成されるIDの長さを指定
-//	handleError: エラーを受け取りエラーを返す、カスタムエラーを処理する関数
+//	handleError: エラーを処理するカスタム関数
 //
 // Returns:
 //
-//	string: ユニークなID
-//	error: error情報
-func UUIDGenerator(l int, handleError func(error) error) (string, error) {
-	b := make([]byte, l)
-	_, err := rand.Read(b)
-
+//	string: UUID
+//	error: エラー情報
+func UUIDGenerator(handleError func(error) error) (string, error) {
+	u, err := uuid.NewRandom()
 	if err != nil {
 		return "", handleError(err)
 	}
-
-	return base64.RawURLEncoding.EncodeToString(b)[:l], nil
+	return u.String(), nil
 }
 
 // ConvertStringPointer: awsなどで返ってくる*string型をstringに返す

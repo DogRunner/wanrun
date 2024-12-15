@@ -1,4 +1,4 @@
-package scoperepository
+package repository
 
 import (
 	"github.com/labstack/echo/v4"

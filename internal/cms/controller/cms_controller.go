@@ -28,15 +28,9 @@ func NewCmsController(ch handler.ICmsHandler) ICmsController {
 func (cc *cmsController) UploadFile(c echo.Context) error {
 	logger := log.GetLogger(c).Sugar()
 
-	// claims情報の取得
-	claims, wrErr := wrcontext.GetVerifiedClaims(c)
-
-	if wrErr != nil {
-		return wrErr
-	}
-
 	// dogOwnerIDの取得
-	dogOwnerID, wrErr := claims.GetDogOwnerIDAsInt64(c)
+	dogOwnerID, wrErr := wrcontext.GetLoginUserID(c)
+
 	if wrErr != nil {
 		return wrErr
 	}
@@ -85,9 +79,11 @@ func (cc *cmsController) UploadFile(c echo.Context) error {
 	}
 
 	// FileUploadのハンドラー
-	if wrErr := cc.ch.HandleFileUpload(c, fuq); wrErr != nil {
+	fuRes, wrErr := cc.ch.HandleFileUpload(c, fuq)
+
+	if wrErr != nil {
 		return wrErr
 	}
 
-	return c.JSON(http.StatusOK, map[string]any{})
+	return c.JSON(http.StatusOK, fuRes)
 }

@@ -31,25 +31,11 @@ func NewCmsRepository(db *gorm.DB) ICmsRepository {
 func (cr *cmsRepository) CreateS3FileInfo(c echo.Context, s3FileInfo model.S3FileInfo) error {
 	logger := log.GetLogger(c).Sugar()
 
-	// トランザクションの開始
-	err := cr.db.Transaction(func(tx *gorm.DB) error {
-		// cmsテーブルにレコード作成
-		if err := cr.db.Create(&s3FileInfo).Error; err != nil {
-			wrErr := wrErrors.NewWRError(
-				err,
-				"DBへの登録が失敗しました。",
-				wrErrors.NewCmsServerErrorEType(),
-			)
-			logger.Error(wrErr)
-			return wrErr
-		}
-		return nil
-	})
-
-	if err != nil {
+	// cmsテーブルにレコード作成
+	if err := cr.db.Create(&s3FileInfo).Error; err != nil {
 		wrErr := wrErrors.NewWRError(
 			err,
-			"トランザクションが失敗しました。",
+			"DBへの登録が失敗しました。",
 			wrErrors.NewCmsServerErrorEType(),
 		)
 		logger.Error(wrErr)

@@ -4,7 +4,7 @@ import (
 	"github.com/labstack/echo/v4"
 	"github.com/wanrun-develop/wanrun/internal/dog/adapters/repository"
 	"github.com/wanrun-develop/wanrun/internal/dog/core/dto"
-	dwRepository "github.com/wanrun-develop/wanrun/internal/dogOwner/adapters/repository"
+	dwRepository "github.com/wanrun-develop/wanrun/internal/dogowner/adapters/repository"
 	model "github.com/wanrun-develop/wanrun/internal/models"
 	"github.com/wanrun-develop/wanrun/pkg/errors"
 	"github.com/wanrun-develop/wanrun/pkg/log"

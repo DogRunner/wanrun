@@ -14,7 +14,7 @@ import (
 	"github.com/wanrun-develop/wanrun/configs"
 	"github.com/wanrun-develop/wanrun/internal"
 	authRepository "github.com/wanrun-develop/wanrun/internal/auth/adapters/repository"
-	authScopeRepository "github.com/wanrun-develop/wanrun/internal/auth/adapters/scopeRepository"
+	authScopeRepository "github.com/wanrun-develop/wanrun/internal/auth/adapters/scoperepository"
 	authController "github.com/wanrun-develop/wanrun/internal/auth/controller"
 	authHandler "github.com/wanrun-develop/wanrun/internal/auth/core/handler"
 	authMW "github.com/wanrun-develop/wanrun/internal/auth/middleware"
@@ -26,10 +26,10 @@ import (
 	dogRepository "github.com/wanrun-develop/wanrun/internal/dog/adapters/repository"
 	dogController "github.com/wanrun-develop/wanrun/internal/dog/controller"
 	dogHandler "github.com/wanrun-develop/wanrun/internal/dog/core/handler"
-	dogOwnerRepository "github.com/wanrun-develop/wanrun/internal/dogOwner/adapters/repository"
-	dogOwnerScopeRepository "github.com/wanrun-develop/wanrun/internal/dogOwner/adapters/scopeRepository"
-	dogOwnerController "github.com/wanrun-develop/wanrun/internal/dogOwner/controller"
-	dogOwnerHandler "github.com/wanrun-develop/wanrun/internal/dogOwner/core/handler"
+	dogOwnerRepository "github.com/wanrun-develop/wanrun/internal/dogowner/adapters/repository"
+	dogOwnerScopeRepository "github.com/wanrun-develop/wanrun/internal/dogowner/adapters/scoperepository"
+	dogOwnerController "github.com/wanrun-develop/wanrun/internal/dogowner/controller"
+	dogOwnerHandler "github.com/wanrun-develop/wanrun/internal/dogowner/core/handler"
 	"github.com/wanrun-develop/wanrun/internal/dogrun/adapters/googleplace"
 	dogrunR "github.com/wanrun-develop/wanrun/internal/dogrun/adapters/repository"
 	dogrunC "github.com/wanrun-develop/wanrun/internal/dogrun/controller"
@@ -110,15 +110,17 @@ func newRouter(e *echo.Echo, dbConn *gorm.DB) {
 	dogrun.GET("/mst/tag", dogrunController.GetDogrunTagMst)
 	dogrun.POST("/search", dogrunController.SearchAroundDogruns)
 
+	// dogOwner関連
+	dogOwnerController := newDogOwner(dbConn)
+	dogOwner := e.Group("dogowner")
+	dogOwner.POST("/signUp", dogOwnerController.DogOwnerSignUp)
+
 	// auth関連
 	authController := newAuth(dbConn)
-	dogOwnerController := newDogOwner(dbConn)
 	auth := e.Group("auth")
-	// auth.GET("/google/oauth", authController.GoogleOAuth)
-	// auth.POST("/signUp", authController.SignUp)
-	auth.POST("/dogOwner/signUp", dogOwnerController.DogOwnerSignUp)
 	auth.POST("/token", authController.LogIn)
 	auth.POST("/revoke", authController.Revoke)
+	// auth.GET("/google/oauth", authController.GoogleOAuth)
 
 	//interaction関連
 	interactionController := newInteraction(dbConn)
@@ -217,7 +219,7 @@ func newCms(dbConn *gorm.DB) cmsController.ICmsController {
 	if err != nil {
 		log.Fatalf("AWSのクレデンシャル取得に失敗: %v", err)
 	}
-	cmsAWS := cmsAWS.NewS3Client(sdkCfg)
+	cmsAWS := cmsAWS.NewS3Provider(sdkCfg)
 	cmsHandler := cmsHandler.NewCmsHandler(cmsAWS, cmsRepository)
 	cmsController := cmsController.NewCmsController(cmsHandler)
 	return cmsController
