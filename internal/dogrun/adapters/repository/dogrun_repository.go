@@ -16,7 +16,7 @@ type IDogrunRepository interface {
 	FindDogrunByIDs([]int64) ([]model.Dogrun, error)
 	GetDogrunByRectanglePointerOrPlaceId(echo.Context, dto.SearchAroundRectangleCondition, []string) ([]model.Dogrun, error)
 	GetTagMst(echo.Context) ([]model.TagMst, error)
-	RegistDogrunPlaceId(echo.Context, string) (int, error)
+	RegistDogrunPlaceId(echo.Context, string) (int64, error)
 }
 
 type dogrunRepository struct {
@@ -126,7 +126,7 @@ func (drr *dogrunRepository) GetTagMst(c echo.Context) ([]model.TagMst, error) {
 // return:
 //   - int:	dogrunsテーブルのPK
 //   - error:	エラー
-func (drr *dogrunRepository) RegistDogrunPlaceId(c echo.Context, placeId string) (int, error) {
+func (drr *dogrunRepository) RegistDogrunPlaceId(c echo.Context, placeId string) (int64, error) {
 	logger := log.GetLogger(c).Sugar()
 	dogrun := model.Dogrun{PlaceId: util.NewSqlNullString(placeId)}
 
@@ -137,5 +137,5 @@ func (drr *dogrunRepository) RegistDogrunPlaceId(c echo.Context, placeId string)
 	}
 
 	//主キー返す
-	return int(dogrun.DogrunID.Int64), nil
+	return dogrun.DogrunID.Int64, nil
 }

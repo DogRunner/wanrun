@@ -234,13 +234,13 @@ func resolveDogrunDetail(dogrunG googleplace.BaseResource, dogrunD model.Dogrun)
 		return resolveDogrunDetailByOnlyDB(dogrunD)
 	}
 
-	var dogrunManager int
+	var dogrunManager int64
 	if dogrunD.DogrunManagerID.Valid {
-		dogrunManager = int(dogrunD.DogrunManagerID.Int64)
+		dogrunManager = dogrunD.DogrunManagerID.Int64
 	}
 
 	return dto.DogrunDetail{
-		DogrunID:        int(dogrunD.DogrunID.Int64),
+		DogrunID:        dogrunD.DogrunID.Int64,
 		DogrunManagerID: dogrunManager,
 		PlaceId:         dogrunG.ID,
 		Name:            util.ChooseStringValidValue(dogrunD.Name, dogrunG.DisplayName.Text),
@@ -295,8 +295,8 @@ func resolveDogrunDetailByOnlyDB(dogrunD model.Dogrun) dto.DogrunDetail {
 	var emptyDogrunG googleplace.BaseResource
 
 	return dto.DogrunDetail{
-		DogrunID:        int(dogrunD.DogrunID.Int64),
-		DogrunManagerID: int(dogrunD.DogrunManagerID.Int64),
+		DogrunID:        dogrunD.DogrunID.Int64,
+		DogrunManagerID: dogrunD.DogrunManagerID.Int64,
 		PlaceId:         dogrunD.PlaceId.String,
 		Name:            dogrunD.Name.String,
 		Address:         resolveDogrunAddress(emptyDogrunG, dogrunD),
@@ -621,7 +621,7 @@ Google情報とDB情報から、ドッグラン一覧情報を作成
 */
 func resolveDogrunList(dogrunG googleplace.BaseResource, dogrunD model.Dogrun) dto.DogrunLists {
 	return dto.DogrunLists{
-		DogrunID: int(dogrunD.DogrunID.Int64),
+		DogrunID: dogrunD.DogrunID.Int64,
 		PlaceId:  dogrunG.ID,
 		Name:     util.ChooseStringValidValue(dogrunD.Name, dogrunG.DisplayName.Text),
 		Address:  resolveDogrunAddress(dogrunG, dogrunD),
@@ -672,7 +672,7 @@ google側にデータがない場合、DB情報のみでドッグラン一覧情
 func resolveDogrunListByOnlyDB(dogrunD model.Dogrun) dto.DogrunLists {
 	var emptyDogrunG googleplace.BaseResource
 	return dto.DogrunLists{
-		DogrunID: int(dogrunD.DogrunID.Int64),
+		DogrunID: dogrunD.DogrunID.Int64,
 		Name:     dogrunD.Name.String,
 		Address:  resolveDogrunAddress(emptyDogrunG, dogrunD),
 		Location: dto.Location{
@@ -754,7 +754,7 @@ func resolvePlacePhotos(dogrunG googleplace.BaseResource) []dto.PhotoInfo {
 // return:
 //   - int:	dogrunテーブルのPK
 //   - error:	エラー
-func (h *dogrunHandler) persistenceDogrunPlaceId(c echo.Context, placeId string) (int, error) {
+func (h *dogrunHandler) persistenceDogrunPlaceId(c echo.Context, placeId string) (int64, error) {
 	logger := log.GetLogger(c).Sugar()
 
 	logger.Infof("placeId\"%s\"がDBに存在しないため、レコードを作成", placeId)
