@@ -30,7 +30,7 @@ func NewBookmarkHandler(br repository.IBookmarkRepository, df facade.IDogrunFaca
 //
 // args:
 //   - echo.Context:	コンテキスト
-//   - dto.AddBookmark:	リクエストボディ
+//   - dto.BookmarkAddReq:	リクエストボディ
 //
 // return:
 //   - int:	int
@@ -75,11 +75,11 @@ func (h *bookmarkHandler) AddBookmark(c echo.Context, reqBody dto.BookmarkAddReq
 	return bookmarkIDs, nil
 }
 
-// DeleteBookmark: ブックマークへのdogrunの追加
+// DeleteBookmark: ブックマークへのdogrunの削除
 //
 // args:
 //   - echo.Context:	コンテキスト
-//   - dto.DeleteBookmark:	リクエストボディ
+//   - dto.BookmarkDeleteReq:	リクエストボディ
 //
 // return:
 //   - int:	int
