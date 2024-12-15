@@ -35,7 +35,7 @@ func NewBookmarkController(bh handler.IBookmarkHandler) IBookmarkController {
 func (bc *bookmarkController) AddBookmark(c echo.Context) error {
 	logger := log.GetLogger(c).Sugar()
 
-	reqBody := dto.AddBookmark{}
+	reqBody := dto.BookmarkAddReq{}
 	if err := c.Bind(&reqBody); err != nil {
 		err = errors.NewWRError(err, "ブックマーク登録リクエストが不正です", errors.NewInteractionClientErrorEType())
 		logger.Error(err)
@@ -73,7 +73,7 @@ func (bc *bookmarkController) AddBookmark(c echo.Context) error {
 func (bc *bookmarkController) DeleteBookmarks(c echo.Context) error {
 	logger := log.GetLogger(c).Sugar()
 
-	reqBody := dto.DeleteBookmark{}
+	reqBody := dto.BookmarkDeleteReq{}
 	if err := c.Bind(&reqBody); err != nil {
 		err = errors.NewWRError(err, "ブックマーク登録リクエストが不正です", errors.NewInteractionClientErrorEType())
 		logger.Error(err)

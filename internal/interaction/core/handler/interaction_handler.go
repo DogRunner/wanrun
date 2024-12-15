@@ -13,8 +13,8 @@ import (
 )
 
 type IBookmarkHandler interface {
-	AddBookmark(echo.Context, dto.AddBookmark) ([]int64, error)
-	DeleteBookmark(echo.Context, dto.DeleteBookmark) error
+	AddBookmark(echo.Context, dto.BookmarkAddReq) ([]int64, error)
+	DeleteBookmark(echo.Context, dto.BookmarkDeleteReq) error
 }
 
 type bookmarkHandler struct {
@@ -35,7 +35,7 @@ func NewBookmarkHandler(br repository.IBookmarkRepository, df facade.IDogrunFaca
 // return:
 //   - int:	int
 //   - error:	エラー
-func (h *bookmarkHandler) AddBookmark(c echo.Context, reqBody dto.AddBookmark) ([]int64, error) {
+func (h *bookmarkHandler) AddBookmark(c echo.Context, reqBody dto.BookmarkAddReq) ([]int64, error) {
 
 	logger := log.GetLogger(c).Sugar()
 	logger.Info("dogrunのお気に入り登録. dogrunID: ", reqBody.DogrunIDs)
@@ -84,7 +84,7 @@ func (h *bookmarkHandler) AddBookmark(c echo.Context, reqBody dto.AddBookmark) (
 // return:
 //   - int:	int
 //   - error:	エラー
-func (h *bookmarkHandler) DeleteBookmark(c echo.Context, reqBody dto.DeleteBookmark) error {
+func (h *bookmarkHandler) DeleteBookmark(c echo.Context, reqBody dto.BookmarkDeleteReq) error {
 	logger := log.GetLogger(c).Sugar()
 	logger.Info("dogrunのお気に入り削除. dogrunID: ", reqBody.DogrunIDs)
 

@@ -95,7 +95,6 @@ func ChooseTimeValidValue(sqlTime sql.NullTime, t time.Time) time.Time {
 //
 // return:
 //   - map[K]T:	変換したmap
-//   - :
 func ConvertSliceToMap[T any, K comparable](slice []T, keySelector func(T) K) map[K]T {
 	result := make(map[K]T)
 	for _, item := range slice {

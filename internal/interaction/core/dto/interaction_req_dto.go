@@ -1,10 +1,10 @@
 package dto
 
 // bookmark 登録用
-type AddBookmark struct {
+type BookmarkAddReq struct {
 	DogrunIDs []int64 `json:"bookmarkDogrunId" validate:"required,notEmpty"`
 }
 
-type DeleteBookmark struct {
+type BookmarkDeleteReq struct {
 	DogrunIDs []int64 `json:"bookmarkDogrunId" validate:"required,notEmpty"`
 }
