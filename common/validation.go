@@ -1,6 +1,10 @@
 package common
 
-import "github.com/go-playground/validator/v10"
+import (
+	"reflect"
+
+	"github.com/go-playground/validator/v10"
+)
 
 // PKカスタムバリデーション（登録時）
 func VCreatePrimaryKey(fl validator.FieldLevel) bool {
@@ -34,4 +38,17 @@ func VSex(fl validator.FieldLevel) bool {
 		}
 	}
 	return false
+}
+
+// スライスの空バリデーション
+func VNotEmpty(fl validator.FieldLevel) bool {
+	slice := fl.Field()
+
+	field := fl.Field()
+
+	// フィールドがスライスかどうかを確認
+	if field.Kind() == reflect.Slice {
+		return slice.Len() > 0 // スライスの長さが0より大きければOK
+	}
+	return false // スライス以外は無効
 }

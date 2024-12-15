@@ -20,4 +20,7 @@ alter table auth_dogrun_managers add constraint dev_auth_dogrun_managers_dogrun_
 
 alter table dog_owner_credentials add constraint dev_dog_owner_credentials_id_fkey foreign key (auth_dog_owner_id) references auth_dog_owners(auth_dog_owner_id);
 
+alter table dogrun_bookmarks add constraint dev_dogrun_bookmarks_dogrun_id_fkey foreign key (dogrun_id) references dogruns (dogrun_id);
+alter table dogrun_bookmarks add constraint dev_dogrun_bookmarks_dog_owner_id_fkey foreign key (dog_owner_id) references dog_owners (dog_owner_id);
+
 alter table s3_file_info add constraint dev_s3_file_info_dog_owners_id_fkey foreign key (dog_owner_id) references dog_owners(dog_owner_id);

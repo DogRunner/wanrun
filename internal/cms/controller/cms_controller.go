@@ -29,7 +29,7 @@ func (cc *cmsController) UploadFile(c echo.Context) error {
 	logger := log.GetLogger(c).Sugar()
 
 	// dogOwnerIDの取得
-	dogOwnerID, wrErr := wrcontext.GetLoginUserId(c)
+	dogOwnerID, wrErr := wrcontext.GetLoginUserID(c)
 
 	if wrErr != nil {
 		return wrErr

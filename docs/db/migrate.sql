@@ -128,6 +128,12 @@ CREATE TABLE IF NOT EXISTS auth_dogrun_managers (
     login_at timestamp
 );
 
+CREATE TABLE IF NOT EXISTS dogrun_bookmarks (
+    dogrun_bookmark_id serial primary key,
+    dog_owner_id bigint not null,
+    dogrun_id bigint not null,
+    saved_at timestamp
+)
 
 -- add foreign key 
 
@@ -149,6 +155,9 @@ alter table dogrun_tags add foreign key (tag_id) references tag_mst (tag_id);
 alter table auth_dog_owners add foreign key (dog_owner_id) references dog_owners (dog_owner_id);
 
 alter table auth_dogrun_managers add foreign key (dogrun_manager_id) references dogrun_managers (dogrun_manager_id);
+
+alter table dogrun_bookmarks add foreign key (dogrun_id) references dogruns (dogrun_id);
+alter table dogrun_bookmarks add foreign key (dog_owner_id) references dog_owners (dog_owner_id);
 
 -- drop foreign key
 
