@@ -79,6 +79,16 @@ func NewSqlNullInt64(value int64) sql.NullInt64 {
 }
 
 /*
+bool型の値をsql.NullBoolに変換
+*/
+func NewSqlNullBool(value bool) sql.NullBool {
+	return sql.NullBool{
+		Bool:  value,
+		Valid: true,
+	}
+}
+
+/*
 time.Time型の値をsql.NullTimeに変換
 */
 func NewSqlNullTime(value time.Time) sql.NullTime {

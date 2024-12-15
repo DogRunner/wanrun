@@ -9,7 +9,6 @@ import (
 	"github.com/wanrun-develop/wanrun/configs"
 	"github.com/wanrun-develop/wanrun/internal/auth/adapters/repository"
 	authDTO "github.com/wanrun-develop/wanrun/internal/auth/core/dto"
-	doDTO "github.com/wanrun-develop/wanrun/internal/dogowner/core/dto"
 	"github.com/wanrun-develop/wanrun/pkg/errors"
 	wrErrors "github.com/wanrun-develop/wanrun/pkg/errors"
 	"github.com/wanrun-develop/wanrun/pkg/log"
@@ -37,10 +36,16 @@ func NewAuthHandler(ar repository.IAuthRepository) IAuthHandler {
 
 // JWTのClaims
 type AccountClaims struct {
-	ID  string `json:"id"`
-	JTI string `json:"jti"`
+	ID   string `json:"id"`
+	JTI  string `json:"jti"`
+	Role string `json:"role"`
 	jwt.RegisteredClaims
 }
+
+const (
+	DOGRUNMG_ROLE_NAME = "dogrunmg"
+	DOGOWNER_ROLE_NAME = "dogowner"
+)
 
 // GetDogOwnerIDAsInt64: 共通処理で、int64のDogOwnerのID取得。
 //
@@ -124,9 +129,10 @@ func (ah *authHandler) LogIn(c echo.Context, ador authDTO.AuthDogOwnerReq) (stri
 	}
 
 	// 作成したDogOwnerの情報をdto詰め替え
-	dogOwnerDetail := doDTO.DogOwnerDTO{
-		DogOwnerID: result.AuthDogOwner.DogOwnerID.Int64,
-		JwtID:      jwtID,
+	dogOwnerDetail := authDTO.UserAuthInfoDTO{
+		UserID:   result.AuthDogOwner.DogOwnerID.Int64,
+		JwtID:    jwtID,
+		RoleName: DOGRUNMG_ROLE_NAME,
 	}
 
 	logger.Infof("dogOwnerDetail: %v", dogOwnerDetail)
@@ -227,25 +233,25 @@ Google OAuth認証
 // 	return resDogOwner, nil
 // }
 
-/*
-jwt処理
-*/
 // GetSignedJwt: 署名済みのJWT tokenの取得
 //
 // args:
 //   - echo.Context: Echoのコンテキスト。リクエストやレスポンスにアクセスするために使用
-//   - dto.DogOwnerDTO: 作成したdogOwnerの情報
+//   - authDTO.UserAuthInfoDTO: jwtで使用する情報
 //
 // return:
-//  - string: 署名したtoken
-//  - error: error情報
-func GetSignedJwt(c echo.Context, dod doDTO.DogOwnerDTO) (string, error) {
+//   - string: 署名したtoken
+//   - error: error情報
+func GetSignedJwt(
+	c echo.Context,
+	uaDTO authDTO.UserAuthInfoDTO,
+) (string, error) {
 	// 秘密鍵取得
 	secretKey := configs.FetchConfigStr("jwt.os.secret.key")
 	jwtExpTime := configs.FetchConfigInt("jwt.exp.time")
 
 	// jwt token生成
-	signedToken, wrErr := createToken(c, secretKey, dod, jwtExpTime)
+	signedToken, wrErr := createToken(c, secretKey, uaDTO, jwtExpTime)
 
 	if wrErr != nil {
 		return "", wrErr
@@ -259,21 +265,31 @@ func GetSignedJwt(c echo.Context, dod doDTO.DogOwnerDTO) (string, error) {
 // args:
 //   - echo.Context: Echoのコンテキスト。リクエストやレスポンスにアクセスするために使用
 //   - string: secretKey   トークンの署名に使用する秘密鍵を表す文字列
-//   - dto.DogOwnerDTO:  作成したdogOwnerの情報
+//   - authDTO.UserAuthInfoDTO: jwtで使用する情報
 //   - int: expTime トークンの有効期限を秒単位で指定
 //
 // return:
 //   - string: 生成されたJWTトークンを表す文字列
 //   - error: トークンの生成中に問題が発生したエラー
-func createToken(c echo.Context, secretKey string, dod doDTO.DogOwnerDTO, expTime int) (string, error) {
+func createToken(
+	c echo.Context,
+	secretKey string,
+	uaDTO authDTO.UserAuthInfoDTO,
+	expTime int,
+) (string, error) {
 	logger := log.GetLogger(c).Sugar()
 
 	// JWTのペイロード
 	claims := AccountClaims{
-		ID:  strconv.FormatInt(dod.DogOwnerID, 10), // stringにコンバート
-		JTI: dod.JwtID,
+		ID:   strconv.FormatInt(uaDTO.UserID, 10), // stringにコンバート
+		JTI:  uaDTO.JwtID,
+		Role: uaDTO.RoleName,
 		RegisteredClaims: jwt.RegisteredClaims{
-			ExpiresAt: jwt.NewNumericDate(time.Now().Add(time.Hour * time.Duration(expTime))), // 有効時間
+			ExpiresAt: jwt.NewNumericDate( // 有効時間
+				time.Now().Add(
+					time.Hour * time.Duration(expTime),
+				),
+			),
 		},
 	}
 
@@ -286,7 +302,7 @@ func createToken(c echo.Context, secretKey string, dod doDTO.DogOwnerDTO, expTim
 		wrErr := wrErrors.NewWRError(
 			err,
 			"パスワードに不正な文字列が入っています。",
-			wrErrors.NewDogOwnerClientErrorEType(),
+			wrErrors.NewAuthClientErrorEType(),
 		)
 		logger.Error(wrErr)
 		return "", err
@@ -311,7 +327,7 @@ func GenerateJwtID(c echo.Context) (string, error) {
 		wrErr := wrErrors.NewWRError(
 			err,
 			"JwtID生成に失敗しました",
-			wrErrors.NewDogOwnerServerErrorEType(),
+			wrErrors.NewAuthServerErrorEType(),
 		)
 		logger.Error(wrErr)
 		return wrErr

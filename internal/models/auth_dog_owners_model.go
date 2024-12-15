@@ -18,7 +18,7 @@ type AuthDogOwner struct {
 	RefreshToken           sql.NullString  `gorm:"size:512;column:refresh_token"`
 	AccessTokenExpiration  util.CustomTime `gorm:"column:access_token_expiration"`
 	RefreshTokenExpiration util.CustomTime `gorm:"column:refresh_token_expiration"`
-	JwtID                  sql.NullString  `gorm:"size:20;column:jwt_id"`
+	JwtID                  sql.NullString  `gorm:"size:45;column:jwt_id"`
 	LoginAt                time.Time       `gorm:"column:login_at;not null;autoCreateTime"`
 
 	DogOwner   DogOwner      `gorm:"foreignKey:DogOwnerID;references:DogOwnerID"`

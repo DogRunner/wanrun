@@ -11,6 +11,8 @@ import (
 type IAuthScopeRepository interface {
 	CreateAuthDogOwner(tx *gorm.DB, c echo.Context, doc *model.DogOwnerCredential) error
 	CreateDogOwnerCredential(tx *gorm.DB, c echo.Context, doc *model.DogOwnerCredential) error
+	CreateAuthDogrunmg(tx *gorm.DB, c echo.Context, dmc *model.DogrunmgCredential) error
+	CreateDogrunmgCredential(tx *gorm.DB, c echo.Context, dmc *model.DogrunmgCredential) error
 }
 
 type authScopeRepository struct {
@@ -79,6 +81,69 @@ func (asr *authScopeRepository) CreateDogOwnerCredential(
 	}
 
 	logger.Infof("Created DogOwnerCredential Detail: %v", doc)
+
+	return nil
+}
+
+// CreateAuthDogrunmg: AuthDogrunmgの登録処理
+//
+// args:
+//   - echo.Context: Echoのコンテキスト。リクエストやレスポンスにアクセスするために使用されます。
+//   - *model.DogrunmgCredential: dogrunmgの情報
+//
+// return:
+//   - error: error情報
+func (asr *authScopeRepository) CreateAuthDogrunmg(
+	tx *gorm.DB,
+	c echo.Context,
+	dmc *model.DogrunmgCredential,
+) error {
+	logger := log.GetLogger(c).Sugar()
+
+	// AuthDogrunmg作成
+	if err := tx.Create(&dmc.AuthDogrunmg).Error; err != nil {
+		logger.Error("Failed to create AuthDogrunmg: ", err)
+		return wrErrors.NewWRError(
+			err,
+			"AuthDogrunmg作成に失敗しました。",
+			wrErrors.NewAuthServerErrorEType(),
+		)
+	}
+
+	// AuthDogrunmgが作成された後、そのIDをdogrunmgCredentialに設定
+	dmc.AuthDogrunmgID = dmc.AuthDogrunmg.AuthDogrunmgID
+
+	logger.Infof("Created AuthDogOwner Detail: %v", dmc.AuthDogrunmg)
+
+	return nil
+}
+
+// CreateDogrunmgCredential: DogrunmgのCredential登録処理
+//
+// args:
+//   - echo.Context: Echoのコンテキスト。リクエストやレスポンスにアクセスするために使用されます。
+//   - *model.DogrunmgCredential: dogrunmgの情報
+//
+// return:
+//   - error: error情報
+func (asr *authScopeRepository) CreateDogrunmgCredential(
+	tx *gorm.DB,
+	c echo.Context,
+	dmc *model.DogrunmgCredential,
+) error {
+	logger := log.GetLogger(c).Sugar()
+
+	// DogrunmgのCredentials作成
+	if err := tx.Create(&dmc).Error; err != nil {
+		logger.Error("Failed to create DogrunmgCredential: ", err)
+		return wrErrors.NewWRError(
+			err,
+			"DogrunmgCredential作成に失敗しました。",
+			wrErrors.NewAuthServerErrorEType(),
+		)
+	}
+
+	logger.Infof("Created DogrunmgCredential Detail: %v", dmc)
 
 	return nil
 }

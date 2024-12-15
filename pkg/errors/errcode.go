@@ -8,8 +8,10 @@ const (
 	DOG         int = 2
 	DOG_OWNER   int = 3
 	DOGRUN      int = 4
-	INTERACTION int = 5
 	CMS         int = 5
+	ORG         int = 6
+	DOGRUNMG    int = 7
+	INTERACTION int = 8
 )
 
 const (
@@ -116,4 +118,32 @@ cms機能のサーバーエラー
 */
 func NewCmsServerErrorEType() eType {
 	return eType{CMS, SERVER}
+}
+
+/*
+organization機能のクライアントエラー
+*/
+func NewOrgClientErrorEType() eType {
+	return eType{ORG, CLIENT}
+}
+
+/*
+organization機能のサーバーエラー
+*/
+func NewOrgServerErrorEType() eType {
+	return eType{ORG, SERVER}
+}
+
+/*
+dogrunmg機能のクライアントエラー
+*/
+func NewDogrunmgClientErrorEType() eType {
+	return eType{DOGRUNMG, CLIENT}
+}
+
+/*
+dogrunmg機能のサーバーエラー
+*/
+func NewDogrunmgServerErrorEType() eType {
+	return eType{DOGRUNMG, SERVER}
 }

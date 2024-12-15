@@ -18,7 +18,7 @@ type IAuthRepository interface {
 	GetDogOwnerByCredential(c echo.Context, ador dto.AuthDogOwnerReq) (*model.DogOwnerCredential, error)
 	// CreateOAuthDogOwner(c echo.Context, dogOwnerCredential *model.DogOwnerCredential) (*model.DogOwnerCredential, error)
 	UpdateJwtID(c echo.Context, doc *model.DogOwnerCredential, jwt_id string) error
-	GetJwtID(c echo.Context, doi int64) (string, error)
+	GetJwtID(c echo.Context, userID int64, modelType any, result any, columnName string) (string, error)
 	DeleteJwtID(c echo.Context, doID int64) error
 	CheckDuplicate(c echo.Context, field string, value sql.NullString) error
 }
@@ -282,51 +282,97 @@ func (ar *authRepository) DeleteJwtID(c echo.Context, doID int64) error {
 	return err
 }
 
-// GetJwtID:
+// GetJwtID: dogrunmgとdogonwerのjwtIDの取得(共通処理)
 //
 // args:
 //   - echo.Context: Echoのコンテキスト。リクエストやレスポンスにアクセスするために使用
-//   - int64: 取得したいdogOwnerID
+//   - int64: 取得したいdogrunmgIDかdogownerID
+//   - any: modelType クエリ対象の構造体
+//   - any: result 検索結果の格納する構造体
+//   - string: 検索カラム名(dogrunmgIDかdogownerID)
 //
 // return:
-//   - string: 対象のdogOwnerのjwt_id
+//   - string: 対象のjwt_id
 //   - error: error情報
-func (ar *authRepository) GetJwtID(c echo.Context, doi int64) (string, error) {
+func (ar *authRepository) GetJwtID(
+	c echo.Context,
+	userID int64,
+	modelType any,
+	result any,
+	columnName string,
+) (string, error) {
 	logger := log.GetLogger(c).Sugar()
 
-	var result model.AuthDogOwner
+	// バリデーション関数
+	validateModel := func(value any, purpose string) error {
+		switch value.(type) {
+		// Authのdogrunmgかdogownerの型チェック
+		case *model.AuthDogOwner, *model.AuthDogrunmg:
+			// バリデーションOK
+		default:
+			logger.Errorf("Invalid %s model type: %T", purpose, value)
 
-	// 対象のdogOwnerのjwt_idの取得
-	err := ar.db.Model(&model.AuthDogOwner{}).
-		Where("dog_owner_id= ?", doi).
-		First(&result).
+			return wrErrors.NewWRError(
+				nil,
+				fmt.Sprintf("%sが無効な構造体の型です。", purpose),
+				wrErrors.NewUnexpectedErrorEType(),
+			)
+		}
+		return nil
+	}
+
+	// modelTypeのバリデーション
+	if err := validateModel(modelType, "クエリ対象"); err != nil {
+		return "", err
+	}
+
+	// resultのバリデーション
+	if err := validateModel(result, "結果格納先"); err != nil {
+		return "", err
+	}
+
+	// 対象のjwt_id取得
+	err := ar.db.Model(modelType).
+		Where(columnName+" = ?", userID).
+		First(result).
 		Error
 
 	if err != nil {
-		// 空だった時
+		// jwt_idが見つからない場合
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			wrErr := wrErrors.NewWRError(
+			logger.Errorf("Not found jwt id error for %s: %v", columnName, err)
+			return "", wrErrors.NewWRError(
 				err,
 				"認証情報がありません",
-				wrErrors.NewDogOwnerClientErrorEType())
-
-			logger.Errorf("Not found jwt id error: %v", wrErr)
-
-			return "", wrErr
+				wrErrors.NewAuthClientErrorEType(),
+			)
 		}
-		// その他のエラー処理
-		wrErr := wrErrors.NewWRError(
+
+		logger.Errorf("Failed to get JWT ID for %s: %v", columnName, err)
+
+		// その他DB関連のエラー処理
+		return "", wrErrors.NewWRError(
 			err,
 			"DBからのデータ取得に失敗しました。",
-			wrErrors.NewDogOwnerServerErrorEType())
-
-		logger.Errorf("Failed to get JWT ID: %v", wrErr)
-
-		return "", wrErr
+			wrErrors.NewAuthServerErrorEType(),
+		)
 	}
 	logger.Debugf("Query Result: %v", result)
 
-	return result.JwtID.String, nil
+	// JWT ID取得
+	switch v := result.(type) {
+	case *model.AuthDogOwner:
+		return v.JwtID.String, nil
+	case *model.AuthDogrunmg:
+		return v.JwtID.String, nil
+	default:
+		logger.Errorf("Unexpected model type after query: %T", result)
+		return "", wrErrors.NewWRError(
+			nil,
+			"予期しないモデルタイプです。",
+			wrErrors.NewUnexpectedErrorEType(),
+		)
+	}
 }
 
 // checkDuplicate:  Password認証のバリデーション

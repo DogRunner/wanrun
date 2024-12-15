@@ -6,8 +6,3 @@ type DogOwnerReq struct {
 	Email        string `json:"email"`
 	PhoneNumber  string `json:"phoneNumber"`
 }
-
-type DogOwnerDTO struct {
-	DogOwnerID int64
-	JwtID      string
-}
