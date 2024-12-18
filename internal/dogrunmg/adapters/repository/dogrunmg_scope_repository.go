@@ -1,6 +1,8 @@
 package repository
 
 import (
+	"database/sql"
+
 	"github.com/labstack/echo/v4"
 	model "github.com/wanrun-develop/wanrun/internal/models"
 	wrErrors "github.com/wanrun-develop/wanrun/pkg/errors"
@@ -9,7 +11,7 @@ import (
 )
 
 type IDogrunmgScopeRepository interface {
-	CreateDogrunmg(tx *gorm.DB, c echo.Context, adm *model.AuthDogrunmg) error
+	CreateDogrunmg(tx *gorm.DB, c echo.Context, adm *model.Dogrunmg) (sql.NullInt64, error)
 }
 
 type dogrunmgScopeRepository struct {
@@ -24,31 +26,29 @@ func NewDogrunmgScopeRepository() IDogrunmgScopeRepository {
 // args:
 //   - *gorm.DB: トランザクションを張っているtx情報
 //   - echo.Context: Echoのコンテキスト。リクエストやレスポンスにアクセスするために使用
-//   - *model.AuthDogrunmg: authのdogrunmgの情報
+//   - *model.Dogrunmg:dogrunmgの情報
 //
 // return:
+//   - sql.NullInt64: dogrunmgのID
 //   - error: error情報
 func (dmsr *dogrunmgScopeRepository) CreateDogrunmg(
 	tx *gorm.DB,
 	c echo.Context,
-	adm *model.AuthDogrunmg,
-) error {
+	dm *model.Dogrunmg,
+) (sql.NullInt64, error) {
 	logger := log.GetLogger(c).Sugar()
 
 	// Dogrunmgの作成
-	if err := tx.Create(&adm.Dogrunmg).Error; err != nil {
+	if err := tx.Create(&dm).Error; err != nil {
 		logger.Error("Failed to create Dogrunmg: ", err)
-		return wrErrors.NewWRError(
+		return sql.NullInt64{}, wrErrors.NewWRError(
 			err,
 			"Dogrunmg作成に失敗しました。",
 			wrErrors.NewDogrunmgServerErrorEType(),
 		)
 	}
 
-	// Dogrunmgが作成された後、そのIDをauthDogrunmgに設定
-	adm.DogrunmgID = adm.Dogrunmg.DogrunmgID
+	logger.Infof("Created Dogrunmg Detail: %v", dm)
 
-	logger.Infof("Created Dogrunmg Detail: %v", adm.Dogrunmg)
-
-	return nil
+	return dm.DogrunmgID, nil
 }

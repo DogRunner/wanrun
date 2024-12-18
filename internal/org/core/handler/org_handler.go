@@ -2,10 +2,10 @@ package handler
 
 import (
 	"github.com/labstack/echo/v4"
+	authRepository "github.com/wanrun-develop/wanrun/internal/auth/adapters/repository"
 	authDTO "github.com/wanrun-develop/wanrun/internal/auth/core/dto"
-	authFacade "github.com/wanrun-develop/wanrun/internal/auth/core/facade"
 	authHandler "github.com/wanrun-develop/wanrun/internal/auth/core/handler"
-	dogrunmgFacade "github.com/wanrun-develop/wanrun/internal/dogrunmg/core/facade"
+	dogrunmgRepository "github.com/wanrun-develop/wanrun/internal/dogrunmg/adapters/repository"
 	model "github.com/wanrun-develop/wanrun/internal/models"
 	orgRepository "github.com/wanrun-develop/wanrun/internal/org/adapters/repository"
 	"github.com/wanrun-develop/wanrun/internal/org/core/dto"
@@ -22,23 +22,23 @@ type IOrgHandler interface {
 }
 
 type orgHandler struct {
-	osr orgRepository.IOrgScopeRepository
-	tm  transaction.ITransactionManager
-	dmf dogrunmgFacade.IDogrunmgFacade
-	af  authFacade.IAuthFacade
+	osr  orgRepository.IOrgScopeRepository
+	tm   transaction.ITransactionManager
+	dmsr dogrunmgRepository.IDogrunmgScopeRepository
+	asr  authRepository.IAuthScopeRepository
 }
 
 func NewOrgHandler(
 	osr orgRepository.IOrgScopeRepository,
 	tm transaction.ITransactionManager,
-	dmf dogrunmgFacade.IDogrunmgFacade,
-	af authFacade.IAuthFacade,
+	dmsr dogrunmgRepository.IDogrunmgScopeRepository,
+	asr authRepository.IAuthScopeRepository,
 ) IOrgHandler {
 	return &orgHandler{
-		osr: osr,
-		tm:  tm,
-		dmf: dmf,
-		af:  af,
+		osr:  osr,
+		tm:   tm,
+		dmsr: dmsr,
+		asr:  asr,
 	}
 }
 
@@ -72,9 +72,9 @@ func (oh *orgHandler) OrgSignUp(
 	orgInfo := model.DogrunmgCredential{
 		Email:    wrUtil.NewSqlNullString(orgReq.ContactEmail),
 		Password: wrUtil.NewSqlNullString(string(hash)),
-		IsAdmin:  wrUtil.NewSqlNullBool(true), // 初期adminユーザーのため
 		AuthDogrunmg: model.AuthDogrunmg{
-			JwtID: wrUtil.NewSqlNullString(jwtID),
+			JwtID:   wrUtil.NewSqlNullString(jwtID),
+			IsAdmin: wrUtil.NewSqlNullBool(true), // 初期adminユーザーのため
 			Dogrunmg: model.Dogrunmg{
 				Name: wrUtil.NewSqlNullString("admin"),
 				Organization: model.Organization{
@@ -96,17 +96,37 @@ func (oh *orgHandler) OrgSignUp(
 	if err := oh.tm.DoInTransaction(c, ctx, func(tx *gorm.DB) error {
 
 		// organizationの作成
-		if wrErr := oh.osr.CreateOrg(tx, c, &orgInfo.AuthDogrunmg.Dogrunmg); wrErr != nil {
+		orgID, wrErr := oh.osr.CreateOrg(tx, c, &orgInfo.AuthDogrunmg.Dogrunmg.Organization)
+
+		if wrErr != nil {
 			return wrErr
 		}
+
+		// Organizationが作成された後、そのIDをDogrun MGに設定
+		orgInfo.AuthDogrunmg.Dogrunmg.OrganizationID = orgID
 
 		// dogrunmgの作成
-		if wrErr := oh.dmf.CreateOrg(tx, c, &orgInfo.AuthDogrunmg); wrErr != nil {
+		dmID, wrErr := oh.dmsr.CreateDogrunmg(tx, c, &orgInfo.AuthDogrunmg.Dogrunmg)
+
+		if wrErr != nil {
 			return wrErr
 		}
 
-		// dogrunmgのauthやcredentialsの作成
-		if wrErr := oh.af.CreateOrg(tx, c, &orgInfo); wrErr != nil {
+		// Dogrunmgが作成された後、そのIDをauthDogrunmgに設定
+		orgInfo.AuthDogrunmg.DogrunmgID = dmID
+
+		// AuthDogrunmgの作成
+		admID, wrErr := oh.asr.CreateAuthDogrunmg(tx, c, &orgInfo.AuthDogrunmg)
+
+		if wrErr != nil {
+			return wrErr
+		}
+
+		// AuthDogrunmgが作成された後、そのIDをdogrunmgCredentialに設定
+		orgInfo.AuthDogrunmgID = admID
+
+		// DogrunmgのCredentialsの作成
+		if wrErr := oh.asr.CreateDogrunmgCredential(tx, c, &orgInfo); wrErr != nil {
 			return wrErr
 		}
 
@@ -122,7 +142,7 @@ func (oh *orgHandler) OrgSignUp(
 	dogrunmgrDetail := authDTO.UserAuthInfoDTO{
 		UserID:   orgInfo.AuthDogrunmg.DogrunmgID.Int64,
 		JwtID:    orgInfo.AuthDogrunmg.JwtID.String,
-		RoleName: authHandler.DOGRUNMG_ROLE_NAME,
+		RoleName: authHandler.DOGRUNMG_ADMIN_ROLE,
 	}
 
 	logger.Infof("dogrunmgDetail: %v", dogrunmgrDetail)
