@@ -11,7 +11,6 @@ import (
 	"github.com/wanrun-develop/wanrun/configs"
 	"github.com/wanrun-develop/wanrun/internal/auth/adapters/repository"
 	"github.com/wanrun-develop/wanrun/internal/auth/core/handler"
-	model "github.com/wanrun-develop/wanrun/internal/models"
 	wrErrs "github.com/wanrun-develop/wanrun/pkg/errors"
 	"github.com/wanrun-develop/wanrun/pkg/log"
 	"golang.org/x/exp/slices"
@@ -64,17 +63,10 @@ func (aj *authJwt) NewJwtValidationMiddleware() echo.MiddlewareFunc {
 				return slices.Contains(skipPaths, path)
 			},
 			SuccessHandler: func(c echo.Context) {
-				// contextからJWTのclaims取得と検証
-				claims, wrErr := getJwtClaimsAndVerification(c)
+				// contextからJWTのclaims取得と検証, jwtIDの一致確認
+				claims, wrErr := aj.extractAndValidateJwtClaims(c)
 
 				if wrErr != nil {
-					neRes := wrErrs.NewErrorRes(wrErr)
-					_ = c.JSON(http.StatusUnauthorized, neRes)
-					return
-				}
-
-				// リクエストのJWT内に含まれる`jwt_id`が、DBの`jwt_id`と一致するかを検証
-				if wrErr = aj.jwtIDValid(c, claims); wrErr != nil {
 					neRes := wrErrs.NewErrorRes(wrErr)
 					_ = c.JSON(http.StatusUnauthorized, neRes)
 					return
@@ -87,15 +79,14 @@ func (aj *authJwt) NewJwtValidationMiddleware() echo.MiddlewareFunc {
 	)
 }
 
-// getJwtClaimsAndVerification: contextからJWTのclaimsを取得と検証
+// extractAndValidateJwtClaims: contextからJWTのclaimsを取得と検証とバリデーション
 //
 // args:
 //   - echo.Context: Echoのコンテキスト。リクエストやレスポンスにアクセスするために使用
 //
 // return:
-//   - *AccountClaims: contextから取得したJWTのクレーム情報
 //   - error: error情報
-func getJwtClaimsAndVerification(c echo.Context) (*handler.AccountClaims, error) {
+func (aj *authJwt) extractAndValidateJwtClaims(c echo.Context) (*handler.AccountClaims, error) {
 	logger := log.GetLogger(c).Sugar()
 
 	// JWTトークンをコンテキストから取得
@@ -144,6 +135,11 @@ func getJwtClaimsAndVerification(c echo.Context) (*handler.AccountClaims, error)
 		return nil, wrErr
 	}
 
+	// リクエストのJWT内に含まれる`jwt_id`が、DBの`jwt_id`と一致するかを検証
+	if wrErr := aj.jwtIDValid(c, claims); wrErr != nil {
+		return nil, wrErr
+	}
+
 	return claims, nil
 }
 
@@ -155,10 +151,7 @@ func getJwtClaimsAndVerification(c echo.Context) (*handler.AccountClaims, error)
 //
 // return:
 //   - error: error情報
-func (aj *authJwt) jwtIDValid(
-	c echo.Context,
-	ac *handler.AccountClaims,
-) error {
+func (aj *authJwt) jwtIDValid(c echo.Context, ac *handler.AccountClaims) error {
 	logger := log.GetLogger(c).Sugar()
 
 	// 共通処理: IDのパース
@@ -173,51 +166,31 @@ func (aj *authJwt) jwtIDValid(
 		return wrErr
 	}
 
-	var getJwtFunc func() (string, error)
-
-	// Roleによる設定分岐: 共通処理に必要な関数
-	switch ac.Role {
-	// dogowner
-	case handler.DOGOWNER_ROLE_NAME:
-		drOwnerModel := &model.AuthDogOwner{}
-		drOwnerResult := &model.AuthDogOwner{}
-
-		getJwtFunc = func() (string, error) {
-			return aj.ar.GetJwtID(
-				c,
-				id,
-				drOwnerModel,
-				drOwnerResult,
-				"dog_owner_id",
+	// Roleによる設定分岐
+	getJwtID := func(role int64, id int64) (string, error) {
+		switch role {
+		// dogowner
+		case handler.DOGOWNER_ROLE:
+			// dogownerのjwtID取得
+			return aj.ar.GetDogownerJwtID(c, id)
+		// dogrunmg
+		case handler.DOGRUNMG_ROLE:
+			// dogrunmgのjwtID取得
+			return aj.ar.GetDogrunmgJwtID(c, id)
+		default:
+			return "", wrErrs.NewWRError(
+				nil,
+				"不明なユーザーRoleです。",
+				wrErrs.NewUnexpectedErrorEType(),
 			)
 		}
-	// dogrunmg
-	case handler.DOGRUNMG_ROLE_NAME:
-		drmgModel := &model.AuthDogrunmg{}
-		drmgResult := &model.AuthDogrunmg{}
-
-		getJwtFunc = func() (string, error) {
-			return aj.ar.GetJwtID(
-				c,
-				id,
-				drmgModel,
-				drmgResult,
-				"dogrun_manager_id",
-			)
-		}
-	default:
-		wrErr := wrErrs.NewWRError(
-			nil,
-			"不明なユーザーRoleです。",
-			wrErrs.NewUnexpectedErrorEType(),
-		)
-		logger.Error(wrErr)
-		return wrErr
 	}
 
-	// JWT ID取得
-	jwtID, wrErr := getJwtFunc()
+	// JWT IDの取得
+	jwtID, wrErr := getJwtID(ac.Role, id)
+
 	if wrErr != nil {
+		logger.Error(wrErr)
 		return wrErr
 	}
 

@@ -1,1 +1,1 @@
-DROP TABLE IF EXISTS auth_dogrun_managers CASCADE;
+DROP TABLE IF EXISTS dogrun_manager_credentials CASCADE;

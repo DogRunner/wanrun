@@ -19,6 +19,8 @@ type IAuthRepository interface {
 	// CreateOAuthDogOwner(c echo.Context, dogOwnerCredential *model.DogOwnerCredential) (*model.DogOwnerCredential, error)
 	UpdateJwtID(c echo.Context, doc *model.DogOwnerCredential, jwt_id string) error
 	GetJwtID(c echo.Context, userID int64, modelType any, result any, columnName string) (string, error)
+	GetDogownerJwtID(c echo.Context, dogownerID int64) (string, error)
+	GetDogrunmgJwtID(c echo.Context, dogownerID int64) (string, error)
 	DeleteJwtID(c echo.Context, doID int64) error
 	CheckDuplicate(c echo.Context, field string, value sql.NullString) error
 }
@@ -373,6 +375,106 @@ func (ar *authRepository) GetJwtID(
 			wrErrors.NewUnexpectedErrorEType(),
 		)
 	}
+}
+
+// GetDogownerJwtID: dogonwerのjwtIDの取得
+//
+// args:
+//   - echo.Context: Echoのコンテキスト。リクエストやレスポンスにアクセスするために使用
+//   - int64: 取得したいdogownerID
+//
+// return:
+//   - string: 対象のjwt_id
+//   - error: error情報
+func (ar *authRepository) GetDogownerJwtID(c echo.Context, dogownerID int64) (string, error) {
+	logger := log.GetLogger(c).Sugar()
+
+	var result model.AuthDogOwner
+
+	// 対象のdogOwnerのjwt_idの取得
+	err := ar.db.Model(&model.AuthDogOwner{}).
+		Where("dog_owner_id= ?", dogownerID).
+		First(&result).
+		Error
+
+	if err != nil {
+		// 空だった時
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			wrErr := wrErrors.NewWRError(
+				err,
+				"認証情報がありません",
+				wrErrors.NewAuthClientErrorEType())
+
+			logger.Errorf("Not found jwt id error: %v", wrErr)
+
+			return "", wrErr
+		}
+
+		// その他のエラー処理
+		wrErr := wrErrors.NewWRError(
+			err,
+			"DBからのデータ取得に失敗しました。",
+			wrErrors.NewAuthServerErrorEType())
+
+		logger.Errorf("Failed to get JWT ID: %v", wrErr)
+
+		return "", wrErr
+	}
+
+	logger.Debugf("Query Result: %v", result)
+
+	return result.JwtID.String, nil
+
+}
+
+// GetDogrunmgJwtID: dogrunmgのjwtIDの取得
+//
+// args:
+//   - echo.Context: Echoのコンテキスト。リクエストやレスポンスにアクセスするために使用
+//   - int64: 取得したいdogrunmgID
+//
+// return:
+//   - string: 対象のjwt_id
+//   - error: error情報
+func (ar *authRepository) GetDogrunmgJwtID(c echo.Context, dogrunmgID int64) (string, error) {
+	logger := log.GetLogger(c).Sugar()
+
+	var result model.AuthDogrunmg
+
+	// 対象のdogrunmgのjwt_idの取得
+	err := ar.db.Model(&model.AuthDogrunmg{}).
+		Where("dogrun_manager_id= ?", dogrunmgID).
+		First(&result).
+		Error
+
+	if err != nil {
+		// 空だった時
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			wrErr := wrErrors.NewWRError(
+				err,
+				"認証情報がありません",
+				wrErrors.NewAuthClientErrorEType())
+
+			logger.Errorf("Not found jwt id error: %v", wrErr)
+
+			return "", wrErr
+		}
+
+		// その他のエラー処理
+		wrErr := wrErrors.NewWRError(
+			err,
+			"DBからのデータ取得に失敗しました。",
+			wrErrors.NewAuthServerErrorEType())
+
+		logger.Errorf("Failed to get JWT ID: %v", wrErr)
+
+		return "", wrErr
+	}
+
+	logger.Debugf("Query Result: %v", result)
+
+	return result.JwtID.String, nil
+
 }
 
 // checkDuplicate:  Password認証のバリデーション

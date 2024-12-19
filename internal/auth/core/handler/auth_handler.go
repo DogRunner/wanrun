@@ -38,13 +38,14 @@ func NewAuthHandler(ar repository.IAuthRepository) IAuthHandler {
 type AccountClaims struct {
 	ID   string `json:"id"`
 	JTI  string `json:"jti"`
-	Role string `json:"role"`
+	Role int64  `json:"role"`
 	jwt.RegisteredClaims
 }
 
 const (
-	DOGRUNMG_ROLE_NAME = "dogrunmg"
-	DOGOWNER_ROLE_NAME = "dogowner"
+	DOGRUNMG_ROLE       = 1
+	DOGRUNMG_ADMIN_ROLE = 2
+	DOGOWNER_ROLE       = 3
 )
 
 // GetDogOwnerIDAsInt64: 共通処理で、int64のDogOwnerのID取得。
@@ -130,9 +131,9 @@ func (ah *authHandler) LogIn(c echo.Context, ador authDTO.AuthDogOwnerReq) (stri
 
 	// 作成したDogOwnerの情報をdto詰め替え
 	dogOwnerDetail := authDTO.UserAuthInfoDTO{
-		UserID:   result.AuthDogOwner.DogOwnerID.Int64,
-		JwtID:    jwtID,
-		RoleName: DOGRUNMG_ROLE_NAME,
+		UserID: result.AuthDogOwner.DogOwnerID.Int64,
+		JwtID:  jwtID,
+		RoleID: DOGRUNMG_ROLE,
 	}
 
 	logger.Infof("dogOwnerDetail: %v", dogOwnerDetail)
@@ -242,10 +243,7 @@ Google OAuth認証
 // return:
 //   - string: 署名したtoken
 //   - error: error情報
-func GetSignedJwt(
-	c echo.Context,
-	uaDTO authDTO.UserAuthInfoDTO,
-) (string, error) {
+func GetSignedJwt(c echo.Context, uaDTO authDTO.UserAuthInfoDTO) (string, error) {
 	// 秘密鍵取得
 	secretKey := configs.FetchConfigStr("jwt.os.secret.key")
 	jwtExpTime := configs.FetchConfigInt("jwt.exp.time")
@@ -283,7 +281,7 @@ func createToken(
 	claims := AccountClaims{
 		ID:   strconv.FormatInt(uaDTO.UserID, 10), // stringにコンバート
 		JTI:  uaDTO.JwtID,
-		Role: uaDTO.RoleName,
+		Role: uaDTO.RoleID,
 		RegisteredClaims: jwt.RegisteredClaims{
 			ExpiresAt: jwt.NewNumericDate( // 有効時間
 				time.Now().Add(
