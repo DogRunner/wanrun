@@ -4,6 +4,7 @@ import (
 	"github.com/labstack/echo/v4"
 	authRepository "github.com/wanrun-develop/wanrun/internal/auth/adapters/repository"
 	authDTO "github.com/wanrun-develop/wanrun/internal/auth/core/dto"
+	authFacade "github.com/wanrun-develop/wanrun/internal/auth/core/facade"
 	authHandler "github.com/wanrun-develop/wanrun/internal/auth/core/handler"
 	dogrunmgRepository "github.com/wanrun-develop/wanrun/internal/dogrunmg/adapters/repository"
 	model "github.com/wanrun-develop/wanrun/internal/models"
@@ -26,6 +27,7 @@ type orgHandler struct {
 	tm   transaction.ITransactionManager
 	dmsr dogrunmgRepository.IDogrunmgScopeRepository
 	asr  authRepository.IAuthScopeRepository
+	af   authFacade.IAuthFacade
 }
 
 func NewOrgHandler(
@@ -33,12 +35,14 @@ func NewOrgHandler(
 	tm transaction.ITransactionManager,
 	dmsr dogrunmgRepository.IDogrunmgScopeRepository,
 	asr authRepository.IAuthScopeRepository,
+	af authFacade.IAuthFacade,
 ) IOrgHandler {
 	return &orgHandler{
 		osr:  osr,
 		tm:   tm,
 		dmsr: dmsr,
 		asr:  asr,
+		af:   af,
 	}
 }
 
@@ -65,6 +69,11 @@ func (oh *orgHandler) OrgSignUp(
 	jwtID, wrErr := authHandler.GenerateJwtID(c)
 
 	if wrErr != nil {
+		return "", wrErr
+	}
+
+	// orgのEmailバリデーション
+	if wrErr := oh.af.OrgEmailValidate(c, orgReq.ContactEmail); wrErr != nil {
 		return "", wrErr
 	}
 

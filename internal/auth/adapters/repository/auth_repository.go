@@ -23,6 +23,7 @@ type IAuthRepository interface {
 	GetDogrunmgJwtID(c echo.Context, dogownerID int64) (string, error)
 	DeleteJwtID(c echo.Context, doID int64) error
 	CheckDuplicate(c echo.Context, field string, value sql.NullString) error
+	CheckOrgEmailExists(c echo.Context, email string) error
 }
 
 type authRepository struct {
@@ -493,16 +494,14 @@ func (ar *authRepository) CheckDuplicate(c echo.Context, field string, value sql
 	var existingCount int64
 
 	// grant_typeがPASSWORDで重複していないかの確認
-	err := ar.db.Model(&model.DogOwnerCredential{}).
+	if err := ar.db.Model(&model.DogOwnerCredential{}).
 		Where(field+" = ? AND grant_type = ?", value, model.PASSWORD_GRANT_TYPE).
 		Count(&existingCount).
-		Error
-
-	if err != nil {
+		Error; err != nil {
 		wrErr := wrErrors.NewWRError(
 			err,
 			"DBからのデータ取得に失敗しました。",
-			wrErrors.NewDogOwnerServerErrorEType(),
+			wrErrors.NewAuthServerErrorEType(),
 		)
 
 		logger.Errorf("Failed to check existing value error: %v", wrErr)
@@ -518,6 +517,51 @@ func (ar *authRepository) CheckDuplicate(c echo.Context, field string, value sql
 		)
 
 		logger.Errorf("%s already exists error: %v", field, wrErr)
+
+		return wrErr
+	}
+	return nil
+}
+
+// CheckOrgEmailExists:  orgの既存のemail存在チェック
+//
+// args:
+//   - echo.Context: Echoのコンテキスト。リクエストやレスポンスにアクセスするために使用
+//   - string: 対象のEmail
+//
+// return:
+//   - error: error情報
+func (ar *authRepository) CheckOrgEmailExists(c echo.Context, email string) error {
+
+	logger := log.GetLogger(c).Sugar()
+
+	// 重複のvalidate
+	var existingCount int64
+
+	// Emailの重複確認
+	if err := ar.db.Model(&model.DogrunmgCredential{}).
+		Where("email"+" = ?", email).
+		Count(&existingCount).
+		Error; err != nil {
+		wrErr := wrErrors.NewWRError(
+			err,
+			"DBからのデータ取得に失敗しました。",
+			wrErrors.NewAuthServerErrorEType(),
+		)
+
+		logger.Errorf("Failed to check existing value error: %v", wrErr)
+
+		return wrErr
+	}
+
+	if existingCount > 0 {
+		wrErr := wrErrors.NewWRError(
+			nil,
+			fmt.Sprintf("%sのEmailが既に登録されています。", email),
+			wrErrors.NewDogOwnerClientErrorEType(),
+		)
+
+		logger.Errorf("%s already exists error: %v", email, wrErr)
 
 		return wrErr
 	}
