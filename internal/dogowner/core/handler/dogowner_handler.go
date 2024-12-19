@@ -141,9 +141,9 @@ func (doh *dogOwnerHandler) DogOwnerSignUp(c echo.Context, doReq doDTO.DogOwnerR
 
 	// 作成したDogOwnerの情報をdto詰め替え
 	dogOwnerDetail := authDTO.UserAuthInfoDTO{
-		UserID:   dogOwnerCredential.AuthDogOwner.DogOwnerID.Int64,
-		JwtID:    dogOwnerCredential.AuthDogOwner.JwtID.String,
-		RoleName: authHandler.DOGOWNER_ROLE,
+		UserID: dogOwnerCredential.AuthDogOwner.DogOwnerID.Int64,
+		JwtID:  dogOwnerCredential.AuthDogOwner.JwtID.String,
+		RoleID: authHandler.DOGOWNER_ROLE,
 	}
 
 	logger.Infof("dogOwnerDetail: %v", dogOwnerDetail)

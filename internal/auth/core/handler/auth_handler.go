@@ -131,9 +131,9 @@ func (ah *authHandler) LogIn(c echo.Context, ador authDTO.AuthDogOwnerReq) (stri
 
 	// 作成したDogOwnerの情報をdto詰め替え
 	dogOwnerDetail := authDTO.UserAuthInfoDTO{
-		UserID:   result.AuthDogOwner.DogOwnerID.Int64,
-		JwtID:    jwtID,
-		RoleName: DOGRUNMG_ROLE,
+		UserID: result.AuthDogOwner.DogOwnerID.Int64,
+		JwtID:  jwtID,
+		RoleID: DOGRUNMG_ROLE,
 	}
 
 	logger.Infof("dogOwnerDetail: %v", dogOwnerDetail)
@@ -281,7 +281,7 @@ func createToken(
 	claims := AccountClaims{
 		ID:   strconv.FormatInt(uaDTO.UserID, 10), // stringにコンバート
 		JTI:  uaDTO.JwtID,
-		Role: uaDTO.RoleName,
+		Role: uaDTO.RoleID,
 		RegisteredClaims: jwt.RegisteredClaims{
 			ExpiresAt: jwt.NewNumericDate( // 有効時間
 				time.Now().Add(

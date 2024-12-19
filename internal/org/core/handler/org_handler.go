@@ -140,9 +140,9 @@ func (oh *orgHandler) OrgSignUp(
 
 	// 作成したdogrunmgの情報をdto詰め替え
 	dogrunmgrDetail := authDTO.UserAuthInfoDTO{
-		UserID:   orgInfo.AuthDogrunmg.DogrunmgID.Int64,
-		JwtID:    orgInfo.AuthDogrunmg.JwtID.String,
-		RoleName: authHandler.DOGRUNMG_ADMIN_ROLE,
+		UserID: orgInfo.AuthDogrunmg.DogrunmgID.Int64,
+		JwtID:  orgInfo.AuthDogrunmg.JwtID.String,
+		RoleID: authHandler.DOGRUNMG_ADMIN_ROLE,
 	}
 
 	logger.Infof("dogrunmgDetail: %v", dogrunmgrDetail)
