@@ -17,7 +17,6 @@ import (
 	//auth
 	authRepository "github.com/wanrun-develop/wanrun/internal/auth/adapters/repository"
 	authController "github.com/wanrun-develop/wanrun/internal/auth/controller"
-	authFacade "github.com/wanrun-develop/wanrun/internal/auth/core/facade"
 	authHandler "github.com/wanrun-develop/wanrun/internal/auth/core/handler"
 	authMW "github.com/wanrun-develop/wanrun/internal/auth/middleware"
 
@@ -46,7 +45,6 @@ import (
 
 	//dogrunmg
 	dogrunmgRepository "github.com/wanrun-develop/wanrun/internal/dogrunmg/adapters/repository"
-	dogrunmgFacade "github.com/wanrun-develop/wanrun/internal/dogrunmg/core/facade"
 
 	//org
 	orgRepository "github.com/wanrun-develop/wanrun/internal/org/adapters/repository"
@@ -285,16 +283,12 @@ func newOrg(dbConn *gorm.DB) orgController.IOrgController {
 	// transaction層
 	transactionManager := transaction.NewTransactionManager(dbConn)
 
-	// facade層
-	dogrunmgFacade := dogrunmgFacade.NewDogrunmgFacade(dogrunmgScopeRepository)
-	authFacade := authFacade.NewAuthFacade(authScopeRepository)
-
 	// handler層
 	orgHandler := orgHandler.NewOrgHandler(
 		orgScopeRepository,
 		transactionManager,
-		dogrunmgFacade,
-		authFacade,
+		dogrunmgScopeRepository,
+		authScopeRepository,
 	)
 
 	// controller層

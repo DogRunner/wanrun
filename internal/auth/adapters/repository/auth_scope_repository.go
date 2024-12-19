@@ -1,6 +1,8 @@
 package repository
 
 import (
+	"database/sql"
+
 	"github.com/labstack/echo/v4"
 	model "github.com/wanrun-develop/wanrun/internal/models"
 	wrErrors "github.com/wanrun-develop/wanrun/pkg/errors"
@@ -11,7 +13,7 @@ import (
 type IAuthScopeRepository interface {
 	CreateAuthDogOwner(tx *gorm.DB, c echo.Context, doc *model.DogOwnerCredential) error
 	CreateDogOwnerCredential(tx *gorm.DB, c echo.Context, doc *model.DogOwnerCredential) error
-	CreateAuthDogrunmg(tx *gorm.DB, c echo.Context, dmc *model.DogrunmgCredential) error
+	CreateAuthDogrunmg(tx *gorm.DB, c echo.Context, adm *model.AuthDogrunmg) (sql.NullInt64, error)
 	CreateDogrunmgCredential(tx *gorm.DB, c echo.Context, dmc *model.DogrunmgCredential) error
 }
 
@@ -43,7 +45,7 @@ func (asr *authScopeRepository) CreateAuthDogOwner(
 		return wrErrors.NewWRError(
 			err,
 			"AuthDogOwner作成に失敗しました。",
-			wrErrors.NewDogOwnerServerErrorEType(),
+			wrErrors.NewAuthServerErrorEType(),
 		)
 	}
 
@@ -76,7 +78,7 @@ func (asr *authScopeRepository) CreateDogOwnerCredential(
 		return wrErrors.NewWRError(
 			err,
 			"DogOwnerCredential作成に失敗しました。",
-			wrErrors.NewDogOwnerServerErrorEType(),
+			wrErrors.NewAuthServerErrorEType(),
 		)
 	}
 
@@ -88,41 +90,40 @@ func (asr *authScopeRepository) CreateDogOwnerCredential(
 // CreateAuthDogrunmg: AuthDogrunmgの登録処理
 //
 // args:
+//   - *gorm.DB: トランザクションを張っているtx情報
 //   - echo.Context: Echoのコンテキスト。リクエストやレスポンスにアクセスするために使用されます。
-//   - *model.DogrunmgCredential: dogrunmgの情報
+//   - *model.AuthDogrunmg: authのdogrunmgの情報
 //
 // return:
+//   - sql.NullInt64:
 //   - error: error情報
 func (asr *authScopeRepository) CreateAuthDogrunmg(
 	tx *gorm.DB,
 	c echo.Context,
-	dmc *model.DogrunmgCredential,
-) error {
+	adm *model.AuthDogrunmg,
+) (sql.NullInt64, error) {
 	logger := log.GetLogger(c).Sugar()
 
 	// AuthDogrunmg作成
-	if err := tx.Create(&dmc.AuthDogrunmg).Error; err != nil {
+	if err := tx.Create(&adm).Error; err != nil {
 		logger.Error("Failed to create AuthDogrunmg: ", err)
-		return wrErrors.NewWRError(
+		return sql.NullInt64{}, wrErrors.NewWRError(
 			err,
 			"AuthDogrunmg作成に失敗しました。",
 			wrErrors.NewAuthServerErrorEType(),
 		)
 	}
 
-	// AuthDogrunmgが作成された後、そのIDをdogrunmgCredentialに設定
-	dmc.AuthDogrunmgID = dmc.AuthDogrunmg.AuthDogrunmgID
+	logger.Infof("Created AuthDogrunmg Detail: %v", adm)
 
-	logger.Infof("Created AuthDogOwner Detail: %v", dmc.AuthDogrunmg)
-
-	return nil
+	return adm.AuthDogrunmgID, nil
 }
 
 // CreateDogrunmgCredential: DogrunmgのCredential登録処理
 //
 // args:
 //   - echo.Context: Echoのコンテキスト。リクエストやレスポンスにアクセスするために使用されます。
-//   - *model.DogrunmgCredential: dogrunmgの情報
+//   - *model.DogrunmgCredential: dogrunmgのcredential情報
 //
 // return:
 //   - error: error情報
