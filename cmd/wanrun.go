@@ -17,6 +17,7 @@ import (
 	//auth
 	authRepository "github.com/wanrun-develop/wanrun/internal/auth/adapters/repository"
 	authController "github.com/wanrun-develop/wanrun/internal/auth/controller"
+	authFacade "github.com/wanrun-develop/wanrun/internal/auth/core/facade"
 	authHandler "github.com/wanrun-develop/wanrun/internal/auth/core/handler"
 	authMW "github.com/wanrun-develop/wanrun/internal/auth/middleware"
 
@@ -274,6 +275,7 @@ func loadAWSConfig() (aws.Config, error) {
 func newOrg(dbConn *gorm.DB) orgController.IOrgController {
 	// repository層
 	// orgRepository := orgRepository.NewOrgRepository(dbConn)
+	ar := authRepository.NewAuthRepository(dbConn)
 
 	// scopeRepository層
 	orgScopeRepository := orgRepository.NewOrgScopeRepository()
@@ -283,12 +285,16 @@ func newOrg(dbConn *gorm.DB) orgController.IOrgController {
 	// transaction層
 	transactionManager := transaction.NewTransactionManager(dbConn)
 
+	// facade層
+	authFacade := authFacade.NewAuthFacade(ar)
+
 	// handler層
 	orgHandler := orgHandler.NewOrgHandler(
 		orgScopeRepository,
 		transactionManager,
 		dogrunmgScopeRepository,
 		authScopeRepository,
+		authFacade,
 	)
 
 	// controller層
