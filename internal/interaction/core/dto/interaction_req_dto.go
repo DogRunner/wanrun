@@ -13,3 +13,8 @@ type CheckinReq struct {
 	DogrunID int64   `json:"dogrun_id" validate:"required"`
 	DogIDs   []int64 `json:"dog_id" validate:"required"`
 }
+
+type CheckoutReq struct {
+	DogrunID int64   `json:"dogrun_id" validate:"required"`
+	DogIDs   []int64 `json:"dog_id" validate:"required"`
+}

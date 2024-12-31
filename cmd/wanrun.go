@@ -151,6 +151,7 @@ func newRouter(e *echo.Echo, dbConn *gorm.DB) {
 
 	access := e.Group("access")
 	access.POST("/checkin", interactionController.CheckinDogrun)
+	access.DELETE("/checkout", interactionController.CheckoutDogrun)
 
 	// cms関連
 	cmsController := newCms(dbConn)

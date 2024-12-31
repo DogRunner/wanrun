@@ -128,6 +128,8 @@ func (r *bookmarkRepository) DeleteBookmark(c echo.Context, dogrunIDs []int64, d
 type ICheckInOutRepository interface {
 	FindDogrunCheckin(echo.Context, int64, int64) (model.DogrunCheckin, error)
 	SaveDogrunCheckins(echo.Context, []model.DogrunCheckin) ([]model.DogrunCheckin, error)
+	FindDogrunCheckout(echo.Context, int64, int64) (model.DogrunCheckout, error)
+	SaveDogrunCheckouts(echo.Context, []model.DogrunCheckout) ([]model.DogrunCheckout, error)
 }
 
 type checkInOutRepository struct {
@@ -189,4 +191,57 @@ func (r *checkInOutRepository) SaveDogrunCheckins(c echo.Context, checkins []mod
 	}
 
 	return checkins, nil
+}
+
+// FindDogrunCheckout: dogIDとdogownerIDでcheckoutへ検索
+//
+//	今日分ですでにチェックアウトしているかどうか
+//
+// args:
+//   - echo.Context:	コンテキスト
+//   - int64:	dogIDで条件指定
+//   - int64:	dogownerIDで条件指定
+//
+// return:
+//   - model.DogrunCheckout:	検索結果構造体
+//   - error:	エラー
+func (r *checkInOutRepository) FindDogrunCheckout(c echo.Context, dogrunID int64, dogID int64) (model.DogrunCheckout, error) {
+	logger := log.GetLogger(c).Sugar()
+
+	startOfDay := time.Now().Truncate(24 * time.Hour)
+	endOfDay := startOfDay.Add(24 * time.Hour)
+
+	checkout := model.DogrunCheckout{}
+	if err := r.db.
+		Where("dogrun_id = ?", dogrunID).
+		Where("dog_id = ?", dogID).
+		Where("checkout_at >= ? AND checkout_at < ?", startOfDay, endOfDay).
+		Find(&checkout).Error; err != nil {
+		logger.Error(err)
+		err := errors.NewWRError(err, "dogrun_checkoutの検索に失敗しました。", errors.NewInteractionServerErrorEType())
+		return checkout, err
+	}
+
+	return checkout, nil
+}
+
+// SaveDogrunCheckouts: dogrunCheckoutの一括保存
+//
+// args:
+//   - echo.Context:	コンテキスト
+//   - []model.DogrunCheckout:	保存対象DogrunCheckout構造体スライス
+//
+// return:
+//   - []model.DogrunCheckout:	保存結果DogrunCheckouts構造体スライス
+//   - error:	エラー
+func (r *checkInOutRepository) SaveDogrunCheckouts(c echo.Context, checkouts []model.DogrunCheckout) ([]model.DogrunCheckout, error) {
+	logger := log.GetLogger(c).Sugar()
+
+	if err := r.db.Save(&checkouts).Error; err != nil {
+		logger.Error(err)
+		err := errors.NewWRError(err, "dogrun_checkoutの保存に失敗しました。", errors.NewInteractionServerErrorEType())
+		return nil, err
+	}
+
+	return checkouts, nil
 }

@@ -106,6 +106,7 @@ func (h *bookmarkHandler) DeleteBookmark(c echo.Context, reqBody dto.BookmarkDel
 
 type ICheckInOutHandler interface {
 	CheckinDogrun(echo.Context, dto.CheckinReq) error
+	CheckoutDogrun(echo.Context, dto.CheckoutReq) error
 }
 
 type checkInOutHandler struct {
@@ -119,13 +120,13 @@ func NewCheckInOutHandler(br repository.ICheckInOutRepository, drf dogrunFacade.
 }
 
 // CheckinDogrun: ドッグランにチェックインする
+// すでに一度チェックイン済みなら、re_checkin_atのみの更新
 //
 // args:
 //   - echo.Context:	コンテキスト
-//   - dto.CheckinDogrunReq:	リクエストボディ
+//   - dto.CheckinReq:	リクエストボディ
 //
 // return:
-//   - int64:	checkinID
 //   - error:	エラー
 func (h checkInOutHandler) CheckinDogrun(c echo.Context, reqBody dto.CheckinReq) error {
 	logger := log.GetLogger(c).Sugar()
@@ -158,6 +159,64 @@ func (h checkInOutHandler) CheckinDogrun(c echo.Context, reqBody dto.CheckinReq)
 
 	//保存
 	_, err := h.r.SaveDogrunCheckins(c, saveCheckins)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// CheckoutDogrun: ドッグランにチェックアウトする
+// すでに一度チェックアウト済みならre_checkout_atのみの更新
+//
+// args:
+//   - echo.Context:	コンテキスト
+//   - dto.CheckoutReq:	リクエストボディ
+//
+// return:
+//   - error:	エラー
+func (h checkInOutHandler) CheckoutDogrun(c echo.Context, reqBody dto.CheckoutReq) error {
+	logger := log.GetLogger(c).Sugar()
+
+	//dogrun存在チェック
+	dogrunID := reqBody.DogrunID
+	if err := h.drf.CheckDogrunExistByIDs(c, []int64{dogrunID}); err != nil {
+		return err
+	}
+
+	//dogのdogownerチェック
+	checkoutDogIDs := reqBody.DogIDs
+	if err := h.df.CheckDogownerValid(c, checkoutDogIDs); err != nil {
+		return err
+	}
+
+	saveCheckouts := []model.DogrunCheckout{}
+	for _, dogID := range checkoutDogIDs {
+		//入場しているかチェック
+		checkinResult, err := h.r.FindDogrunCheckin(c, dogrunID, dogID)
+		if err != nil {
+			return err
+		}
+		if checkinResult.IsEmpty() {
+			err := errors.NewWRError(nil, fmt.Sprintf("今日ドッグID:%dはドッグラン%dに入場していません", dogID, dogID), errors.NewInteractionClientErrorEType())
+			logger.Error(err, "入場していないドッグランへの退場リクエストのためエラー")
+			return err
+		}
+		//すでに一度チェックアウト（退場）済みかをチェック
+		checkoutResult, err := h.r.FindDogrunCheckout(c, dogrunID, dogID)
+		if err != nil {
+			return err
+		}
+		if checkoutResult.IsEmpty() {
+			logger.Info("今日の新規チェックアウト")
+			checkoutResult.DogrunID = util.NewSqlNullInt64(dogrunID)
+			checkoutResult.DogID = util.NewSqlNullInt64(dogID)
+		}
+		saveCheckouts = append(saveCheckouts, checkoutResult)
+	}
+
+	//保存
+	_, err := h.r.SaveDogrunCheckouts(c, saveCheckouts)
 	if err != nil {
 		return err
 	}

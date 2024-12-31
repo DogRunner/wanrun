@@ -48,3 +48,29 @@ DogrunCheckinが空でないか
 func (ci *DogrunCheckin) IsNotEmpty() bool {
 	return ci.DogrunCheckinID.Valid
 }
+
+type DogrunCheckout struct {
+	DogrunCheckoutID sql.NullInt64 `gorm:"column:dogrun_checkout_id;primaryKey"`
+	DogrunID         sql.NullInt64 `gorm:"column:dogrun_id;not null"`
+	DogID            sql.NullInt64 `gorm:"column:dog_id;not null"`
+	CheckoutAt       sql.NullTime  `gorm:"column:checkout_at;autoCreateTime"`
+	ReCheckoutAt     sql.NullTime  `gorm:"column:re_checkout_at;autoUpdateTime"`
+}
+
+func (DogrunCheckout) TableName() string {
+	return "dogrun_checkout"
+}
+
+/*
+DogrunCheckinが空であるか
+*/
+func (co *DogrunCheckout) IsEmpty() bool {
+	return !co.IsNotEmpty()
+}
+
+/*
+DogrunCheckinが空でないか
+*/
+func (co *DogrunCheckout) IsNotEmpty() bool {
+	return co.DogrunCheckoutID.Valid
+}

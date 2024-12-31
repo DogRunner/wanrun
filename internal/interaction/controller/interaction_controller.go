@@ -16,6 +16,7 @@ type IInteractionController interface {
 	AddBookmark(echo.Context) error
 	DeleteBookmarks(echo.Context) error
 	CheckinDogrun(echo.Context) error
+	CheckoutDogrun(echo.Context) error
 }
 
 type interactionController struct {
@@ -99,7 +100,7 @@ func (ic *interactionController) DeleteBookmarks(c echo.Context) error {
 
 }
 
-// CheckinDogrun: ドッグランへのチェックイン
+// CheckinDogrun: ドッグランへのチェックイン（入場記録）
 //
 // args:
 //   - echo.Context:	コンテキスト
@@ -125,6 +126,38 @@ func (ic *interactionController) CheckinDogrun(c echo.Context) error {
 	}
 
 	err := ic.ch.CheckinDogrun(c, reqBody)
+	if err != nil {
+		return err
+	}
+	return c.NoContent(http.StatusCreated)
+}
+
+// CheckoutDogrun: ドッグランへのチェックアウト（退場記録）
+//
+// args:
+//   - echo.Context:	コンテキスト
+//
+// return:
+// error:	　エラー
+func (ic *interactionController) CheckoutDogrun(c echo.Context) error {
+	logger := log.GetLogger(c).Sugar()
+
+	reqBody := dto.CheckoutReq{}
+	if err := c.Bind(&reqBody); err != nil {
+		err = errors.NewWRError(err, "チェックアウトリクエストが不正です", errors.NewInteractionClientErrorEType())
+		logger.Error(err)
+		return err
+	}
+	// バリデータのインスタンス作成
+	validate := validator.New()
+	//リクエストボディのバリデーション
+	if err := validate.Struct(reqBody); err != nil {
+		err = errors.NewWRError(err, "リクエストがバリデーションに違反しています", errors.NewInteractionClientErrorEType())
+		logger.Error(err)
+		return err
+	}
+
+	err := ic.ch.CheckoutDogrun(c, reqBody)
 	if err != nil {
 		return err
 	}
