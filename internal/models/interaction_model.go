@@ -1,6 +1,8 @@
 package model
 
-import "database/sql"
+import (
+	"database/sql"
+)
 
 type DogrunBookmark struct {
 	DogrunBookmarkID sql.NullInt64 `gorm:"column:dogrun_bookmark_id;primaryKey"`
@@ -29,6 +31,9 @@ type DogrunCheckin struct {
 	DogID           sql.NullInt64 `gorm:"column:dog_id;not null"`
 	CheckinAt       sql.NullTime  `gorm:"column:checkin_at;autoCreateTime"`
 	ReCheckinAt     sql.NullTime  `gorm:"column:re_checkin_at;autoUpdateTime"`
+
+	//リレーション
+	Dog Dog `gorm:"foreignKey:DogID;references:DogID"`
 }
 
 func (DogrunCheckin) TableName() string {

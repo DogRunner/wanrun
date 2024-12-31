@@ -126,10 +126,11 @@ func (r *bookmarkRepository) DeleteBookmark(c echo.Context, dogrunIDs []int64, d
 }
 
 type ICheckInOutRepository interface {
-	FindDogrunCheckin(echo.Context, int64, int64) (model.DogrunCheckin, error)
+	FindTodayDogrunCheckin(echo.Context, int64, int64) (model.DogrunCheckin, error)
 	SaveDogrunCheckins(echo.Context, []model.DogrunCheckin) ([]model.DogrunCheckin, error)
-	FindDogrunCheckout(echo.Context, int64, int64) (model.DogrunCheckout, error)
+	FindTodayDogrunCheckout(echo.Context, int64, int64) (model.DogrunCheckout, error)
 	SaveDogrunCheckouts(echo.Context, []model.DogrunCheckout) ([]model.DogrunCheckout, error)
+	GetTodayCheckinsByDogownerID(echo.Context, int64) ([]model.DogrunCheckin, error)
 }
 
 type checkInOutRepository struct {
@@ -140,7 +141,7 @@ func NewCheckInOutRepository(db *gorm.DB) ICheckInOutRepository {
 	return &checkInOutRepository{db}
 }
 
-// FindDogrunCheckin: dogIDとdogownerIDでcheckinへ検索
+// FindTodayDogrunCheckin: dogIDとdogownerIDでcheckinへ検索
 //
 //	今日分ですでにチェックインしているかどうか
 //
@@ -152,7 +153,7 @@ func NewCheckInOutRepository(db *gorm.DB) ICheckInOutRepository {
 // return:
 //   - model.DogrunCheckin:	検索結果構造体
 //   - error:	エラー
-func (r *checkInOutRepository) FindDogrunCheckin(c echo.Context, dogrunID int64, dogID int64) (model.DogrunCheckin, error) {
+func (r *checkInOutRepository) FindTodayDogrunCheckin(c echo.Context, dogrunID int64, dogID int64) (model.DogrunCheckin, error) {
 	logger := log.GetLogger(c).Sugar()
 
 	startOfDay := time.Now().Truncate(24 * time.Hour)
@@ -193,7 +194,7 @@ func (r *checkInOutRepository) SaveDogrunCheckins(c echo.Context, checkins []mod
 	return checkins, nil
 }
 
-// FindDogrunCheckout: dogIDとdogownerIDでcheckoutへ検索
+// FindTodayDogrunCheckout: dogIDとdogownerIDでcheckoutへ検索
 //
 //	今日分ですでにチェックアウトしているかどうか
 //
@@ -205,7 +206,7 @@ func (r *checkInOutRepository) SaveDogrunCheckins(c echo.Context, checkins []mod
 // return:
 //   - model.DogrunCheckout:	検索結果構造体
 //   - error:	エラー
-func (r *checkInOutRepository) FindDogrunCheckout(c echo.Context, dogrunID int64, dogID int64) (model.DogrunCheckout, error) {
+func (r *checkInOutRepository) FindTodayDogrunCheckout(c echo.Context, dogrunID int64, dogID int64) (model.DogrunCheckout, error) {
 	logger := log.GetLogger(c).Sugar()
 
 	startOfDay := time.Now().Truncate(24 * time.Hour)
@@ -244,4 +245,32 @@ func (r *checkInOutRepository) SaveDogrunCheckouts(c echo.Context, checkouts []m
 	}
 
 	return checkouts, nil
+}
+
+// GetCheckinsByDogownerID: dogownerIDよりその所有dogの今日分のチェックイン履歴を取得
+//
+// args:
+//   - echo.Context:	コンテキスト
+//   - int64:	検索対象のdogownerID
+//
+// return:
+//   - []model.DogrunCheckin:	保存結果DogrunCheckouts構造体スライス
+//   - error:	エラー
+func (r *checkInOutRepository) GetTodayCheckinsByDogownerID(c echo.Context, dogownerID int64) ([]model.DogrunCheckin, error) {
+	logger := log.GetLogger(c).Sugar()
+
+	startOfDay := time.Now().Truncate(24 * time.Hour)
+	endOfDay := startOfDay.Add(24 * time.Hour)
+
+	checkins := []model.DogrunCheckin{}
+	if err := r.db.Joins("inner join dogs on dogrun_checkin.dog_id = dogs.dog_id").
+		Where("dogs.dog_owner_id = ?", dogownerID).
+		Where("checkin_at >= ? AND checkin_at < ?", startOfDay, endOfDay).
+		Find(&checkins).Error; err != nil {
+
+		logger.Error(err)
+		err := errors.NewWRError(err, "dogrun_checkinの検索に失敗しました。", errors.NewInteractionServerErrorEType())
+		return nil, err
+	}
+	return checkins, nil
 }

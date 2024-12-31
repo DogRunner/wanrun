@@ -150,6 +150,7 @@ func newRouter(e *echo.Echo, dbConn *gorm.DB) {
 	bookmark.DELETE("/dogrun", interactionController.DeleteBookmarks)
 
 	access := e.Group("access")
+	access.GET("/today/checkins", interactionController.GetTodayCheckins)
 	access.POST("/checkin", interactionController.CheckinDogrun)
 	access.DELETE("/checkout", interactionController.CheckoutDogrun)
 

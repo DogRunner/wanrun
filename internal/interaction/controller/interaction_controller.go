@@ -17,6 +17,7 @@ type IInteractionController interface {
 	DeleteBookmarks(echo.Context) error
 	CheckinDogrun(echo.Context) error
 	CheckoutDogrun(echo.Context) error
+	GetTodayCheckins(echo.Context) error
 }
 
 type interactionController struct {
@@ -138,7 +139,7 @@ func (ic *interactionController) CheckinDogrun(c echo.Context) error {
 //   - echo.Context:	コンテキスト
 //
 // return:
-// error:	　エラー
+// error:	エラー
 func (ic *interactionController) CheckoutDogrun(c echo.Context) error {
 	logger := log.GetLogger(c).Sugar()
 
@@ -161,5 +162,20 @@ func (ic *interactionController) CheckoutDogrun(c echo.Context) error {
 	if err != nil {
 		return err
 	}
-	return c.NoContent(http.StatusCreated)
+	return c.NoContent(http.StatusOK)
+}
+
+// GetTodayCheckins: すべての所有dogの今日のチェックイン履歴の取得
+//
+// args:
+//   - echo.Context:	コンテキスト
+//
+// return:
+// error:	エラー
+func (ic *interactionController) GetTodayCheckins(c echo.Context) error {
+	checkins, err := ic.ch.GetTodayCheckins(c)
+	if err != nil {
+		return err
+	}
+	return c.JSON(http.StatusOK, checkins)
 }

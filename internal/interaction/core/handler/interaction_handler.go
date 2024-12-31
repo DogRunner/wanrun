@@ -107,6 +107,7 @@ func (h *bookmarkHandler) DeleteBookmark(c echo.Context, reqBody dto.BookmarkDel
 type ICheckInOutHandler interface {
 	CheckinDogrun(echo.Context, dto.CheckinReq) error
 	CheckoutDogrun(echo.Context, dto.CheckoutReq) error
+	GetTodayCheckins(c echo.Context) ([]dto.CheckinsRes, error)
 }
 
 type checkInOutHandler struct {
@@ -145,7 +146,7 @@ func (h checkInOutHandler) CheckinDogrun(c echo.Context, reqBody dto.CheckinReq)
 
 	saveCheckins := []model.DogrunCheckin{}
 	for _, dogID := range checkinDogIDs {
-		checkinResult, err := h.r.FindDogrunCheckin(c, dogrunID, dogID)
+		checkinResult, err := h.r.FindTodayDogrunCheckin(c, dogrunID, dogID)
 		if err != nil {
 			return err
 		}
@@ -193,7 +194,7 @@ func (h checkInOutHandler) CheckoutDogrun(c echo.Context, reqBody dto.CheckoutRe
 	saveCheckouts := []model.DogrunCheckout{}
 	for _, dogID := range checkoutDogIDs {
 		//入場しているかチェック
-		checkinResult, err := h.r.FindDogrunCheckin(c, dogrunID, dogID)
+		checkinResult, err := h.r.FindTodayDogrunCheckin(c, dogrunID, dogID)
 		if err != nil {
 			return err
 		}
@@ -203,7 +204,7 @@ func (h checkInOutHandler) CheckoutDogrun(c echo.Context, reqBody dto.CheckoutRe
 			return err
 		}
 		//すでに一度チェックアウト（退場）済みかをチェック
-		checkoutResult, err := h.r.FindDogrunCheckout(c, dogrunID, dogID)
+		checkoutResult, err := h.r.FindTodayDogrunCheckout(c, dogrunID, dogID)
 		if err != nil {
 			return err
 		}
@@ -222,4 +223,37 @@ func (h checkInOutHandler) CheckoutDogrun(c echo.Context, reqBody dto.CheckoutRe
 	}
 
 	return nil
+}
+
+// GetTodayCheckins: すべての所有dogの今日のチェックイン履歴の取得
+//
+// args:
+//   - echo.Context:	コンテキスト
+//
+// return:
+// error:	エラー
+func (h checkInOutHandler) GetTodayCheckins(c echo.Context) ([]dto.CheckinsRes, error) {
+	// ログインユーザーIDの取得
+	dogownerID, err := wrcontext.GetLoginDogownerID(c)
+	if err != nil {
+		return nil, err
+	}
+	//dogownerの今日のチェックイン履歴の取得
+	checkinsResult, err := h.r.GetTodayCheckinsByDogownerID(c, dogownerID)
+	if err != nil {
+		return nil, err
+	}
+
+	//検索結果をレスポンスに詰める
+	checkinsRes := []dto.CheckinsRes{}
+	for _, checkinResult := range checkinsResult {
+		checkinRes := dto.CheckinsRes{
+			DogID:       checkinResult.DogID.Int64,
+			DogrunID:    checkinResult.DogrunID.Int64,
+			CheckinAt:   checkinResult.CheckinAt.Time,
+			ReCheckinAt: checkinResult.ReCheckinAt.Time,
+		}
+		checkinsRes = append(checkinsRes, checkinRes)
+	}
+	return checkinsRes, nil
 }
