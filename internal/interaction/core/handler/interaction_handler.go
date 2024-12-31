@@ -4,12 +4,15 @@ import (
 	"fmt"
 
 	"github.com/labstack/echo/v4"
-	"github.com/wanrun-develop/wanrun/internal/dogrun/facade"
+	dogFacade "github.com/wanrun-develop/wanrun/internal/dog/facade"
+	dogrunFacade "github.com/wanrun-develop/wanrun/internal/dogrun/facade"
 	"github.com/wanrun-develop/wanrun/internal/interaction/adapters/repository"
 	"github.com/wanrun-develop/wanrun/internal/interaction/core/dto"
+	model "github.com/wanrun-develop/wanrun/internal/models"
 	"github.com/wanrun-develop/wanrun/internal/wrcontext"
 	"github.com/wanrun-develop/wanrun/pkg/errors"
 	"github.com/wanrun-develop/wanrun/pkg/log"
+	"github.com/wanrun-develop/wanrun/pkg/util"
 )
 
 type IBookmarkHandler interface {
@@ -18,12 +21,12 @@ type IBookmarkHandler interface {
 }
 
 type bookmarkHandler struct {
-	r  repository.IBookmarkRepository
-	df facade.IDogrunFacade
+	r   repository.IBookmarkRepository
+	drf dogrunFacade.IDogrunFacade
 }
 
-func NewBookmarkHandler(br repository.IBookmarkRepository, df facade.IDogrunFacade) IBookmarkHandler {
-	return &bookmarkHandler{br, df}
+func NewBookmarkHandler(br repository.IBookmarkRepository, drf dogrunFacade.IDogrunFacade) IBookmarkHandler {
+	return &bookmarkHandler{br, drf}
 }
 
 // AddBookmark: ブックマークへのdogrunの追加
@@ -39,7 +42,7 @@ func (h *bookmarkHandler) AddBookmark(c echo.Context, reqBody dto.BookmarkAddReq
 
 	logger := log.GetLogger(c).Sugar()
 	logger.Info("dogrunのお気に入り登録. dogrunID: ", reqBody.DogrunIDs)
-	err := h.df.CheckDogrunExistByIDs(c, reqBody.DogrunIDs)
+	err := h.drf.CheckDogrunExistByIDs(c, reqBody.DogrunIDs)
 	if err != nil {
 		return nil, err
 	}
@@ -98,5 +101,66 @@ func (h *bookmarkHandler) DeleteBookmark(c echo.Context, reqBody dto.BookmarkDel
 	if err := h.r.DeleteBookmark(c, reqBody.DogrunIDs, userID); err != nil {
 		return err
 	}
+	return nil
+}
+
+type ICheckInOutHandler interface {
+	CheckinDogrun(echo.Context, dto.CheckinReq) error
+}
+
+type checkInOutHandler struct {
+	r   repository.ICheckInOutRepository
+	drf dogrunFacade.IDogrunFacade
+	df  dogFacade.IDogFacade
+}
+
+func NewCheckInOutHandler(br repository.ICheckInOutRepository, drf dogrunFacade.IDogrunFacade, df dogFacade.IDogFacade) ICheckInOutHandler {
+	return &checkInOutHandler{br, drf, df}
+}
+
+// CheckinDogrun: ドッグランにチェックインする
+//
+// args:
+//   - echo.Context:	コンテキスト
+//   - dto.CheckinDogrunReq:	リクエストボディ
+//
+// return:
+//   - int64:	checkinID
+//   - error:	エラー
+func (h checkInOutHandler) CheckinDogrun(c echo.Context, reqBody dto.CheckinReq) error {
+	logger := log.GetLogger(c).Sugar()
+
+	//dogrun存在チェック
+	dogrunID := reqBody.DogrunID
+	if err := h.drf.CheckDogrunExistByIDs(c, []int64{dogrunID}); err != nil {
+		return err
+	}
+
+	//dogのdogownerチェック
+	checkinDogIDs := reqBody.DogIDs
+	if err := h.df.CheckDogownerValid(c, checkinDogIDs); err != nil {
+		return err
+	}
+
+	saveCheckins := []model.DogrunCheckin{}
+	for _, dogID := range checkinDogIDs {
+		checkinResult, err := h.r.FindDogrunCheckin(c, dogrunID, dogID)
+		if err != nil {
+			return err
+		}
+		if checkinResult.IsEmpty() {
+			logger.Info("今日の新規チェックイン")
+			checkinResult.DogrunID = util.NewSqlNullInt64(dogrunID)
+			checkinResult.DogID = util.NewSqlNullInt64(dogID)
+		}
+		saveCheckins = append(saveCheckins, checkinResult)
+	}
+
+	//保存
+	_, err := h.r.SaveDogrunCheckins(c, saveCheckins)
+	if err != nil {
+		return err
+	}
+
 	return nil
 }

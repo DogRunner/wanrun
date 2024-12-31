@@ -30,6 +30,7 @@ import (
 	dogRepository "github.com/wanrun-develop/wanrun/internal/dog/adapters/repository"
 	dogController "github.com/wanrun-develop/wanrun/internal/dog/controller"
 	dogHandler "github.com/wanrun-develop/wanrun/internal/dog/core/handler"
+	dogF "github.com/wanrun-develop/wanrun/internal/dog/facade"
 
 	//dogowner
 	dogOwnerRepository "github.com/wanrun-develop/wanrun/internal/dogowner/adapters/repository"
@@ -41,7 +42,7 @@ import (
 	dogrunR "github.com/wanrun-develop/wanrun/internal/dogrun/adapters/repository"
 	dogrunC "github.com/wanrun-develop/wanrun/internal/dogrun/controller"
 	dogrunH "github.com/wanrun-develop/wanrun/internal/dogrun/core/handler"
-	dogrunFacade "github.com/wanrun-develop/wanrun/internal/dogrun/facade"
+	dogrunF "github.com/wanrun-develop/wanrun/internal/dogrun/facade"
 
 	//dogrunmg
 	dogrunmgRepository "github.com/wanrun-develop/wanrun/internal/dogrunmg/adapters/repository"
@@ -148,6 +149,9 @@ func newRouter(e *echo.Echo, dbConn *gorm.DB) {
 	bookmark.POST("/dogrun", interactionController.AddBookmark)
 	bookmark.DELETE("/dogrun", interactionController.DeleteBookmarks)
 
+	access := e.Group("access")
+	access.POST("/checkin", interactionController.CheckinDogrun)
+
 	// cms関連
 	cmsController := newCms(dbConn)
 	cms := e.Group("cms")
@@ -198,15 +202,22 @@ func newAuthMiddleware(dbConn *gorm.DB) authMW.IAuthJwt {
 	return authMW.NewAuthJwt(authRepository)
 }
 
-func newInteraction(dbConn *gorm.DB) interactionC.IBookmarkController {
-	//facadeの準備
+func newInteraction(dbConn *gorm.DB) interactionC.IInteractionController {
+	//dogrun facadeの準備
 	dogrunRepository := dogrunR.NewDogrunRepository(dbConn)
-	dogrunFacade := dogrunFacade.NewDogrunFacade(dogrunRepository)
+	dogrunFacade := dogrunF.NewDogrunFacade(dogrunRepository)
+	//dog facadeの準備
+	dogRepository := dogRepository.NewDogRepository(dbConn)
+	dogFacade := dogF.NewDogFacade(dogRepository)
 
-	interactionRepository := interactionR.NewBookmarkRepository(dbConn)
-	interactionHandler := interactionH.NewBookmarkHandler(interactionRepository, dogrunFacade)
+	//bookmark
+	bookmarkRepository := interactionR.NewBookmarkRepository(dbConn)
+	bookmarkHandler := interactionH.NewBookmarkHandler(bookmarkRepository, dogrunFacade)
+	//checkinout
+	checkInOutRepository := interactionR.NewCheckInOutRepository(dbConn)
+	checkInOutHandler := interactionH.NewCheckInOutHandler(checkInOutRepository, dogrunFacade, dogFacade)
 
-	return interactionC.NewBookmarkController(interactionHandler)
+	return interactionC.NewInteractionController(bookmarkHandler, checkInOutHandler)
 }
 
 // dogOwnerの初期化

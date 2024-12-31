@@ -20,3 +20,9 @@ alter table auth_dogrun_managers drop constraint dev_auth_dogrun_managers_dogrun
 
 alter table dogrun_bookmarks drop constraint dev_dogrun_bookmarks_dogrun_id_fkey;
 alter table dogrun_bookmarks drop constraint dev_dogrun_bookmarks_dog_owner_id_fkey; 
+
+alter table dogrun_checkin drop constraint dev_dogrun_checkin_dogrun_id_fkey;
+alter table dogrun_checkin drop constraint dev_dogrun_checkin_dog_id_fkey; 
+
+alter table dogrun_checkout drop constraint dev_dogrun_checkout_dogrun_id_fkey;
+alter table dogrun_checkout drop constraint dev_dogrun_checkout_dog_id_fkey; 
