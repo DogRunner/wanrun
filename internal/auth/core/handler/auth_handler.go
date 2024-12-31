@@ -133,7 +133,7 @@ func (ah *authHandler) LogIn(c echo.Context, ador authDTO.AuthDogOwnerReq) (stri
 	dogOwnerDetail := authDTO.UserAuthInfoDTO{
 		UserID: result.AuthDogOwner.DogOwnerID.Int64,
 		JwtID:  jwtID,
-		RoleID: DOGRUNMG_ROLE,
+		RoleID: DOGOWNER_ROLE,
 	}
 
 	logger.Infof("dogOwnerDetail: %v", dogOwnerDetail)
