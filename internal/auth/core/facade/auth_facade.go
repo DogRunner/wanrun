@@ -1,8 +1,12 @@
 package facade
 
 import (
+	"fmt"
+
 	"github.com/labstack/echo/v4"
 	"github.com/wanrun-develop/wanrun/internal/auth/adapters/repository"
+	wrErrors "github.com/wanrun-develop/wanrun/pkg/errors"
+	"github.com/wanrun-develop/wanrun/pkg/log"
 )
 
 type IAuthFacade interface {
@@ -19,7 +23,7 @@ func NewAuthFacade(ar repository.IAuthRepository) IAuthFacade {
 	}
 }
 
-// OrgValidate: orgのEmailバリデーションフロー
+// OrgValidate: OrgのEmailバリデーションフロー
 //
 // args:
 //   - echo.Context: Echoのコンテキスト。リクエストやレスポンスにアクセスするために使用
@@ -28,9 +32,27 @@ func NewAuthFacade(ar repository.IAuthRepository) IAuthFacade {
 // return:
 //   - error: error情報
 func (af *authFacade) OrgEmailValidate(c echo.Context, email string) error {
-	// orgのEmail重複チェック
-	if wrErr := af.ar.CheckOrgEmailExists(c, email); wrErr != nil {
+	logger := log.GetLogger(c).Sugar()
+
+	// OrgのEmail数取得
+	existingCount, wrErr := af.ar.CountOrgEmail(c, email)
+
+	if wrErr != nil {
 		return wrErr
 	}
+
+	// Emailの重複確認
+	if existingCount > 0 {
+		wrErr := wrErrors.NewWRError(
+			nil,
+			fmt.Sprintf("%sのEmailが既に登録されています。", email),
+			wrErrors.NewDogOwnerClientErrorEType(),
+		)
+
+		logger.Errorf("%s already exists error: %v", email, wrErr)
+
+		return wrErr
+	}
+
 	return nil
 }

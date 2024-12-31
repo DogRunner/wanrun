@@ -23,7 +23,7 @@ type IAuthRepository interface {
 	GetDogrunmgJwtID(c echo.Context, dogownerID int64) (string, error)
 	DeleteJwtID(c echo.Context, doID int64) error
 	CheckDuplicate(c echo.Context, field string, value sql.NullString) error
-	CheckOrgEmailExists(c echo.Context, email string) error
+	CountOrgEmail(c echo.Context, email string) (int64, error)
 }
 
 type authRepository struct {
@@ -523,22 +523,22 @@ func (ar *authRepository) CheckDuplicate(c echo.Context, field string, value sql
 	return nil
 }
 
-// CheckOrgEmailExists:  orgの既存のemail存在チェック
+// CountOrgEmail:  OrgのEmail数の取得
 //
 // args:
 //   - echo.Context: Echoのコンテキスト。リクエストやレスポンスにアクセスするために使用
 //   - string: 対象のEmail
 //
 // return:
+//   - int64: OrgのEmailの数
 //   - error: error情報
-func (ar *authRepository) CheckOrgEmailExists(c echo.Context, email string) error {
-
+func (ar *authRepository) CountOrgEmail(c echo.Context, email string) (int64, error) {
 	logger := log.GetLogger(c).Sugar()
 
-	// 重複のvalidate
+	// email数の取得数
 	var existingCount int64
 
-	// Emailの重複確認
+	// Emailの数の取得
 	if err := ar.db.Model(&model.DogrunmgCredential{}).
 		Where("email"+" = ?", email).
 		Count(&existingCount).
@@ -551,19 +551,8 @@ func (ar *authRepository) CheckOrgEmailExists(c echo.Context, email string) erro
 
 		logger.Errorf("Failed to check existing value error: %v", wrErr)
 
-		return wrErr
+		return 0, wrErr
 	}
 
-	if existingCount > 0 {
-		wrErr := wrErrors.NewWRError(
-			nil,
-			fmt.Sprintf("%sのEmailが既に登録されています。", email),
-			wrErrors.NewDogOwnerClientErrorEType(),
-		)
-
-		logger.Errorf("%s already exists error: %v", email, wrErr)
-
-		return wrErr
-	}
-	return nil
+	return existingCount, nil
 }
