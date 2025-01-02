@@ -35,11 +35,11 @@ const (
 
 // スキップ対象のパスを定義
 var skipPaths = []string{
-	"/auth/token",
-	"/auth/signUp",
+	"/auth/token/dogowner",
+	"/auth/token/dogrunmg",
 	"/dogowner/signUp",
-	"/health",
 	"/org/contract",
+	"/health",
 }
 
 // NewJwtValidationMiddleware: JWT検証用のミドルウェア設定を生成

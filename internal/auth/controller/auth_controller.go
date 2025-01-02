@@ -5,6 +5,7 @@ import (
 	// "github.com/golang-jwt/jwt/v5"
 	"net/http"
 
+	"github.com/go-playground/validator/v10"
 	"github.com/labstack/echo/v4"
 	"github.com/wanrun-develop/wanrun/internal/auth/core/dto"
 	"github.com/wanrun-develop/wanrun/internal/auth/core/handler"
@@ -16,6 +17,7 @@ import (
 type IAuthController interface {
 	// SignUp(c echo.Context) error
 	LogIn(c echo.Context) error
+	LogInDogrunmg(c echo.Context) error
 	Revoke(c echo.Context) error
 	// GoogleOAuth(c echo.Context) error
 }
@@ -161,6 +163,50 @@ func (ac *authController) Revoke(c echo.Context) error {
 	}
 
 	return c.JSON(http.StatusOK, map[string]any{})
+}
+
+// LogInDogrunmg: Dogrunmgのlogin機能
+//
+// args:
+//   - echo.Context: c Echoのコンテキスト。リクエストやレスポンスにアクセスするために使用されます。
+//
+// return:
+//   - error: error情報
+func (ac *authController) LogInDogrunmg(c echo.Context) error {
+	logger := log.GetLogger(c).Sugar()
+
+	admReq := dto.AuthDogrunmgReq{}
+
+	if err := c.Bind(&admReq); err != nil {
+		wrErr := errors.NewWRError(err, "入力項目に不正があります。", errors.NewAuthClientErrorEType())
+		logger.Error(wrErr)
+		return wrErr
+	}
+
+	// バリデータのインスタンス作成
+	validate := validator.New()
+
+	//リクエストボディのバリデーション
+	if err := validate.Struct(&admReq); err != nil {
+		err = errors.NewWRError(
+			err,
+			"必須の項目に不正があります。",
+			errors.NewAuthClientErrorEType(),
+		)
+		logger.Error(err)
+		return err
+	}
+
+	// dogrunmgのLogIn
+	token, wrErr := ac.ah.LogInDogrunmg(c, admReq)
+
+	if wrErr != nil {
+		return wrErr
+	}
+
+	return c.JSON(http.StatusOK, map[string]string{
+		"accessToken": token,
+	})
 }
 
 // /*

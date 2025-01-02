@@ -24,6 +24,8 @@ type IAuthRepository interface {
 	DeleteJwtID(c echo.Context, doID int64) error
 	CheckDuplicate(c echo.Context, field string, value sql.NullString) error
 	CountOrgEmail(c echo.Context, email string) (int64, error)
+	GetDogrunmgByCredentials(c echo.Context, email string) ([]model.DogrunmgCredential, error)
+	UpdateDogrunmgJwtID(c echo.Context, dmID int64, ji string) error
 }
 
 type authRepository struct {
@@ -179,7 +181,7 @@ OAuthユーザーの作成
 // GetDogOwnerByCredential: ドッグオーナーのクレデンシャル取得
 //
 // args:
-//   - echo.Context: c Echoのコンテキスト。リクエストやレスポンスにアクセスするために使用
+//   - echo.Context: Echoのコンテキスト。リクエストやレスポンスにアクセスするために使用
 //   - dto.AuthDogOwnerReq: authDogOwnerのリクエスト情報
 //
 // return:
@@ -478,7 +480,7 @@ func (ar *authRepository) GetDogrunmgJwtID(c echo.Context, dogrunmgID int64) (st
 
 }
 
-// checkDuplicate:  Password認証のバリデーション
+// CheckDuplicate:  Password認証のバリデーション
 //
 // args:
 //   - echo.Context: Echoのコンテキスト。リクエストやレスポンスにアクセスするために使用
@@ -555,4 +557,88 @@ func (ar *authRepository) CountOrgEmail(c echo.Context, email string) (int64, er
 	}
 
 	return existingCount, nil
+}
+
+// GetDogrunmgByCredentials: Emailを元にdogrunmgのクレデンシャル取得
+//
+// args:
+//   - echo.Context: Echoのコンテキスト。リクエストやレスポンスにアクセスするために使用
+//   - string: authDogrunmgのemail
+//
+// return:
+//   - []model.DogrunmgCredential: 取得したdogrunmgの情報
+//   - error: error情報
+func (ar *authRepository) GetDogrunmgByCredentials(c echo.Context, email string) ([]model.DogrunmgCredential, error) {
+	logger := log.GetLogger(c).Sugar()
+
+	var results []model.DogrunmgCredential
+	// Emailに基づくレコードを検索
+	// if err := ar.db.Model(&model.DogrunmgCredential{}).
+	// if err := ar.db.Joins("INNER JOIN auth_dogrun_managers ON dogrun_manager_credentials.auth_dogrun_manager_id = auth_dogrun_managers.auth_dogrun_manager_id").
+	// 	Joins("INNER JOIN dogrun_managers ON auth_dogrun_managers.dogrun_manager_id = dogrun_managers.dogrun_manager_id").
+	// 	Where("email = ?", email).
+	// 	First(&results).Error; err != nil {
+	// 	wrErr := wrErrors.NewWRError(
+	// 		err,
+	// 		"DBからのデータ取得に失敗しました。",
+	// 		wrErrors.NewAuthServerErrorEType(),
+	// 	)
+
+	// 	logger.Errorf("DB search failure: %v", wrErr)
+
+	// 	return nil, wrErr
+	// }
+
+	if err := ar.db.Model(&model.DogrunmgCredential{}).
+		Preload("AuthDogrunmg").          // AuthDogrunmgをロード
+		Preload("AuthDogrunmg.Dogrunmg"). // AuthDogrunmgに紐づくDogrunmgをロード
+		Where("email = ?", email).
+		Find(&results).Error; err != nil {
+		wrErr := wrErrors.NewWRError(
+			err,
+			"DBからのデータ取得に失敗しました。",
+			wrErrors.NewAuthServerErrorEType(),
+		)
+
+		logger.Errorf("DB search failure: %v", wrErr)
+
+		return nil, wrErr
+	}
+
+	logger.Debugf("Query Result: %v", results)
+
+	return results, nil
+}
+
+// UpdateDogrunmgJwtID: 対象のdogrunmgのjwt_idの更新
+//
+// args:
+//   - echo.Context: Echoのコンテキスト。リクエストやレスポンスにアクセスするために使用
+//   - int64: dogrunmgのPK
+//   - string: 更新用のjwt_id
+//
+// return:
+//   - error: error情報
+func (ar *authRepository) UpdateDogrunmgJwtID(
+	c echo.Context,
+	dmID int64,
+	ji string,
+) error {
+	logger := log.GetLogger(c).Sugar()
+
+	// 対象のdogrunmgのjwt_idの更新
+	if err := ar.db.Model(&model.AuthDogrunmg{}).
+		Where("dogrun_manager_id= ?", dmID).
+		Update("jwt_id", ji).Error; err != nil {
+		wrErr := wrErrors.NewWRError(
+			err,
+			"DBへの更新が失敗しました。",
+			wrErrors.NewAuthServerErrorEType())
+
+		logger.Errorf("Failed to update JWT ID: %v", wrErr)
+
+		return wrErr
+	}
+
+	return nil
 }
