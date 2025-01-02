@@ -26,6 +26,7 @@ type IAuthRepository interface {
 	CountOrgEmail(c echo.Context, email string) (int64, error)
 	GetDogrunmgByCredentials(c echo.Context, email string) ([]model.DogrunmgCredential, error)
 	UpdateDogrunmgJwtID(c echo.Context, dmID int64, ji string) error
+	DeleteDogrunmgJwtID(c echo.Context, dmID int64) error
 }
 
 type authRepository struct {
@@ -285,6 +286,34 @@ func (ar *authRepository) DeleteJwtID(c echo.Context, doID int64) error {
 	}
 
 	return err
+}
+
+// DeleteDogrunmgJwtID: 対象のdogrunmgのjwt_idの削除
+//
+// args:
+//   - echo.Context: Echoのコンテキスト。リクエストやレスポンスにアクセスするために使用
+//   - int64: dogrunmgのID
+//
+// return:
+//   - error: error情報
+func (ar *authRepository) DeleteDogrunmgJwtID(c echo.Context, dmID int64) error {
+	logger := log.GetLogger(c).Sugar()
+
+	// 対象のdogrunmgのjwt_idの更新
+	if err := ar.db.Model(&model.AuthDogrunmg{}).
+		Where("dogrun_manager_id= ?", dmID).
+		Update("jwt_id", nil).Error; err != nil {
+		wrErr := wrErrors.NewWRError(
+			err,
+			"DBへの同期が失敗しました。",
+			wrErrors.NewAuthServerErrorEType())
+
+		logger.Errorf("Failed to delete JWT ID: %v", wrErr)
+
+		return wrErr
+	}
+
+	return nil
 }
 
 // GetJwtID: dogrunmgとdogonwerのjwtIDの取得(共通処理)
