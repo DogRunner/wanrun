@@ -22,3 +22,17 @@ type Dogrunmg struct {
 func (Dogrunmg) TableName() string {
 	return "dogrun_managers"
 }
+
+/*
+Dogrunmgが空であるか
+*/
+func (dm *Dogrunmg) IsEmpty() bool {
+	return !dm.IsNotEmpty()
+}
+
+/*
+Dogrunmgが空でないか
+*/
+func (dm *Dogrunmg) IsNotEmpty() bool {
+	return dm.DogrunmgID.Valid
+}

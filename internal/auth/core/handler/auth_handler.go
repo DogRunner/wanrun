@@ -19,6 +19,8 @@ import (
 type IAuthHandler interface {
 	LogIn(c echo.Context, ador authDTO.AuthDogOwnerReq) (string, error)
 	Revoke(c echo.Context, claims *AccountClaims) error
+	LogInDogrunmg(c echo.Context, ador authDTO.AuthDogrunmgReq) (string, error)
+	RevokeDogrunmg(c echo.Context, dmID int64) error
 	// GoogleOAuth(c echo.Context, authorizationCode string, grantType types.GrantType) (dto.ResDogOwnerDto, error)
 }
 
@@ -165,6 +167,117 @@ func (ah *authHandler) Revoke(c echo.Context, claims *AccountClaims) error {
 
 	// 対象のdogOwnerのIDからJWT IDの削除
 	if wrErr := ah.ar.DeleteJwtID(c, dogOwnerID); wrErr != nil {
+		return wrErr
+	}
+
+	return nil
+}
+
+// LogInDogrunmg: dogrunmgの存在チェックバリデーションとJWTの更新, 署名済みjwtを返す
+//
+// args:
+//   - echo.Context: Echoのコンテキスト。リクエストやレスポンスにアクセスするために使用
+//   - dto.AuthDogrunmgReq: authDogrunmgのリクエスト情報
+//
+// return:
+//   - string: 検証済みのjwt
+//   - error: error情報
+func (ah *authHandler) LogInDogrunmg(c echo.Context, admReq authDTO.AuthDogrunmgReq) (string, error) {
+	logger := log.GetLogger(c).Sugar()
+
+	logger.Debugf("authDogrunmgReq: %v, Type: %T", admReq, admReq)
+
+	// Email情報を元にdogrunmgのクレデンシャル情報の取得
+	results, err := ah.ar.GetDogrunmgByCredentials(c, admReq.Email)
+
+	if err != nil {
+		return "", err
+	}
+
+	// 対象のdogrunmgがいない場合
+	if len(results) == 0 {
+		wrErr := wrErrors.NewWRError(
+			nil,
+			"対象のユーザーが存在しません",
+			wrErrors.NewAuthClientErrorEType(),
+		)
+		logger.Errorf("Dogrunmg not found: %v", wrErr)
+		return "", wrErr
+	}
+
+	// 対象のdogrunmgが複数いるため、データの不整合が起きている(emailをuniqueにしているため基本的に起きない)
+	if len(results) > 1 {
+		wrErr := wrErrors.NewWRError(
+			nil,
+			"データの不整合が起きています",
+			wrErrors.NewAuthServerErrorEType(),
+		)
+		logger.Errorf("Multiple records found for email (expected unique): %v", wrErr)
+		return "", wrErr
+	}
+
+	// パスワードの確認
+	if err = bcrypt.CompareHashAndPassword([]byte(results[0].Password.String), []byte(admReq.Password)); err != nil {
+		wrErr := wrErrors.NewWRError(
+			err,
+			"パスワードが間違っています",
+			wrErrors.NewAuthServerErrorEType())
+
+		logger.Errorf("Password compare failure: %v", wrErr)
+
+		return "", wrErr
+	}
+
+	// 更新用のJWT IDの生成
+	jwtID, wrErr := GenerateJwtID(c)
+
+	if wrErr != nil {
+		return "", wrErr
+	}
+
+	// 取得したdogrunmgのjwt_idの更新
+	if wrErr = ah.ar.UpdateDogrunmgJwtID(c, results[0].AuthDogrunmg.Dogrunmg.DogrunmgID.Int64, jwtID); wrErr != nil {
+		return "", wrErr
+	}
+
+	// dogrunmgがadminかどうかの識別
+	var roleID int64
+	if results[0].AuthDogrunmg.IsAdmin.Valid && results[0].AuthDogrunmg.IsAdmin.Bool {
+		roleID = DOGRUNMG_ADMIN_ROLE
+	} else {
+		roleID = DOGRUNMG_ROLE
+	}
+
+	// 取得したDogrunmgの情報をdto詰め替え
+	dogrunmgDetail := authDTO.UserAuthInfoDTO{
+		UserID: results[0].AuthDogrunmg.DogrunmgID.Int64,
+		JwtID:  jwtID,
+		RoleID: roleID,
+	}
+
+	logger.Infof("dogrunmgDetail: %v", dogrunmgDetail)
+
+	// 署名済みのjwt token取得
+	token, wrErr := GetSignedJwt(c, dogrunmgDetail)
+
+	if wrErr != nil {
+		return "", wrErr
+	}
+
+	return token, nil
+}
+
+// RevokeDogrunmg: dogrunmgのRevoke機能
+//
+// args:
+//   - echo.Context: Echoのコンテキスト。リクエストやレスポンスにアクセスするために使用
+//   - int64: dogrunmgのID
+//
+// return:
+//   - error: error情報
+func (ah *authHandler) RevokeDogrunmg(c echo.Context, dmID int64) error {
+	// 対象のdogrunmgのIDからJWT IDの削除
+	if wrErr := ah.ar.DeleteDogrunmgJwtID(c, dmID); wrErr != nil {
 		return wrErr
 	}
 

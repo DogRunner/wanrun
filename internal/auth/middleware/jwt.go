@@ -35,11 +35,11 @@ const (
 
 // スキップ対象のパスを定義
 var skipPaths = []string{
-	"/auth/token",
-	"/auth/signUp",
+	"/auth/token/dogowner",
+	"/auth/token/dogrunmg",
 	"/dogowner/signUp",
-	"/health",
 	"/org/contract",
+	"/health",
 }
 
 // NewJwtValidationMiddleware: JWT検証用のミドルウェア設定を生成
@@ -174,7 +174,7 @@ func (aj *authJwt) jwtIDValid(c echo.Context, ac *handler.AccountClaims) error {
 			// dogownerのjwtID取得
 			return aj.ar.GetDogownerJwtID(c, id)
 		// dogrunmg
-		case handler.DOGRUNMG_ROLE:
+		case handler.DOGRUNMG_ROLE, handler.DOGRUNMG_ADMIN_ROLE:
 			// dogrunmgのjwtID取得
 			return aj.ar.GetDogrunmgJwtID(c, id)
 		default:
