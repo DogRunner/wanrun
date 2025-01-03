@@ -20,6 +20,7 @@ type IAuthHandler interface {
 	LogIn(c echo.Context, ador authDTO.AuthDogOwnerReq) (string, error)
 	Revoke(c echo.Context, claims *AccountClaims) error
 	LogInDogrunmg(c echo.Context, ador authDTO.AuthDogrunmgReq) (string, error)
+	RevokeDogrunmg(c echo.Context, dmID int64) error
 	// GoogleOAuth(c echo.Context, authorizationCode string, grantType types.GrantType) (dto.ResDogOwnerDto, error)
 }
 
@@ -264,6 +265,23 @@ func (ah *authHandler) LogInDogrunmg(c echo.Context, admReq authDTO.AuthDogrunmg
 	}
 
 	return token, nil
+}
+
+// RevokeDogrunmg: dogrunmgのRevoke機能
+//
+// args:
+//   - echo.Context: Echoのコンテキスト。リクエストやレスポンスにアクセスするために使用
+//   - int64: dogrunmgのID
+//
+// return:
+//   - error: error情報
+func (ah *authHandler) RevokeDogrunmg(c echo.Context, dmID int64) error {
+	// 対象のdogrunmgのIDからJWT IDの削除
+	if wrErr := ah.ar.DeleteDogrunmgJwtID(c, dmID); wrErr != nil {
+		return wrErr
+	}
+
+	return nil
 }
 
 /*

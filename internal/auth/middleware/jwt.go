@@ -174,7 +174,7 @@ func (aj *authJwt) jwtIDValid(c echo.Context, ac *handler.AccountClaims) error {
 			// dogownerのjwtID取得
 			return aj.ar.GetDogownerJwtID(c, id)
 		// dogrunmg
-		case handler.DOGRUNMG_ROLE:
+		case handler.DOGRUNMG_ROLE, handler.DOGRUNMG_ADMIN_ROLE:
 			// dogrunmgのjwtID取得
 			return aj.ar.GetDogrunmgJwtID(c, id)
 		default:
