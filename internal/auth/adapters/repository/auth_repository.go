@@ -602,22 +602,6 @@ func (ar *authRepository) GetDogrunmgByCredentials(c echo.Context, email string)
 
 	var results []model.DogrunmgCredential
 	// Emailに基づくレコードを検索
-	// if err := ar.db.Model(&model.DogrunmgCredential{}).
-	// if err := ar.db.Joins("INNER JOIN auth_dogrun_managers ON dogrun_manager_credentials.auth_dogrun_manager_id = auth_dogrun_managers.auth_dogrun_manager_id").
-	// 	Joins("INNER JOIN dogrun_managers ON auth_dogrun_managers.dogrun_manager_id = dogrun_managers.dogrun_manager_id").
-	// 	Where("email = ?", email).
-	// 	First(&results).Error; err != nil {
-	// 	wrErr := wrErrors.NewWRError(
-	// 		err,
-	// 		"DBからのデータ取得に失敗しました。",
-	// 		wrErrors.NewAuthServerErrorEType(),
-	// 	)
-
-	// 	logger.Errorf("DB search failure: %v", wrErr)
-
-	// 	return nil, wrErr
-	// }
-
 	if err := ar.db.Model(&model.DogrunmgCredential{}).
 		Preload("AuthDogrunmg").          // AuthDogrunmgをロード
 		Preload("AuthDogrunmg.Dogrunmg"). // AuthDogrunmgに紐づくDogrunmgをロード
