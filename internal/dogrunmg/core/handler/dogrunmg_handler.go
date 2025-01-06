@@ -12,7 +12,7 @@ type IDogrunmgHandler interface {
 type dogrunmgHandler struct {
 }
 
-func NewDogOwnerHandler() IDogrunmgHandler {
+func NewDogownerHandler() IDogrunmgHandler {
 	return &dogrunmgHandler{}
 }
 

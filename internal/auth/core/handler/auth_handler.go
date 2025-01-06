@@ -17,11 +17,11 @@ import (
 )
 
 type IAuthHandler interface {
-	LogInDogowner(c echo.Context, ador authDTO.AuthDogOwnerReq) (string, error)
+	LogInDogowner(c echo.Context, ador authDTO.AuthDogownerReq) (string, error)
 	RevokeDogowner(c echo.Context, dogownerID int64) error
 	LogInDogrunmg(c echo.Context, ador authDTO.AuthDogrunmgReq) (string, error)
 	RevokeDogrunmg(c echo.Context, dmID int64) error
-	// GoogleOAuth(c echo.Context, authorizationCode string, grantType types.GrantType) (dto.ResDogOwnerDto, error)
+	// GoogleOAuth(c echo.Context, authorizationCode string, grantType types.GrantType) (dto.ResDogownerDto, error)
 }
 
 type authHandler struct {
@@ -50,41 +50,41 @@ const (
 	DOGOWNER_ROLE       = 3
 )
 
-// GetDogOwnerIDAsInt64: 共通処理で、int64のDogOwnerのID取得。
+// GetDogownerIDAsInt64: 共通処理で、int64のDogownerのID取得。
 //
 // args:
 //   - echo.Context: Echoのコンテキスト。リクエストやレスポンスにアクセスするために使用
 //
 // return:
-//   - int64: dogOwnerのID情報(int64)
+//   - int64: dogownerのID情報(int64)
 //   - error: error情報
-func (claims *AccountClaims) GetDogOwnerIDAsInt64(c echo.Context) (int64, error) {
+func (claims *AccountClaims) GetDogownerIDAsInt64(c echo.Context) (int64, error) {
 	logger := log.GetLogger(c).Sugar()
 
 	// IDをstringからint64に変換
-	dogOwnerID, err := strconv.ParseInt(claims.ID, 10, 64)
+	dogownerID, err := strconv.ParseInt(claims.ID, 10, 64)
 	if err != nil {
 		wrErr := errors.NewWRError(
 			nil,
 			"認証情報が違います。",
-			errors.NewDogOwnerClientErrorEType(),
+			errors.NewDogownerClientErrorEType(),
 		)
 		logger.Error(wrErr)
 		return 0, err
 	}
-	return dogOwnerID, nil
+	return dogownerID, nil
 }
 
 // LogInDogowner: dogownerの存在チェックバリデーションとJWTの更新, 署名済みjwtを返す
 //
 // args:
 //   - echo.Context: Echoのコンテキスト。リクエストやレスポンスにアクセスするために使用
-//   - dto.AuthDogOwnerReq: authDogOwnerのリクエスト情報
+//   - dto.AuthDogownerReq: authDogownerのリクエスト情報
 //
 // return:
 //   - string: 検証済みのjwt
 //   - error: error情報
-func (ah *authHandler) LogInDogowner(c echo.Context, adoReq authDTO.AuthDogOwnerReq) (string, error) {
+func (ah *authHandler) LogInDogowner(c echo.Context, adoReq authDTO.AuthDogownerReq) (string, error) {
 	logger := log.GetLogger(c).Sugar()
 
 	// EmailとPhoneNumberのバリデーション
@@ -96,7 +96,7 @@ func (ah *authHandler) LogInDogowner(c echo.Context, adoReq authDTO.AuthDogOwner
 	logger.Debugf("authDogownerReq: %v, Type: %T", adoReq, adoReq)
 
 	// EmailかPhoneNumberから対象のDogowner情報の取得
-	results, wrErr := ah.ar.GetDogOwnerByCredential(c, adoReq)
+	results, wrErr := ah.ar.GetDogownerByCredential(c, adoReq)
 
 	if wrErr != nil {
 		return "", wrErr
@@ -144,13 +144,13 @@ func (ah *authHandler) LogInDogowner(c echo.Context, adoReq authDTO.AuthDogOwner
 	}
 
 	// 取得したdogownerのjtw_idの更新
-	if wrErr := ah.ar.UpdateDogownerJwtID(c, results[0].AuthDogOwner.DogOwner.DogOwnerID.Int64, jwtID); wrErr != nil {
+	if wrErr := ah.ar.UpdateDogownerJwtID(c, results[0].AuthDogowner.Dogowner.DogownerID.Int64, jwtID); wrErr != nil {
 		return "", wrErr
 	}
 
 	// 作成したDogownerの情報をdto詰め替え
 	dogownerDetail := authDTO.UserAuthInfoDTO{
-		UserID: results[0].AuthDogOwner.DogOwnerID.Int64,
+		UserID: results[0].AuthDogowner.DogownerID.Int64,
 		JwtID:  jwtID,
 		RoleID: DOGOWNER_ROLE,
 	}
@@ -298,7 +298,7 @@ func (ah *authHandler) RevokeDogrunmg(c echo.Context, dmID int64) error {
 /*
 Google OAuth認証
 */
-// func (ah *authHandler) GoogleOAuth(c echo.Context, authorizationCode string, grantType types.GrantType) (dto.ResDogOwnerDto, error) {
+// func (ah *authHandler) GoogleOAuth(c echo.Context, authorizationCode string, grantType types.GrantType) (dto.ResDogownerDto, error) {
 // 	logger := log.GetLogger(c).Sugar()
 
 // 	ctx, cancel := context.WithTimeout(c.Request().Context(), 5*time.Second) // 5秒で設定
@@ -308,14 +308,14 @@ Google OAuth認証
 // 	token, wrErr := ah.ag.GetAccessToken(c, authorizationCode, ctx)
 
 // 	if wrErr != nil {
-// 		return dto.ResDogOwnerDto{}, wrErr
+// 		return dto.ResDogownerDto{}, wrErr
 // 	}
 
 // 	// トークン元にGoogleユーザー情報の取得
 // 	googleUserInfo, wrErr := ah.ag.GetGoogleUserInfo(c, token, ctx)
 
 // 	if wrErr != nil {
-// 		return dto.ResDogOwnerDto{}, wrErr
+// 		return dto.ResDogownerDto{}, wrErr
 // 	}
 
 // 	// Googleユーザー情報の確認処理
@@ -326,36 +326,36 @@ Google OAuth認証
 // 			wrErrors.NewAuthServerErrorEType(),
 // 		)
 // 		logger.Errorf("No google user information error: %v", wrErr)
-// 		return dto.ResDogOwnerDto{}, wrErr
+// 		return dto.ResDogownerDto{}, wrErr
 // 	}
 
 // 	// ドッグオーナーのcredentialの設定と型変換
-// 	dogOwnerCredential := model.DogOwnerCredential{
+// 	dogownerCredential := model.DogownerCredential{
 // 		ProviderUserID: wrUtil.NewSqlNullString(googleUserInfo.UserId),
 // 		Email:          wrUtil.NewSqlNullString(googleUserInfo.Email),
-// 		AuthDogOwner: model.AuthDogOwner{
+// 		AuthDogowner: model.AuthDogowner{
 // 			AccessToken:           wrUtil.NewSqlNullString(token.AccessToken),
 // 			RefreshToken:          wrUtil.NewSqlNullString(token.RefreshToken),
 // 			AccessTokenExpiration: wrUtil.NewCustomTime(token.Expiry),
 // 			GrantType:             grantType,
-// 			DogOwner: model.DogOwner{
+// 			Dogowner: model.Dogowner{
 // 				Name: wrUtil.NewSqlNullString(googleUserInfo.Email),
 // 			},
 // 		},
 // 	}
 
 // 	// ドッグオーナーの作成
-// 	dogOC, wrErr := ah.ar.CreateOAuthDogOwner(c, &dogOwnerCredential)
+// 	dogOC, wrErr := ah.ar.CreateOAuthDogowner(c, &dogownerCredential)
 
 // 	if wrErr != nil {
-// 		return dto.ResDogOwnerDto{}, wrErr
+// 		return dto.ResDogownerDto{}, wrErr
 // 	}
 
-// 	resDogOwner := dto.ResDogOwnerDto{
-// 		DogOwnerID: dogOC.AuthDogOwner.DogOwner.DogOwnerID.Int64,
+// 	resDogowner := dto.ResDogownerDto{
+// 		DogownerID: dogOC.AuthDogowner.Dogowner.DogownerID.Int64,
 // 	}
 
-// 	return resDogOwner, nil
+// 	return resDogowner, nil
 // }
 
 // GetSignedJwt: 署名済みのJWT tokenの取得
@@ -462,17 +462,17 @@ func GenerateJwtID(c echo.Context) (string, error) {
 // validateEmailOrPhoneNumber: EmailかPhoneNumberの識別バリデーション。パスワード認証は、EmailかPhoneNumberで登録するため
 //
 // args:
-//   - dto.DogOwnerReq: DogOwnerのRequest
+//   - dto.DogownerReq: DogownerのRequest
 //
 // return:
 //   - error: err情報
-func validateEmailOrPhoneNumber(doReq authDTO.AuthDogOwnerReq) error {
+func validateEmailOrPhoneNumber(doReq authDTO.AuthDogownerReq) error {
 	// 両方が空の場合はエラー
 	if doReq.Email == "" && doReq.PhoneNumber == "" {
 		wrErr := wrErrors.NewWRError(
 			nil,
 			"Emailと電話番号のどちらも空です",
-			wrErrors.NewDogOwnerClientErrorEType(),
+			wrErrors.NewDogownerClientErrorEType(),
 		)
 		return wrErr
 	}
@@ -482,7 +482,7 @@ func validateEmailOrPhoneNumber(doReq authDTO.AuthDogOwnerReq) error {
 		wrErr := wrErrors.NewWRError(
 			nil,
 			"Emailと電話番号のどちらも値が入っています",
-			wrErrors.NewDogOwnerClientErrorEType(),
+			wrErrors.NewDogownerClientErrorEType(),
 		)
 		return wrErr
 	}

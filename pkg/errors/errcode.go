@@ -67,14 +67,14 @@ func NewDogServerErrorEType() eType {
 /*
 ドッグオーナー機能のクライアントエラー
 */
-func NewDogOwnerClientErrorEType() eType {
+func NewDogownerClientErrorEType() eType {
 	return eType{DOG_OWNER, CLIENT}
 }
 
 /*
 ドッグオーナー機能のサーバーエラー
 */
-func NewDogOwnerServerErrorEType() eType {
+func NewDogownerServerErrorEType() eType {
 	return eType{DOG_OWNER, SERVER}
 }
 

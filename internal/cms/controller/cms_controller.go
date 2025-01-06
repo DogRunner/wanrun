@@ -28,8 +28,8 @@ func NewCmsController(ch handler.ICmsHandler) ICmsController {
 func (cc *cmsController) UploadFile(c echo.Context) error {
 	logger := log.GetLogger(c).Sugar()
 
-	// dogOwnerIDの取得
-	dogOwnerID, wrErr := wrcontext.GetLoginUserID(c)
+	// dogownerIDの取得
+	dogownerID, wrErr := wrcontext.GetLoginUserID(c)
 
 	if wrErr != nil {
 		return wrErr
@@ -42,7 +42,7 @@ func (cc *cmsController) UploadFile(c echo.Context) error {
 		wrErr := errors.NewWRError(
 			err,
 			"ファイルデータに不正があります。",
-			errors.NewDogOwnerClientErrorEType(),
+			errors.NewDogownerClientErrorEType(),
 		)
 		logger.Error(wrErr)
 		return wrErr
@@ -55,7 +55,7 @@ func (cc *cmsController) UploadFile(c echo.Context) error {
 		wrErr := errors.NewWRError(
 			err,
 			"ファイルデータに不正があります。",
-			errors.NewDogOwnerClientErrorEType(),
+			errors.NewDogownerClientErrorEType(),
 		)
 		logger.Error(wrErr)
 		return wrErr
@@ -75,7 +75,7 @@ func (cc *cmsController) UploadFile(c echo.Context) error {
 		FileName:   baseName,
 		Extension:  ext,
 		Src:        src,
-		DogOwnerID: dogOwnerID,
+		DogownerID: dogownerID,
 	}
 
 	// FileUploadのハンドラー

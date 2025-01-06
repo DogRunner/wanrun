@@ -11,7 +11,7 @@ import (
 type IDogRepository interface {
 	GetAllDogs(echo.Context) ([]model.Dog, error)
 	GetDogByID(echo.Context, int64) (model.Dog, error)
-	GetDogByDogOwnerID(echo.Context, int64) ([]model.Dog, error)
+	GetDogByDogownerID(echo.Context, int64) ([]model.Dog, error)
 	GetDogTypeMst(echo.Context) ([]model.DogTypeMst, error)
 	CreateDog(echo.Context, model.Dog) (model.Dog, error)
 	UpdateDog(echo.Context, model.Dog) (model.Dog, error)
@@ -58,7 +58,7 @@ func (dr *dogRepository) GetDogByID(c echo.Context, dogID int64) (model.Dog, err
 	return dog, nil
 }
 
-// GetDogByID: DBへDogOwnerIDでdogsのセレクト。dogTypeもロードする
+// GetDogByID: DBへDogownerIDでdogsのセレクト。dogTypeもロードする
 //
 // args:
 //   - int:	dogId
@@ -66,11 +66,11 @@ func (dr *dogRepository) GetDogByID(c echo.Context, dogID int64) (model.Dog, err
 // return:
 //   - []model.Dog:	dogデータ
 //   - error:	エラー
-func (dr *dogRepository) GetDogByDogOwnerID(c echo.Context, dogOwnerID int64) ([]model.Dog, error) {
+func (dr *dogRepository) GetDogByDogownerID(c echo.Context, dogownerID int64) ([]model.Dog, error) {
 	logger := log.GetLogger(c).Sugar()
 
 	dogs := []model.Dog{}
-	if err := dr.db.Where("dog_owner_id=?", dogOwnerID).Find(&dogs).Error; err != nil {
+	if err := dr.db.Where("dog_owner_id=?", dogownerID).Find(&dogs).Error; err != nil {
 		logger.Error(err)
 		err = errors.NewWRError(err, "dogのselectで失敗しました。", errors.NewDogServerErrorEType())
 		return []model.Dog{}, err

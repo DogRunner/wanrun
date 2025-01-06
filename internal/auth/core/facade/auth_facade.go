@@ -46,7 +46,7 @@ func (af *authFacade) OrgEmailValidate(c echo.Context, email string) error {
 		wrErr := wrErrors.NewWRError(
 			nil,
 			fmt.Sprintf("%sのEmailが既に登録されています。", email),
-			wrErrors.NewDogOwnerClientErrorEType(),
+			wrErrors.NewDogownerClientErrorEType(),
 		)
 
 		logger.Errorf("%s already exists error: %v", email, wrErr)

@@ -16,7 +16,7 @@ import (
 type IDogController interface {
 	GetAllDogs(c echo.Context) error
 	GetDogByID(c echo.Context) error
-	GetDogByDogOwnerID(c echo.Context) error
+	GetDogByDogownerID(c echo.Context) error
 	GetDogTypeMst(c echo.Context) error
 	CreateDog(c echo.Context) error
 	UpdateDog(c echo.Context) error
@@ -69,25 +69,25 @@ func (dc *dogController) GetDogByID(c echo.Context) error {
 	return c.JSON(http.StatusOK, resDog)
 }
 
-// GetDogByDogOwnerID: dogOwnerより所有している犬の一覧を取得
+// GetDogByDogownerID: dogownerより所有している犬の一覧を取得
 //
 // args:
 //   - echo.Context:	コンテキスト
 //
 // return:
 //   - error:	エラー
-func (dc *dogController) GetDogByDogOwnerID(c echo.Context) error {
+func (dc *dogController) GetDogByDogownerID(c echo.Context) error {
 	logger := log.GetLogger(c).Sugar()
 
-	dogOwnerIDStr := c.Param("dogOwnerId")
-	dogOwnerID, err := strconv.ParseInt(dogOwnerIDStr, 10, 64)
-	if err != nil || dogOwnerID <= 0 {
+	dogownerIDStr := c.Param("dogOwnerId")
+	dogownerID, err := strconv.ParseInt(dogownerIDStr, 10, 64)
+	if err != nil || dogownerID <= 0 {
 		logger.Error(err)
 		err = errors.NewWRError(err, errors.M_REQUEST_PARAM_MUST_BE_NATURAL, errors.NewDogClientErrorEType())
 		return err
 	}
 
-	dogs, err := dc.h.GetDogByDogOwnerID(c, dogOwnerID)
+	dogs, err := dc.h.GetDogByDogownerID(c, dogownerID)
 	if err != nil {
 		return err
 	}

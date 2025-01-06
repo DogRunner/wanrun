@@ -8,42 +8,42 @@ import (
 	"gorm.io/gorm"
 )
 
-type IDogOwnerScopeRepository interface {
-	CreateDogOwner(tx *gorm.DB, c echo.Context, doc *model.DogOwnerCredential) error
+type IDogownerScopeRepository interface {
+	CreateDogowner(tx *gorm.DB, c echo.Context, doc *model.DogownerCredential) error
 }
 
-type dogOwnerScopeRepository struct {
+type dogownerScopeRepository struct {
 }
 
-func NewDogOwnerScopeRepository() IDogOwnerScopeRepository {
-	return &dogOwnerScopeRepository{}
+func NewDogownerScopeRepository() IDogownerScopeRepository {
+	return &dogownerScopeRepository{}
 }
 
-// CreateDogOwner: DogOwnerの作成
+// CreateDogowner: Dogownerの作成
 //
 // args:
 //   - echo.Context: c Echoのコンテキスト。リクエストやレスポンスにアクセスするために使用
-//   - *model.DogOwnerCredential: doc ドッグオーナーのクレデンシャル
+//   - *model.DogownerCredential: doc ドッグオーナーのクレデンシャル
 //
 // return:
 //   - error: error情報
-func (dosr *dogOwnerScopeRepository) CreateDogOwner(tx *gorm.DB, c echo.Context, doc *model.DogOwnerCredential) error {
+func (dosr *dogownerScopeRepository) CreateDogowner(tx *gorm.DB, c echo.Context, doc *model.DogownerCredential) error {
 	logger := log.GetLogger(c).Sugar()
 
-	// dog_ownersテーブルにDogOwnerの作成
-	if err := tx.Create(&doc.AuthDogOwner.DogOwner).Error; err != nil {
-		logger.Error("Failed to create DogOwner: ", err)
+	// dog_ownersテーブルにDogownerの作成
+	if err := tx.Create(&doc.AuthDogowner.Dogowner).Error; err != nil {
+		logger.Error("Failed to create Dogowner: ", err)
 		return wrErrors.NewWRError(
 			err,
-			"DogOwner作成に失敗しました。",
-			wrErrors.NewDogOwnerServerErrorEType(),
+			"Dogowner作成に失敗しました。",
+			wrErrors.NewDogownerServerErrorEType(),
 		)
 	}
 
-	// DogOwnerが作成された後、そのIDをauthDogOwnerに設定
-	doc.AuthDogOwner.DogOwnerID = doc.AuthDogOwner.DogOwner.DogOwnerID
+	// Dogownerが作成された後、そのIDをauthDogownerに設定
+	doc.AuthDogowner.DogownerID = doc.AuthDogowner.Dogowner.DogownerID
 
-	logger.Infof("Created DogOwner Detail: %v", doc.AuthDogOwner.DogOwner)
+	logger.Infof("Created Dogowner Detail: %v", doc.AuthDogowner.Dogowner)
 
 	return nil
 }

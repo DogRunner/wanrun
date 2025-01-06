@@ -12,8 +12,8 @@ const (
 	PASSWORD_GRANT_TYPE string = "PASSWORD"
 )
 
-type AuthDogOwner struct {
-	AuthDogOwnerID         sql.NullInt64   `gorm:"primaryKey;column:auth_dog_owner_id;autoIncrement"`
+type AuthDogowner struct {
+	AuthDogownerID         sql.NullInt64   `gorm:"primaryKey;column:auth_dog_owner_id;autoIncrement"`
 	AccessToken            sql.NullString  `gorm:"size:512;column:access_token"`
 	RefreshToken           sql.NullString  `gorm:"size:512;column:refresh_token"`
 	AccessTokenExpiration  util.CustomTime `gorm:"column:access_token_expiration"`
@@ -21,11 +21,11 @@ type AuthDogOwner struct {
 	JwtID                  sql.NullString  `gorm:"size:45;column:jwt_id"`
 	LoginAt                time.Time       `gorm:"column:login_at;not null;autoCreateTime"`
 
-	DogOwner   DogOwner      `gorm:"foreignKey:DogOwnerID;references:DogOwnerID"`
-	DogOwnerID sql.NullInt64 `gorm:"column:dog_owner_id;not null"`
+	Dogowner   Dogowner      `gorm:"foreignKey:DogownerID;references:DogownerID"`
+	DogownerID sql.NullInt64 `gorm:"column:dog_owner_id;not null"`
 }
 
-type DogOwnerCredential struct {
+type DogownerCredential struct {
 	CredentialID sql.NullInt64 `gorm:"primaryKey;column:credential_id;autoIncrement"`
 	// ProviderName   sql.NullString `gorm:"size:50;column:provider_name"`
 	ProviderUserID sql.NullString `gorm:"size:256;column:provider_user_id"`
@@ -35,6 +35,6 @@ type DogOwnerCredential struct {
 	GrantType      sql.NullString `gorm:"column:grant_type"`
 	LoginAt        sql.NullTime   `gorm:"column:login_at;autoCreateTime"`
 
-	AuthDogOwner   AuthDogOwner  `gorm:"foreignKey:AuthDogOwnerID;references:AuthDogOwnerID"`
-	AuthDogOwnerID sql.NullInt64 `gorm:"column:auth_dog_owner_id;not null"`
+	AuthDogowner   AuthDogowner  `gorm:"foreignKey:AuthDogownerID;references:AuthDogownerID"`
+	AuthDogownerID sql.NullInt64 `gorm:"column:auth_dog_owner_id;not null"`
 }

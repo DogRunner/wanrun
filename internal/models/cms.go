@@ -15,9 +15,9 @@ type S3FileInfo struct {
 	CreateAt     util.CustomTime `gorm:"column:reg_at;not null;autoCreateTime"`           // 登録日時
 	UpdateAt     util.CustomTime `gorm:"column:upd_at;not null;autoCreateTime"`           // 更新日時
 
-	// DogOwnerとのリレーション
-	DogOwner   DogOwner      `gorm:"foreignKey:DogOwnerID;references:DogOwnerID"`
-	DogOwnerID sql.NullInt64 `gorm:"column:dog_owner_id;not null"` // dog_ownersのFK
+	// Dogownerとのリレーション
+	Dogowner   Dogowner      `gorm:"foreignKey:DogownerID;references:DogownerID"`
+	DogownerID sql.NullInt64 `gorm:"column:dog_owner_id;not null"` // dog_ownersのFK
 }
 
 func (S3FileInfo) TableName() string {

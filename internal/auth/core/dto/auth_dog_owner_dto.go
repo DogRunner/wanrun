@@ -1,8 +1,8 @@
 package dto
 
-type AuthDogOwnerReq struct {
+type AuthDogownerReq struct {
 	Password          string `json:"password"`
-	DogOwnerName      string `json:"dogOwnerName"`
+	DogownerName      string `json:"dogOwnerName"`
 	Email             string `json:"email"`
 	PhoneNumber       string `json:"phoneNumber"`
 	AuthorizationCode string

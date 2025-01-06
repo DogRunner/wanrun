@@ -7,7 +7,7 @@ import (
 // dog詳細レスポンス
 type DogDetailsRes struct {
 	DogID      int64         `json:"dogId"`
-	DogOwnerID int64         `json:"dogOwnerId"`
+	DogownerID int64         `json:"dogOwnerId"`
 	Name       string        `json:"name"`
 	Weight     int64         `json:"weight"`
 	Sex        string        `json:"sex"`

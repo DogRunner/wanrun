@@ -5,7 +5,6 @@ import (
 	authRepository "github.com/wanrun-develop/wanrun/internal/auth/adapters/repository"
 	authDTO "github.com/wanrun-develop/wanrun/internal/auth/core/dto"
 	authHandler "github.com/wanrun-develop/wanrun/internal/auth/core/handler"
-	dogOwnerRepository "github.com/wanrun-develop/wanrun/internal/dogowner/adapters/repository"
 	doDTO "github.com/wanrun-develop/wanrun/internal/dogowner/core/dto"
 	model "github.com/wanrun-develop/wanrun/internal/models"
 	"github.com/wanrun-develop/wanrun/internal/transaction"
@@ -16,26 +15,26 @@ import (
 	"gorm.io/gorm"
 )
 
-type IDogOwnerHandler interface {
-	DogOwnerSignUp(c echo.Context, doReq doDTO.DogOwnerReq) (string, error)
+type IDogownerHandler interface {
+	DogownerSignUp(c echo.Context, doReq doDTO.DogownerReq) (string, error)
 }
 
-type dogOwnerHandler struct {
-	dosr dogOwnerRepository.IDogOwnerScopeRepository
+type dogownerHandler struct {
+	dosr dogownerRepository.IDogownerScopeRepository
 	tm   transaction.ITransactionManager
 	asr  authRepository.IAuthScopeRepository
-	dor  dogOwnerRepository.IDogOwnerRepository
+	dor  dogownerRepository.IDogownerRepository
 	ar   authRepository.IAuthRepository
 }
 
-func NewDogOwnerHandler(
-	dosr dogOwnerRepository.IDogOwnerScopeRepository,
+func NewDogownerHandler(
+	dosr dogownerRepository.IDogownerScopeRepository,
 	tm transaction.ITransactionManager,
 	asr authRepository.IAuthScopeRepository,
-	dor dogOwnerRepository.IDogOwnerRepository,
+	dor dogownerRepository.IDogownerRepository,
 	ar authRepository.IAuthRepository,
-) IDogOwnerHandler {
-	return &dogOwnerHandler{
+) IDogownerHandler {
+	return &dogownerHandler{
 		dosr: dosr,
 		tm:   tm,
 		asr:  asr,
@@ -44,16 +43,16 @@ func NewDogOwnerHandler(
 	}
 }
 
-// DogOwnerSignUp: dogOwnerの登録し、検証済みのJWTを返す
+// DogownerSignUp: dogownerの登録し、検証済みのJWTを返す
 //
 // args:
 //   - echo.Context: Echoのコンテキスト。リクエストやレスポンスにアクセスするために使用されます。
-//   - doDTO.DogOwnerReq: dogOwnerに対するリクエスト情報
+//   - doDTO.DogownerReq: dogownerに対するリクエスト情報
 //
 // return:
 //   - string
 //   - error: error情報
-func (doh *dogOwnerHandler) DogOwnerSignUp(c echo.Context, doReq doDTO.DogOwnerReq) (string, error) {
+func (doh *dogownerHandler) DogownerSignUp(c echo.Context, doReq doDTO.DogownerReq) (string, error) {
 	logger := log.GetLogger(c).Sugar()
 
 	// パスワードのハッシュ化
@@ -63,7 +62,7 @@ func (doh *dogOwnerHandler) DogOwnerSignUp(c echo.Context, doReq doDTO.DogOwnerR
 		wrErr := wrErrors.NewWRError(
 			err,
 			"パスワードに不正な文字列が入っています。",
-			wrErrors.NewDogOwnerClientErrorEType(),
+			wrErrors.NewDogownerClientErrorEType(),
 		)
 		logger.Error(wrErr)
 		return "", wrErr
@@ -82,49 +81,49 @@ func (doh *dogOwnerHandler) DogOwnerSignUp(c echo.Context, doReq doDTO.DogOwnerR
 		return "", wrErr
 	}
 
-	// requestからDogOwnerの構造体に詰め替え
-	dogOwnerCredential := model.DogOwnerCredential{
+	// requestからDogownerの構造体に詰め替え
+	dogownerCredential := model.DogownerCredential{
 		Email:       wrUtil.NewSqlNullString(doReq.Email),
 		PhoneNumber: wrUtil.NewSqlNullString(doReq.PhoneNumber),
 		Password:    wrUtil.NewSqlNullString(string(hash)),
 		GrantType:   wrUtil.NewSqlNullString(model.PASSWORD_GRANT_TYPE), // Password認証
-		AuthDogOwner: model.AuthDogOwner{
+		AuthDogowner: model.AuthDogowner{
 			JwtID: wrUtil.NewSqlNullString(jwtID),
-			DogOwner: model.DogOwner{
-				Name: wrUtil.NewSqlNullString(doReq.DogOwnerName),
+			Dogowner: model.Dogowner{
+				Name: wrUtil.NewSqlNullString(doReq.DogownerName),
 			},
 		},
 	}
 
-	logger.Debugf("dogOwnerCredential %v, Type: %T", dogOwnerCredential, dogOwnerCredential)
+	logger.Debugf("dogownerCredential %v, Type: %T", dogownerCredential, dogownerCredential)
 
 	ctx := c.Request().Context()
 
 	// Emailの重複チェック
-	if wrErr := doh.ar.CheckDuplicate(c, model.EmailField, dogOwnerCredential.Email); wrErr != nil {
+	if wrErr := doh.ar.CheckDuplicate(c, model.EmailField, dogownerCredential.Email); wrErr != nil {
 		return "", wrErr
 	}
 
 	// PhoneNumberの重複チェック
-	if wrErr := doh.ar.CheckDuplicate(c, model.PhoneNumberField, dogOwnerCredential.PhoneNumber); wrErr != nil {
+	if wrErr := doh.ar.CheckDuplicate(c, model.PhoneNumberField, dogownerCredential.PhoneNumber); wrErr != nil {
 		return "", wrErr
 	}
 
-	// dogOwnerの作成する1トランザクション
+	// dogownerの作成する1トランザクション
 	if err := doh.tm.DoInTransaction(c, ctx, func(tx *gorm.DB) error {
 
-		// DogOwnerを作成
-		if wrErr := doh.dosr.CreateDogOwner(tx, c, &dogOwnerCredential); wrErr != nil {
+		// Dogownerを作成
+		if wrErr := doh.dosr.CreateDogowner(tx, c, &dogownerCredential); wrErr != nil {
 			return wrErr
 		}
 
-		// AuthDogOwnerを作成
-		if wrErr := doh.asr.CreateAuthDogOwner(tx, c, &dogOwnerCredential); wrErr != nil {
+		// AuthDogownerを作成
+		if wrErr := doh.asr.CreateAuthDogowner(tx, c, &dogownerCredential); wrErr != nil {
 			return wrErr
 		}
 
-		// DogOwnerのCredentialを作成
-		if wrErr := doh.asr.CreateDogOwnerCredential(tx, c, &dogOwnerCredential); wrErr != nil {
+		// DogownerのCredentialを作成
+		if wrErr := doh.asr.CreateDogownerCredential(tx, c, &dogownerCredential); wrErr != nil {
 			return wrErr
 		}
 
@@ -137,19 +136,19 @@ func (doh *dogOwnerHandler) DogOwnerSignUp(c echo.Context, doReq doDTO.DogOwnerR
 	}
 
 	// 正常に終了
-	logger.Infof("Successfully created SignUp DogOwner: %v", dogOwnerCredential)
+	logger.Infof("Successfully created SignUp Dogowner: %v", dogownerCredential)
 
-	// 作成したDogOwnerの情報をdto詰め替え
-	dogOwnerDetail := authDTO.UserAuthInfoDTO{
-		UserID: dogOwnerCredential.AuthDogOwner.DogOwnerID.Int64,
-		JwtID:  dogOwnerCredential.AuthDogOwner.JwtID.String,
+	// 作成したDogownerの情報をdto詰め替え
+	dogownerDetail := authDTO.UserAuthInfoDTO{
+		UserID: dogownerCredential.AuthDogowner.DogownerID.Int64,
+		JwtID:  dogownerCredential.AuthDogowner.JwtID.String,
 		RoleID: authHandler.DOGOWNER_ROLE,
 	}
 
-	logger.Infof("dogOwnerDetail: %v", dogOwnerDetail)
+	logger.Infof("dogownerDetail: %v", dogownerDetail)
 
 	// 署名済みのjwt token取得
-	token, wrErr := authHandler.GetSignedJwt(c, dogOwnerDetail)
+	token, wrErr := authHandler.GetSignedJwt(c, dogownerDetail)
 
 	if wrErr != nil {
 		return "", wrErr
@@ -161,17 +160,17 @@ func (doh *dogOwnerHandler) DogOwnerSignUp(c echo.Context, doReq doDTO.DogOwnerR
 // validateEmailOrPhoneNumber: EmailかPhoneNumberの識別バリデーション。パスワード認証は、EmailかPhoneNumberで登録するため
 //
 // args:
-//   - dto.DogOwnerReq: DogOwnerのRequest
+//   - dto.DogownerReq: DogownerのRequest
 //
 // return:
 //   - error: err情報
-func validateEmailOrPhoneNumber(doReq doDTO.DogOwnerReq) error {
+func validateEmailOrPhoneNumber(doReq doDTO.DogownerReq) error {
 	// 両方が空の場合はエラー
 	if doReq.Email == "" && doReq.PhoneNumber == "" {
 		wrErr := wrErrors.NewWRError(
 			nil,
 			"Emailと電話番号のどちらも空です",
-			wrErrors.NewDogOwnerClientErrorEType(),
+			wrErrors.NewDogownerClientErrorEType(),
 		)
 		return wrErr
 	}
@@ -181,7 +180,7 @@ func validateEmailOrPhoneNumber(doReq doDTO.DogOwnerReq) error {
 		wrErr := wrErrors.NewWRError(
 			nil,
 			"Emailと電話番号のどちらも値が入っています",
-			wrErrors.NewDogOwnerClientErrorEType(),
+			wrErrors.NewDogownerClientErrorEType(),
 		)
 		return wrErr
 	}

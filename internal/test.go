@@ -12,8 +12,8 @@ import (
 func Test(c echo.Context) error {
 	logger := log.GetLogger(c).Sugar()
 
-	// dogOwnerID情報の取得
-	dogOwnerID, wrErr := wrcontext.GetLoginUserID(c)
+	// dogownerID情報の取得
+	dogownerID, wrErr := wrcontext.GetLoginUserID(c)
 
 	if wrErr != nil {
 		return wrErr
@@ -31,7 +31,7 @@ func Test(c echo.Context) error {
 	// 有効期限
 	exp := claims.ExpiresAt
 
-	logger.Infof("userID: %v, jti: %v, exp: %v\n", dogOwnerID, jti, exp)
+	logger.Infof("userID: %v, jti: %v, exp: %v\n", dogownerID, jti, exp)
 
 	logger.Info("Test*()の実行. ")
 	if err := testError(); err != nil {

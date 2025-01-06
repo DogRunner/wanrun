@@ -11,8 +11,8 @@ import (
 )
 
 type IAuthScopeRepository interface {
-	CreateAuthDogOwner(tx *gorm.DB, c echo.Context, doc *model.DogOwnerCredential) error
-	CreateDogOwnerCredential(tx *gorm.DB, c echo.Context, doc *model.DogOwnerCredential) error
+	CreateAuthDogowner(tx *gorm.DB, c echo.Context, doc *model.DogownerCredential) error
+	CreateDogownerCredential(tx *gorm.DB, c echo.Context, doc *model.DogownerCredential) error
 	CreateAuthDogrunmg(tx *gorm.DB, c echo.Context, adm *model.AuthDogrunmg) (sql.NullInt64, error)
 	CreateDogrunmgCredential(tx *gorm.DB, c echo.Context, dmc *model.DogrunmgCredential) error
 }
@@ -24,65 +24,65 @@ func NewAuthScopeRepository() IAuthScopeRepository {
 	return &authScopeRepository{}
 }
 
-// CreateAuthDogOwner: AuthDogOwnerの登録処理
+// CreateAuthDogowner: AuthDogownerの登録処理
 //
 // args:
 //   - echo.Context: Echoのコンテキスト。リクエストやレスポンスにアクセスするために使用されます。
-//   - *model.DogOwnerCredential: dogOwnerの情報
+//   - *model.DogownerCredential: dogownerの情報
 //
 // return:
 //   - error: error情報
-func (asr *authScopeRepository) CreateAuthDogOwner(
+func (asr *authScopeRepository) CreateAuthDogowner(
 	tx *gorm.DB,
 	c echo.Context,
-	doc *model.DogOwnerCredential,
+	doc *model.DogownerCredential,
 ) error {
 	logger := log.GetLogger(c).Sugar()
 
-	// auth_dog_ownersテーブルにAuthDogOwner作成
-	if err := tx.Create(&doc.AuthDogOwner).Error; err != nil {
-		logger.Error("Failed to create AuthDogOwner: ", err)
+	// auth_dog_ownersテーブルにAuthDogowner作成
+	if err := tx.Create(&doc.AuthDogowner).Error; err != nil {
+		logger.Error("Failed to create AuthDogowner: ", err)
 		return wrErrors.NewWRError(
 			err,
-			"AuthDogOwner作成に失敗しました。",
+			"AuthDogowner作成に失敗しました。",
 			wrErrors.NewAuthServerErrorEType(),
 		)
 	}
 
-	// AuthDogOwnerが作成された後、そのIDをdogOwnerCredentialに設定
-	doc.AuthDogOwnerID = doc.AuthDogOwner.AuthDogOwnerID
+	// AuthDogownerが作成された後、そのIDをdogownerCredentialに設定
+	doc.AuthDogownerID = doc.AuthDogowner.AuthDogownerID
 
-	logger.Infof("Created AuthDogOwner Detail: %v", doc.AuthDogOwner)
+	logger.Infof("Created AuthDogowner Detail: %v", doc.AuthDogowner)
 
 	return nil
 }
 
-// CreateDogOwnerCredential: DogOwnerのCredential登録処理
+// CreateDogownerCredential: DogownerのCredential登録処理
 //
 // args:
 //   - echo.Context: Echoのコンテキスト。リクエストやレスポンスにアクセスするために使用されます。
-//   - *model.DogOwnerCredential: dogOwnerの情報
+//   - *model.DogownerCredential: dogownerの情報
 //
 // return:
 //   - error: error情報
-func (asr *authScopeRepository) CreateDogOwnerCredential(
+func (asr *authScopeRepository) CreateDogownerCredential(
 	tx *gorm.DB,
 	c echo.Context,
-	doc *model.DogOwnerCredential,
+	doc *model.DogownerCredential,
 ) error {
 	logger := log.GetLogger(c).Sugar()
 
 	// dog_owner_credentialsテーブルにレコード作成
 	if err := tx.Create(&doc).Error; err != nil {
-		logger.Error("Failed to create DogOwnerCredential: ", err)
+		logger.Error("Failed to create DogownerCredential: ", err)
 		return wrErrors.NewWRError(
 			err,
-			"DogOwnerCredential作成に失敗しました。",
+			"DogownerCredential作成に失敗しました。",
 			wrErrors.NewAuthServerErrorEType(),
 		)
 	}
 
-	logger.Infof("Created DogOwnerCredential Detail: %v", doc)
+	logger.Infof("Created DogownerCredential Detail: %v", doc)
 
 	return nil
 }

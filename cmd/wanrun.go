@@ -33,9 +33,6 @@ import (
 	dogHandler "github.com/wanrun-develop/wanrun/internal/dog/core/handler"
 
 	//dogowner
-	dogOwnerRepository "github.com/wanrun-develop/wanrun/internal/dogowner/adapters/repository"
-	dogOwnerController "github.com/wanrun-develop/wanrun/internal/dogowner/controller"
-	dogOwnerHandler "github.com/wanrun-develop/wanrun/internal/dogowner/core/handler"
 
 	//dogrun
 	"github.com/wanrun-develop/wanrun/internal/dogrun/adapters/googleplace"
@@ -115,7 +112,7 @@ func newRouter(e *echo.Echo, dbConn *gorm.DB) {
 	dog := e.Group("dog")
 	dog.GET("/all", dogController.GetAllDogs)
 	dog.GET("/detail/:dogID", dogController.GetDogByID)
-	dog.GET("/owned/:dogOwnerId", dogController.GetDogByDogOwnerID)
+	dog.GET("/owned/:dogownerId", dogController.GetDogByDogownerID)
 	dog.GET("/mst/dogType", dogController.GetDogTypeMst)
 	dog.POST("", dogController.CreateDog)
 	dog.PUT("", dogController.UpdateDog)
@@ -131,10 +128,10 @@ func newRouter(e *echo.Echo, dbConn *gorm.DB) {
 	dogrun.GET("/mst/tag", dogrunController.GetDogrunTagMst)
 	dogrun.POST("/search", dogrunController.SearchAroundDogruns)
 
-	// dogOwner関連
-	dogOwnerController := newDogOwner(dbConn)
-	dogOwner := e.Group("dogowner")
-	dogOwner.POST("/signUp", dogOwnerController.DogOwnerSignUp)
+	// dogowner関連
+	dogownerController := newDogowner(dbConn)
+	dogowner := e.Group("dogowner")
+	dogowner.POST("/signUp", dogownerController.DogownerSignUp)
 
 	// auth関連
 	authController := newAuth(dbConn)
@@ -172,8 +169,8 @@ func newRouter(e *echo.Echo, dbConn *gorm.DB) {
 // dogの初期化
 func newDog(dbConn *gorm.DB) dogController.IDogController {
 	dogRepository := dogRepository.NewDogRepository(dbConn)
-	dogOwnerRepository := dogOwnerRepository.NewDogRepository(dbConn)
-	dogHandler := dogHandler.NewDogHandler(dogRepository, dogOwnerRepository)
+	dogownerRepository := dogownerRepository.NewDogRepository(dbConn)
+	dogHandler := dogHandler.NewDogHandler(dogRepository, dogownerRepository)
 	dogController := dogController.NewDogController(dogHandler)
 	return dogController
 }
@@ -214,22 +211,22 @@ func newInteraction(dbConn *gorm.DB) interactionC.IBookmarkController {
 	return interactionC.NewBookmarkController(interactionHandler)
 }
 
-// dogOwnerの初期化
-func newDogOwner(dbConn *gorm.DB) dogOwnerController.IDogOwnerController {
+// dogownerの初期化
+func newDogowner(dbConn *gorm.DB) dogownerController.IDogownerController {
 	// repository層
-	dor := dogOwnerRepository.NewDogRepository(dbConn)
+	dor := dogownerRepository.NewDogRepository(dbConn)
 	ar := authRepository.NewAuthRepository(dbConn)
 
 	// transaction層
 	transactionManager := transaction.NewTransactionManager(dbConn)
 
 	// scopeRepository層
-	dosr := dogOwnerRepository.NewDogOwnerScopeRepository()
+	dosr := dogownerRepository.NewDogownerScopeRepository()
 	asr := authRepository.NewAuthScopeRepository()
 
 	// handler層
 	authHandler := authHandler.NewAuthHandler(ar)
-	dogOwnerHandler := dogOwnerHandler.NewDogOwnerHandler(
+	dogownerHandler := dogownerHandler.NewDogownerHandler(
 		dosr,
 		transactionManager,
 		asr,
@@ -238,7 +235,7 @@ func newDogOwner(dbConn *gorm.DB) dogOwnerController.IDogOwnerController {
 	)
 
 	// controller層
-	return dogOwnerController.NewDogOwnerController(dogOwnerHandler, authHandler)
+	return dogownerController.NewDogownerController(dogownerHandler, authHandler)
 }
 
 func newCms(dbConn *gorm.DB) cmsController.ICmsController {

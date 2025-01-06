@@ -14,7 +14,7 @@ import (
 type IDogHandler interface {
 	GetAllDogs(echo.Context) ([]dto.DogListRes, error)
 	GetDogByID(echo.Context, int64) (dto.DogDetailsRes, error)
-	GetDogByDogOwnerID(echo.Context, int64) ([]dto.DogListRes, error)
+	GetDogByDogownerID(echo.Context, int64) ([]dto.DogListRes, error)
 	GetDogTypeMst(c echo.Context) ([]dto.DogTypeMstRes, error)
 	CreateDog(echo.Context, dto.DogSaveReq) (int64, error)
 	UpdateDog(echo.Context, dto.DogSaveReq) (int64, error)
@@ -23,10 +23,10 @@ type IDogHandler interface {
 
 type dogHandler struct {
 	r   repository.IDogRepository
-	dwr dwRepository.IDogOwnerRepository
+	dwr dwRepository.IDogownerRepository
 }
 
-func NewDogHandler(r repository.IDogRepository, dwr dwRepository.IDogOwnerRepository) IDogHandler {
+func NewDogHandler(r repository.IDogRepository, dwr dwRepository.IDogownerRepository) IDogHandler {
 	return &dogHandler{r, dwr}
 }
 
@@ -76,7 +76,7 @@ func (h *dogHandler) GetDogByID(c echo.Context, dogID int64) (dto.DogDetailsRes,
 
 	resDog := dto.DogDetailsRes{
 		DogID:      d.DogID.Int64,
-		DogOwnerID: d.DogOwnerID.Int64,
+		DogownerID: d.DogownerID.Int64,
 		Name:       d.Name.String,
 		Weight:     d.Weight.Int64,
 		Sex:        d.Sex.String,
@@ -88,34 +88,34 @@ func (h *dogHandler) GetDogByID(c echo.Context, dogID int64) (dto.DogDetailsRes,
 	return resDog, nil
 }
 
-// GetDogByDogOwnerID: dogの詳細を検索して返す
+// GetDogByDogownerID: dogの詳細を検索して返す
 //
 // args:
 //   - echo.Context:	コンテキスト
-//   - int64: 	dogOwnerのID
+//   - int64: 	dogownerのID
 //
 // return:
 //   - []dto.DogListRes:	dogの一覧レスポンス
 //   - error:	エラー
-func (h *dogHandler) GetDogByDogOwnerID(c echo.Context, dogOwnerID int64) ([]dto.DogListRes, error) {
+func (h *dogHandler) GetDogByDogownerID(c echo.Context, dogownerID int64) ([]dto.DogListRes, error) {
 	logger := log.GetLogger(c).Sugar()
 
-	logger.Infof("DogOwner %d の犬の一覧検索", dogOwnerID)
+	logger.Infof("Dogowner %d の犬の一覧検索", dogownerID)
 
 	//dogownerの検索（存在チェック)
-	dogOwner, err := h.dwr.GetDogOwnerById(dogOwnerID)
+	dogowner, err := h.dwr.GetDogownerById(dogownerID)
 	if err != nil {
 		logger.Error(err)
-		err = errors.NewWRError(err, "dogOwner検索で失敗しました。", errors.NewDogServerErrorEType())
+		err = errors.NewWRError(err, "dogowner検索で失敗しました。", errors.NewDogServerErrorEType())
 		return []dto.DogListRes{}, err
 	}
-	if dogOwner.IsEmpty() {
+	if dogowner.IsEmpty() {
 		err = errors.NewWRError(nil, "指定されたdog ownerは存在しません。", errors.NewDogClientErrorEType())
 		logger.Error("不正なdog owner idでの検索", err)
 		return []dto.DogListRes{}, err
 	}
 
-	dogs, err := h.r.GetDogByDogOwnerID(c, dogOwner.DogOwnerID.Int64)
+	dogs, err := h.r.GetDogByDogownerID(c, dogowner.DogownerID.Int64)
 	if err != nil {
 		logger.Error(err)
 		err = errors.NewWRError(err, "dog検索で失敗しました。", errors.NewDogServerErrorEType())
@@ -181,14 +181,14 @@ func (h *dogHandler) CreateDog(c echo.Context, saveReq dto.DogSaveReq) (int64, e
 
 	logger.Info("create dog %v", saveReq)
 
-	dogOwnerID := saveReq.DogOwnerID
+	dogownerID := saveReq.DogownerID
 	//dogownerの検索（存在チェック)
-	if err := h.isExistsDogOwner(c, dogOwnerID); err != nil {
+	if err := h.isExistsDogowner(c, dogownerID); err != nil {
 		return 0, err
 	}
 
 	dog := model.Dog{
-		DogOwnerID: util.NewSqlNullInt64(dogOwnerID),
+		DogownerID: util.NewSqlNullInt64(dogownerID),
 		Name:       util.NewSqlNullString(saveReq.Name),
 		DogTypeID:  util.NewSqlNullInt64(saveReq.DogTypeID),
 		Weight:     util.NewSqlNullInt64(saveReq.Weight),
@@ -231,15 +231,15 @@ func (h *dogHandler) UpdateDog(c echo.Context, saveReq dto.DogSaveReq) (int64, e
 	}
 
 	//dogownerが変わっていれば存在チェック
-	if saveReq.DogOwnerID != dog.DogOwnerID.Int64 {
-		dogOwnerID := saveReq.DogOwnerID
-		if err = h.isExistsDogOwner(c, dogOwnerID); err != nil {
+	if saveReq.DogownerID != dog.DogownerID.Int64 {
+		dogownerID := saveReq.DogownerID
+		if err = h.isExistsDogowner(c, dogownerID); err != nil {
 			return 0, err
 		}
 	}
 
 	//更新値をつめる
-	dog.DogOwnerID = util.NewSqlNullInt64(saveReq.DogOwnerID)
+	dog.DogownerID = util.NewSqlNullInt64(saveReq.DogownerID)
 	dog.Name = util.NewSqlNullString(saveReq.Name)
 	dog.DogTypeID = util.NewSqlNullInt64(saveReq.DogTypeID)
 	dog.Weight = util.NewSqlNullInt64(saveReq.Weight)
@@ -291,24 +291,24 @@ func (h *dogHandler) isExistsDog(c echo.Context, dogID int64) (model.Dog, error)
 	return dog, nil
 }
 
-// isExistsDogOwner: dogOwnerの存在チェック
+// isExistsDogowner: dogownerの存在チェック
 //
 // args:
 //   - echo.Context:	コンテキスト
-//   - int64:	チェック対象のdogOwnerId
+//   - int64:	チェック対象のdogownerId
 //
 // return:
 //   - error:	エラー
-func (h *dogHandler) isExistsDogOwner(c echo.Context, dogOwnerID int64) error {
+func (h *dogHandler) isExistsDogowner(c echo.Context, dogownerID int64) error {
 	logger := log.GetLogger(c).Sugar()
 	//検索
-	dogOwner, err := h.dwr.GetDogOwnerById(dogOwnerID)
+	dogowner, err := h.dwr.GetDogownerById(dogownerID)
 	if err != nil {
 		logger.Error(err)
-		err = errors.NewWRError(err, "dogOwner検索で失敗しました。", errors.NewDogServerErrorEType())
+		err = errors.NewWRError(err, "dogowner検索で失敗しました。", errors.NewDogServerErrorEType())
 		return err
 	}
-	if dogOwner.IsEmpty() {
+	if dogowner.IsEmpty() {
 		err = errors.NewWRError(nil, "指定されたdog ownerは存在しません。", errors.NewDogClientErrorEType())
 		logger.Error("不正なdog owner idの指定", err)
 		return err

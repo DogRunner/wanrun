@@ -67,14 +67,14 @@ GoogleのOAuth認証
 // 	}
 
 // 	// OAuth認証
-// 	resDogOwner, wrErr := ac.ah.GoogleOAuth(c, authorizationCode, grantType)
+// 	resDogowner, wrErr := ac.ah.GoogleOAuth(c, authorizationCode, grantType)
 
 // 	if wrErr != nil {
 // 		return wrErr
 // 	}
 
 // 	// jwt処理
-// 	return jwtProcessing(c, resDogOwner)
+// 	return jwtProcessing(c, resDogowner)
 // }
 
 // SignUp: Password認証
@@ -87,23 +87,23 @@ GoogleのOAuth認証
 // func (ac *authController) SignUp(c echo.Context) error {
 // 	logger := log.GetLogger(c).Sugar()
 
-// 	ador := dto.AuthDogOwnerReq{}
+// 	ador := dto.AuthDogownerReq{}
 
 // 	if err := c.Bind(&ador); err != nil {
-// 		wrErr := errors.NewWRError(err, "入力項目に不正があります。", errors.NewDogOwnerClientErrorEType())
+// 		wrErr := errors.NewWRError(err, "入力項目に不正があります。", errors.NewDogownerClientErrorEType())
 // 		logger.Error(wrErr)
 // 		return wrErr
 // 	}
 
-// 	// dogOwnerのSignUp
-// 	dogOwnerDetail, wrErr := ac.ah.CreateDogOwner(c, ador)
+// 	// dogownerのSignUp
+// 	dogownerDetail, wrErr := ac.ah.CreateDogowner(c, ador)
 
 // 	if wrErr != nil {
 // 		return wrErr
 // 	}
 
 // 	// 署名済みのjwt token取得
-// 	token, wrErr := ac.ah.GetSignedJwt(c, dogOwnerDetail)
+// 	token, wrErr := ac.ah.GetSignedJwt(c, dogownerDetail)
 
 // 	if wrErr != nil {
 // 		return wrErr
@@ -124,7 +124,7 @@ GoogleのOAuth認証
 func (ac *authController) LogInDogowner(c echo.Context) error {
 	logger := log.GetLogger(c).Sugar()
 
-	adoReq := dto.AuthDogOwnerReq{}
+	adoReq := dto.AuthDogownerReq{}
 
 	if err := c.Bind(&adoReq); err != nil {
 		wrErr := errors.NewWRError(
@@ -245,7 +245,7 @@ func (ac *authController) RevokeDogrunmg(c echo.Context) error {
 // 		wrErr := wrErrors.NewWRError(
 // 			errOAuthFailed,
 // 			"認証に失敗しました。",
-// 			wrErrors.NewDogOwnerClientErrorEType(),
+// 			wrErrors.NewDogownerClientErrorEType(),
 // 		)
 // 		return wrErr
 // 	}

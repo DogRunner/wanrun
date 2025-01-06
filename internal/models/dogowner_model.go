@@ -6,8 +6,8 @@ import (
 	"github.com/wanrun-develop/wanrun/pkg/util"
 )
 
-type DogOwner struct {
-	DogOwnerID sql.NullInt64   `json:"dogOwnerId" gorm:"primaryKey;column:dog_owner_id;autoIncrement"`
+type Dogowner struct {
+	DogownerID sql.NullInt64   `json:"dogOwnerId" gorm:"primaryKey;column:dog_owner_id;autoIncrement"`
 	Name       sql.NullString  `json:"name" gorm:"size:128;column:name;not null"`
 	Image      sql.NullString  `json:"image" gorm:"type:text;column:image"`
 	Sex        sql.NullString  `json:"sex" gorm:"size:1;column:sex"`
@@ -16,6 +16,6 @@ type DogOwner struct {
 }
 
 // dogownerが空かの判定
-func (do *DogOwner) IsEmpty() bool {
-	return !do.DogOwnerID.Valid
+func (do *Dogowner) IsEmpty() bool {
+	return !do.DogownerID.Valid
 }

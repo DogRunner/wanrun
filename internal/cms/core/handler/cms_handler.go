@@ -68,7 +68,7 @@ func (ch *cmsHandler) HandleFileUpload(c echo.Context, fuq dto.FileUploadReq) (d
 		FileID:      wrUtil.NewSqlNullString(fileID),
 		FileSize:    wrUtil.NewSqlNullInt64(fileSize),
 		S3ObjectKey: wrUtil.NewSqlNullString(s3ObjectKey),
-		DogOwnerID:  wrUtil.NewSqlNullInt64(fuq.DogOwnerID),
+		DogownerID:  wrUtil.NewSqlNullInt64(fuq.DogownerID),
 	}
 
 	// S3FileInfoの登録

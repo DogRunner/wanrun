@@ -6,7 +6,7 @@ import (
 
 type Dog struct {
 	DogID      sql.NullInt64  `gorm:"primaryKey;column:dog_id;autoIncrement"`
-	DogOwnerID sql.NullInt64  `gorm:"column:dog_owner_id;not null;foreignKey:DogOwnerID"`
+	DogownerID sql.NullInt64  `gorm:"column:dog_owner_id;not null;foreignKey:DogownerID"`
 	Name       sql.NullString `gorm:"size:128;column:name;not null"`
 	DogTypeID  sql.NullInt64  `gorm:"column:dog_type_id"`
 	Weight     sql.NullInt64  `gorm:"column:weight"`
@@ -16,7 +16,7 @@ type Dog struct {
 	UpdateAt   sql.NullTime   `gorm:"column:upd_at;not null;autoUpdateTime"`
 
 	//リレーション
-	DogOwner DogOwner `gorm:"foreignKey:DogOwnerID;references:DogOwnerID"`
+	Dogowner Dogowner `gorm:"foreignKey:DogownerID;references:DogownerID"`
 }
 
 // dogが空かの判定

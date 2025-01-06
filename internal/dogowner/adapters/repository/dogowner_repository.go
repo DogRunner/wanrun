@@ -5,22 +5,22 @@ import (
 	"gorm.io/gorm"
 )
 
-type IDogOwnerRepository interface {
-	GetDogOwnerById(int64) (model.DogOwner, error)
+type IDogownerRepository interface {
+	GetDogownerById(int64) (model.Dogowner, error)
 }
 
-type dogOwnerRepository struct {
+type dogownerRepository struct {
 	db *gorm.DB
 }
 
-func NewDogRepository(db *gorm.DB) IDogOwnerRepository {
-	return &dogOwnerRepository{db}
+func NewDogRepository(db *gorm.DB) IDogownerRepository {
+	return &dogownerRepository{db}
 }
 
-func (dr *dogOwnerRepository) GetDogOwnerById(dogOwnerId int64) (model.DogOwner, error) {
-	dogOwner := model.DogOwner{}
-	if err := dr.db.Where("dog_owner_id = ?", dogOwnerId).Find(&dogOwner).Error; err != nil {
-		return model.DogOwner{}, err
+func (dr *dogownerRepository) GetDogownerById(dogownerId int64) (model.Dogowner, error) {
+	dogowner := model.Dogowner{}
+	if err := dr.db.Where("dog_owner_id = ?", dogownerId).Find(&dogowner).Error; err != nil {
+		return model.Dogowner{}, err
 	}
-	return dogOwner, nil
+	return dogowner, nil
 }

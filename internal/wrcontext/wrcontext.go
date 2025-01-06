@@ -25,7 +25,7 @@ func GetVerifiedClaims(c echo.Context) (*handler.AccountClaims, error) {
 		wrErr := errors.NewWRError(
 			nil,
 			"クレーム情報が見つかりません。",
-			errors.NewDogOwnerClientErrorEType(),
+			errors.NewDogownerClientErrorEType(),
 		)
 		logger.Error(wrErr)
 		return nil, wrErr

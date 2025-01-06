@@ -61,7 +61,7 @@ func (r *bookmarkRepository) GetBookmarks(c echo.Context, dogownerID int64) ([]m
 func (r *bookmarkRepository) AddBookmark(c echo.Context, dogrunID int64, dogownerID int64) (int64, error) {
 	logger := log.GetLogger(c).Sugar()
 	bookmark := model.DogrunBookmark{
-		DogOwnerID: util.NewSqlNullInt64(dogownerID),
+		DogownerID: util.NewSqlNullInt64(dogownerID),
 		DogrunID:   util.NewSqlNullInt64(dogrunID),
 	}
 

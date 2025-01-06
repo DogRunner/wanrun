@@ -7,47 +7,46 @@ import (
 	"github.com/labstack/echo/v4"
 	authHandler "github.com/wanrun-develop/wanrun/internal/auth/core/handler"
 	doDTO "github.com/wanrun-develop/wanrun/internal/dogowner/core/dto"
-	dogOwnerHandler "github.com/wanrun-develop/wanrun/internal/dogowner/core/handler"
 	"github.com/wanrun-develop/wanrun/pkg/errors"
 	"github.com/wanrun-develop/wanrun/pkg/log"
 )
 
-type IDogOwnerController interface {
-	DogOwnerSignUp(c echo.Context) error
+type IDogownerController interface {
+	DogownerSignUp(c echo.Context) error
 }
 
-type dogOwnerController struct {
-	doh dogOwnerHandler.IDogOwnerHandler
+type dogownerController struct {
+	doh dogownerHandler.IDogownerHandler
 	ah  authHandler.IAuthHandler
 }
 
-func NewDogOwnerController(
-	doh dogOwnerHandler.IDogOwnerHandler,
+func NewDogownerController(
+	doh dogownerHandler.IDogownerHandler,
 	ah authHandler.IAuthHandler,
-) IDogOwnerController {
-	return &dogOwnerController{
+) IDogownerController {
+	return &dogownerController{
 		doh: doh,
 		ah:  ah,
 	}
 }
 
-// DogOwnerSignUp: dogOwnerの登録処理
+// DogownerSignUp: dogownerの登録処理
 //
 // args:
 //   - echo.Context: Echoのコンテキスト。リクエストやレスポンスにアクセスするために使用されます。
 //
 // return:
 //   - error: error情報
-func (doc *dogOwnerController) DogOwnerSignUp(c echo.Context) error {
+func (doc *dogownerController) DogownerSignUp(c echo.Context) error {
 	logger := log.GetLogger(c).Sugar()
 
-	doReq := doDTO.DogOwnerReq{}
+	doReq := doDTO.DogownerReq{}
 
 	if err := c.Bind(&doReq); err != nil {
 		wrErr := errors.NewWRError(
 			err,
 			"入力項目に不正があります。",
-			errors.NewDogOwnerClientErrorEType(),
+			errors.NewDogownerClientErrorEType(),
 		)
 		logger.Error(wrErr)
 		return wrErr
@@ -61,14 +60,14 @@ func (doc *dogOwnerController) DogOwnerSignUp(c echo.Context) error {
 		err = errors.NewWRError(
 			err,
 			"必須の項目に不正があります。",
-			errors.NewDogOwnerClientErrorEType(),
+			errors.NewDogownerClientErrorEType(),
 		)
 		logger.Error(err)
 		return err
 	}
 
-	// dogOwnerのSignUp
-	token, wrErr := doc.doh.DogOwnerSignUp(c, doReq)
+	// dogownerのSignUp
+	token, wrErr := doc.doh.DogownerSignUp(c, doReq)
 
 	if wrErr != nil {
 		return wrErr
