@@ -140,7 +140,7 @@ func newRouter(e *echo.Echo, dbConn *gorm.DB) {
 	authController := newAuth(dbConn)
 	auth := e.Group("auth")
 	// dogowner
-	auth.POST("/token/dogowner", authController.LogIn)
+	auth.POST("/token/dogowner", authController.LogInDogowner)
 	auth.POST("/revoke/dogowner", authController.Revoke)
 	// auth.GET("/google/oauth", authController.GoogleOAuth)
 	// dogrunmg

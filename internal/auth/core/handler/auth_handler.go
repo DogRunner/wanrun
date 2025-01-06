@@ -17,7 +17,7 @@ import (
 )
 
 type IAuthHandler interface {
-	LogIn(c echo.Context, ador authDTO.AuthDogOwnerReq) (string, error)
+	LogInDogowner(c echo.Context, ador authDTO.AuthDogOwnerReq) (string, error)
 	Revoke(c echo.Context, claims *AccountClaims) error
 	LogInDogrunmg(c echo.Context, ador authDTO.AuthDogrunmgReq) (string, error)
 	RevokeDogrunmg(c echo.Context, dmID int64) error
@@ -75,7 +75,7 @@ func (claims *AccountClaims) GetDogOwnerIDAsInt64(c echo.Context) (int64, error)
 	return dogOwnerID, nil
 }
 
-// LogIn: dogownerの存在チェックバリデーションとJWTの更新, 署名済みjwtを返す
+// LogInDogowner: dogownerの存在チェックバリデーションとJWTの更新, 署名済みjwtを返す
 //
 // args:
 //   - echo.Context: Echoのコンテキスト。リクエストやレスポンスにアクセスするために使用
@@ -84,33 +84,52 @@ func (claims *AccountClaims) GetDogOwnerIDAsInt64(c echo.Context) (int64, error)
 // return:
 //   - string: 検証済みのjwt
 //   - error: error情報
-func (ah *authHandler) LogIn(c echo.Context, ador authDTO.AuthDogOwnerReq) (string, error) {
+func (ah *authHandler) LogInDogowner(c echo.Context, adoReq authDTO.AuthDogOwnerReq) (string, error) {
 	logger := log.GetLogger(c).Sugar()
 
 	// EmailとPhoneNumberのバリデーション
-	if wrErr := validateEmailOrPhoneNumber(ador); wrErr != nil {
+	if wrErr := validateEmailOrPhoneNumber(adoReq); wrErr != nil {
 		logger.Error(wrErr)
 		return "", wrErr
 	}
 
-	logger.Debugf("authDogOwnerReq: %v, Type: %T", ador, ador)
+	logger.Debugf("authDogownerReq: %v, Type: %T", adoReq, adoReq)
 
-	// EmailかPhoneNumberから対象のDogOwner情報の取得
-	result, err := ah.ar.GetDogOwnerByCredential(c, ador)
+	// EmailかPhoneNumberから対象のDogowner情報の取得
+	results, wrErr := ah.ar.GetDogOwnerByCredential(c, adoReq)
 
-	if err != nil {
-		logger.Error(err)
-		return "", err
+	if wrErr != nil {
+		return "", wrErr
+	}
+
+	// 対象のdogownerがいない場合
+	if len(results) == 0 {
+		wrErr := wrErrors.NewWRError(
+			nil,
+			"対象のユーザーが存在しません",
+			wrErrors.NewAuthClientErrorEType(),
+		)
+		logger.Errorf("Dogowner not found: %v", wrErr)
+		return "", wrErr
+	}
+
+	// 対象のdogownerが複数いるため、データの不整合が起きている(基本的に起きない)
+	if len(results) > 1 {
+		wrErr := wrErrors.NewWRError(
+			nil,
+			"データの不整合が起きています",
+			wrErrors.NewAuthServerErrorEType(),
+		)
+		logger.Errorf("Multiple records found: %v", wrErr)
+		return "", wrErr
 	}
 
 	// パスワードの確認
-	err = bcrypt.CompareHashAndPassword([]byte(result.Password.String), []byte(ador.Password))
-
-	if err != nil {
+	if err := bcrypt.CompareHashAndPassword([]byte(results[0].Password.String), []byte(adoReq.Password)); err != nil {
 		wrErr := wrErrors.NewWRError(
 			err,
 			"パスワードが間違っています",
-			wrErrors.NewDogOwnerServerErrorEType())
+			wrErrors.NewAuthServerErrorEType())
 
 		logger.Errorf("Password compare failure: %v", wrErr)
 
@@ -124,24 +143,22 @@ func (ah *authHandler) LogIn(c echo.Context, ador authDTO.AuthDogOwnerReq) (stri
 		return "", wrErr
 	}
 
-	// 取得したdogOwnerのjtw_idの更新
-	wrErr = ah.ar.UpdateJwtID(c, result, jwtID)
-
-	if wrErr != nil {
+	// 取得したdogownerのjtw_idの更新
+	if wrErr := ah.ar.UpdateDogownerJwtID(c, results[0].AuthDogOwner.DogOwner.DogOwnerID.Int64, jwtID); wrErr != nil {
 		return "", wrErr
 	}
 
-	// 作成したDogOwnerの情報をdto詰め替え
-	dogOwnerDetail := authDTO.UserAuthInfoDTO{
-		UserID: result.AuthDogOwner.DogOwnerID.Int64,
+	// 作成したDogownerの情報をdto詰め替え
+	dogownerDetail := authDTO.UserAuthInfoDTO{
+		UserID: results[0].AuthDogOwner.DogOwnerID.Int64,
 		JwtID:  jwtID,
 		RoleID: DOGOWNER_ROLE,
 	}
 
-	logger.Infof("dogOwnerDetail: %v", dogOwnerDetail)
+	logger.Infof("dogownerDetail: %v", dogownerDetail)
 
 	// 署名済みのjwt token取得
-	token, wrErr := GetSignedJwt(c, dogOwnerDetail)
+	token, wrErr := GetSignedJwt(c, dogownerDetail)
 
 	if wrErr != nil {
 		return "", wrErr
