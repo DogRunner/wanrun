@@ -18,7 +18,7 @@ import (
 
 type IAuthHandler interface {
 	LogInDogowner(c echo.Context, ador authDTO.AuthDogOwnerReq) (string, error)
-	Revoke(c echo.Context, claims *AccountClaims) error
+	RevokeDogowner(c echo.Context, dogownerID int64) error
 	LogInDogrunmg(c echo.Context, ador authDTO.AuthDogrunmgReq) (string, error)
 	RevokeDogrunmg(c echo.Context, dmID int64) error
 	// GoogleOAuth(c echo.Context, authorizationCode string, grantType types.GrantType) (dto.ResDogOwnerDto, error)
@@ -167,23 +167,17 @@ func (ah *authHandler) LogInDogowner(c echo.Context, adoReq authDTO.AuthDogOwner
 	return token, nil
 }
 
-// Revoke: Revoke機能
+// RevokeDogowner: dogownerのRevoke機能
 //
 // args:
 //   - echo.Context: Echoのコンテキスト。リクエストやレスポンスにアクセスするために使用
-//   - *dogMW.AccountClaims: 検証済みのclaims情報
+//   - int64: dogownerのID
 //
 // return:
 //   - error: error情報
-func (ah *authHandler) Revoke(c echo.Context, claims *AccountClaims) error {
-	// dogOwnerIDの取得
-	dogOwnerID, wrErr := claims.GetDogOwnerIDAsInt64(c)
-	if wrErr != nil {
-		return wrErr
-	}
-
-	// 対象のdogOwnerのIDからJWT IDの削除
-	if wrErr := ah.ar.DeleteJwtID(c, dogOwnerID); wrErr != nil {
+func (ah *authHandler) RevokeDogowner(c echo.Context, doID int64) error {
+	// 対象のdogownerのIDからJWT IDの削除
+	if wrErr := ah.ar.DeleteDogownerJwtID(c, doID); wrErr != nil {
 		return wrErr
 	}
 

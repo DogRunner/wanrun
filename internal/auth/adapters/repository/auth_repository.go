@@ -21,7 +21,7 @@ type IAuthRepository interface {
 	GetJwtID(c echo.Context, userID int64, modelType any, result any, columnName string) (string, error)
 	GetDogownerJwtID(c echo.Context, dogownerID int64) (string, error)
 	GetDogrunmgJwtID(c echo.Context, dogownerID int64) (string, error)
-	DeleteJwtID(c echo.Context, doID int64) error
+	DeleteDogownerJwtID(c echo.Context, doID int64) error
 	CheckDuplicate(c echo.Context, field string, value sql.NullString) error
 	CountOrgEmail(c echo.Context, email string) (int64, error)
 	GetDogrunmgByCredentials(c echo.Context, email string) ([]model.DogrunmgCredential, error)
@@ -250,33 +250,33 @@ func (ar *authRepository) UpdateDogownerJwtID(
 	return nil
 }
 
-// DeleteJwtID: 対象のdogOwnerのjwt_idの削除
+// DeleteDogownerJwtID: 対象のdogownerのjwt_idの削除
 //
 // args:
 //   - echo.Context: Echoのコンテキスト。リクエストやレスポンスにアクセスするために使用
-//   - dto.DogOwnerDTO: dogOwnerの情報
+//   - dto.DogownerDTO: dogownerの情報
 //
 // return:
 //   - error: error情報
-func (ar *authRepository) DeleteJwtID(c echo.Context, doID int64) error {
+func (ar *authRepository) DeleteDogownerJwtID(c echo.Context, doID int64) error {
 	logger := log.GetLogger(c).Sugar()
 
 	// 対象のdogOwnerのjwt_idの更新
-	err := ar.db.Model(&model.AuthDogOwner{}).
+	if err := ar.db.Model(&model.AuthDogOwner{}).
 		Where("dog_owner_id= ?", doID).
-		Update("jwt_id", nil).Error
-	if err != nil {
+		Update("jwt_id", nil).Error; err != nil {
 		wrErr := wrErrors.NewWRError(
 			err,
 			"DBへの同期が失敗しました。",
-			wrErrors.NewDogOwnerServerErrorEType())
+			wrErrors.NewAuthServerErrorEType(),
+		)
 
-		logger.Errorf("Failed to delete JWT ID: %v", wrErr)
+		logger.Errorf("Failed to delete dogowner JWT ID: %v", wrErr)
 
 		return wrErr
 	}
 
-	return err
+	return nil
 }
 
 // DeleteDogrunmgJwtID: 対象のdogrunmgのjwt_idの削除
@@ -297,9 +297,10 @@ func (ar *authRepository) DeleteDogrunmgJwtID(c echo.Context, dmID int64) error 
 		wrErr := wrErrors.NewWRError(
 			err,
 			"DBへの同期が失敗しました。",
-			wrErrors.NewAuthServerErrorEType())
+			wrErrors.NewAuthServerErrorEType(),
+		)
 
-		logger.Errorf("Failed to delete JWT ID: %v", wrErr)
+		logger.Errorf("Failed to delete dogrunmg JWT ID: %v", wrErr)
 
 		return wrErr
 	}
