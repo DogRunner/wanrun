@@ -167,7 +167,7 @@ func (aj *authJwt) jwtIDValid(c echo.Context, ac *handler.AccountClaims) error {
 	}
 
 	// Roleによる設定分岐
-	getJwtID := func(role int64, id int64) (string, error) {
+	getJwtID := func(role int, id int64) (string, error) {
 		switch role {
 		// dogowner
 		case handler.DOGOWNER_ROLE:

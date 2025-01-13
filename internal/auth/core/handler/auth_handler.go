@@ -40,14 +40,14 @@ func NewAuthHandler(ar repository.IAuthRepository) IAuthHandler {
 type AccountClaims struct {
 	ID   string `json:"id"`
 	JTI  string `json:"jti"`
-	Role int64  `json:"role"`
+	Role int    `json:"role"`
 	jwt.RegisteredClaims
 }
 
 const (
-	DOGRUNMG_ROLE       = 1
-	DOGRUNMG_ADMIN_ROLE = 2
-	DOGOWNER_ROLE       = 3
+	DOGRUNMG_ROLE       int = 1
+	DOGRUNMG_ADMIN_ROLE int = 2
+	DOGOWNER_ROLE       int = 3
 )
 
 // GetDogOwnerIDAsInt64: 共通処理で、int64のDogOwnerのID取得。
