@@ -12,17 +12,21 @@ import (
 	"github.com/wanrun-develop/wanrun/pkg/log"
 )
 
-type IBookmarkController interface {
+type IInteractionController interface {
 	AddBookmark(echo.Context) error
 	DeleteBookmarks(echo.Context) error
+	CheckinDogrun(echo.Context) error
+	CheckoutDogrun(echo.Context) error
+	GetTodayCheckins(echo.Context) error
 }
 
-type bookmarkController struct {
-	h handler.IBookmarkHandler
+type interactionController struct {
+	bh handler.IBookmarkHandler
+	ch handler.ICheckInOutHandler
 }
 
-func NewBookmarkController(bh handler.IBookmarkHandler) IBookmarkController {
-	return &bookmarkController{bh}
+func NewInteractionController(bh handler.IBookmarkHandler, ch handler.ICheckInOutHandler) IInteractionController {
+	return &interactionController{bh, ch}
 }
 
 // AddBookmark: ブックマークの追加
@@ -32,7 +36,7 @@ func NewBookmarkController(bh handler.IBookmarkHandler) IBookmarkController {
 //
 // return:
 //   - error:	エラー
-func (bc *bookmarkController) AddBookmark(c echo.Context) error {
+func (ic *interactionController) AddBookmark(c echo.Context) error {
 	logger := log.GetLogger(c).Sugar()
 
 	reqBody := dto.BookmarkAddReq{}
@@ -53,7 +57,7 @@ func (bc *bookmarkController) AddBookmark(c echo.Context) error {
 	}
 
 	//本処理
-	bookmarkId, err := bc.h.AddBookmark(c, reqBody)
+	bookmarkId, err := ic.bh.AddBookmark(c, reqBody)
 	if err != nil {
 		return err
 	}
@@ -63,14 +67,14 @@ func (bc *bookmarkController) AddBookmark(c echo.Context) error {
 	})
 }
 
-// DeleteBookmarks: ブックマーク済みドッグランの取得
+// DeleteBookmarks: ブックマーク削除
 //
 // args:
 //   - echo.Context:	コンテキスト
 //
 // return:
 //   - error	:	エラー
-func (bc *bookmarkController) DeleteBookmarks(c echo.Context) error {
+func (ic *interactionController) DeleteBookmarks(c echo.Context) error {
 	logger := log.GetLogger(c).Sugar()
 
 	reqBody := dto.BookmarkDeleteReq{}
@@ -89,10 +93,89 @@ func (bc *bookmarkController) DeleteBookmarks(c echo.Context) error {
 		return err
 	}
 
-	if err := bc.h.DeleteBookmark(c, reqBody); err != nil {
+	if err := ic.bh.DeleteBookmark(c, reqBody); err != nil {
 		return err
 	}
 
 	return c.NoContent(http.StatusOK)
 
+}
+
+// CheckinDogrun: ドッグランへのチェックイン（入場記録）
+//
+// args:
+//   - echo.Context:	コンテキスト
+//
+// return:
+// error:	　エラー
+func (ic *interactionController) CheckinDogrun(c echo.Context) error {
+	logger := log.GetLogger(c).Sugar()
+
+	reqBody := dto.CheckinReq{}
+	if err := c.Bind(&reqBody); err != nil {
+		err = errors.NewWRError(err, "チェックインリクエストが不正です", errors.NewInteractionClientErrorEType())
+		logger.Error(err)
+		return err
+	}
+	// バリデータのインスタンス作成
+	validate := validator.New()
+	//リクエストボディのバリデーション
+	if err := validate.Struct(reqBody); err != nil {
+		err = errors.NewWRError(err, "リクエストがバリデーションに違反しています", errors.NewInteractionClientErrorEType())
+		logger.Error(err)
+		return err
+	}
+
+	err := ic.ch.CheckinDogrun(c, reqBody)
+	if err != nil {
+		return err
+	}
+	return c.NoContent(http.StatusCreated)
+}
+
+// CheckoutDogrun: ドッグランへのチェックアウト（退場記録）
+//
+// args:
+//   - echo.Context:	コンテキスト
+//
+// return:
+// error:	エラー
+func (ic *interactionController) CheckoutDogrun(c echo.Context) error {
+	logger := log.GetLogger(c).Sugar()
+
+	reqBody := dto.CheckoutReq{}
+	if err := c.Bind(&reqBody); err != nil {
+		err = errors.NewWRError(err, "チェックアウトリクエストが不正です", errors.NewInteractionClientErrorEType())
+		logger.Error(err)
+		return err
+	}
+	// バリデータのインスタンス作成
+	validate := validator.New()
+	//リクエストボディのバリデーション
+	if err := validate.Struct(reqBody); err != nil {
+		err = errors.NewWRError(err, "リクエストがバリデーションに違反しています", errors.NewInteractionClientErrorEType())
+		logger.Error(err)
+		return err
+	}
+
+	err := ic.ch.CheckoutDogrun(c, reqBody)
+	if err != nil {
+		return err
+	}
+	return c.NoContent(http.StatusOK)
+}
+
+// GetTodayCheckins: すべての所有dogの今日のチェックイン履歴の取得
+//
+// args:
+//   - echo.Context:	コンテキスト
+//
+// return:
+// error:	エラー
+func (ic *interactionController) GetTodayCheckins(c echo.Context) error {
+	checkins, err := ic.ch.GetTodayCheckins(c)
+	if err != nil {
+		return err
+	}
+	return c.JSON(http.StatusOK, checkins)
 }
