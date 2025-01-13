@@ -241,7 +241,7 @@ func (ah *authHandler) LogInDogrunmg(c echo.Context, admReq authDTO.AuthDogrunmg
 	}
 
 	// dogrunmgがadminかどうかの識別
-	var roleID int64
+	var roleID int
 	if results[0].AuthDogrunmg.IsAdmin.Valid && results[0].AuthDogrunmg.IsAdmin.Bool {
 		roleID = DOGRUNMG_ADMIN_ROLE
 	} else {
