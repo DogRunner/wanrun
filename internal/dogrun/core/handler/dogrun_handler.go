@@ -157,8 +157,14 @@ func (h *dogrunHandler) SearchAroundDogruns(c echo.Context, condition dto.Search
 	logger.Infof("DBから取得数:%d", len(dogrunsD))
 
 	//検索結果からレスポンスを作成
-	dogrunLists, err := h.trimAroundDogrunDetailInfo(c, dogrunsG, dogrunsD)
+	dogrunLists, err := h.integrateDogrunInfos(dogrunsG, dogrunsD)
 	logger.Infof("レスポンス件数:%d", len(dogrunLists))
+	if err != nil {
+		return nil, err
+	}
+
+	//dogrunIDがないデータのメンテしてセット
+	err = h.GenerateSetDogrunIDs(c, dogrunLists)
 	if err != nil {
 		return nil, err
 	}
@@ -557,9 +563,9 @@ func (h *dogrunHandler) searchTextUpToSpecifiedTimes(c echo.Context, payload goo
 
 /*
 検索結果をもとに、レスポンス用のDTOを作成
-placeIdで、両方にあるデータと、DBにのみあるデータ等で分ける
+placeIdで、両方にあるデータと、DBにのみあるデータ等で分けて、それぞれ統合する
 */
-func (h *dogrunHandler) trimAroundDogrunDetailInfo(c echo.Context, dogrunsG []googleplace.BaseResource, dogrunsD []model.Dogrun) ([]dto.DogrunLists, error) {
+func (h *dogrunHandler) integrateDogrunInfos(dogrunsG []googleplace.BaseResource, dogrunsD []model.Dogrun) ([]dto.DogrunLists, error) {
 	//google情報からplaceIdをkeyにmapにまとめる
 	dogrunsGWithPlaceID := make(map[string]googleplace.BaseResource, len(dogrunsG))
 	for _, dogrunG := range dogrunsG {
@@ -584,21 +590,14 @@ func (h *dogrunHandler) trimAroundDogrunDetailInfo(c echo.Context, dogrunsG []go
 	for placeId, dogrunGValue := range dogrunsGWithPlaceID {
 		dogrunDValue, existDogrunD := dogrunsDWithPlaceID[placeId]
 		if existDogrunD {
-			//DBにもある場合、両方からデータの選別
+			//DBにもある場合、両方からデータの選別してセット
 			dogrunLists = append(dogrunLists, resolveDogrunList(dogrunGValue, dogrunDValue))
 			//DogrunsDから削除
 			delete(dogrunsDWithPlaceID, placeId)
 		} else {
 			//google側にしかない場合
-			//id発行
-			dogrunID, err := h.persistenceDogrunPlaceId(c, placeId)
-			if err != nil {
-				return nil, err
-			}
-			//レスポンス整形
-			dogrunGDetailInfo := resolveDogrunListByOnlyGoogle(dogrunGValue)
-			dogrunGDetailInfo.DogrunID = dogrunID
-			dogrunLists = append(dogrunLists, dogrunGDetailInfo)
+			//レスポンス整形してセット
+			dogrunLists = append(dogrunLists, resolveDogrunListByOnlyGoogle(dogrunGValue))
 		}
 	}
 
@@ -742,6 +741,28 @@ func resolvePlacePhotos(dogrunG googleplace.BaseResource) []dto.PhotoInfo {
 	}
 
 	return photos
+}
+
+// GenerateSetDogrunIDs: dogrunIDがないデータに対して、dogrunsテーブルに登録し、IDをdtoにセットする
+//
+// args:
+//   - echo.Context:	コンテキスト
+//   - []dto.DogrunLists:	dogrunIDメンテを行う対象のdto
+//
+// return:
+//   - error:	エラー
+func (h *dogrunHandler) GenerateSetDogrunIDs(c echo.Context, dogrunLists []dto.DogrunLists) error {
+	for i := range dogrunLists {
+		if dogrunLists[i].DogrunID == 0 {
+			//id発行
+			dogrunID, err := h.persistenceDogrunPlaceId(c, dogrunLists[i].PlaceId)
+			if err != nil {
+				return err
+			}
+			dogrunLists[i].DogrunID = dogrunID
+		}
+	}
+	return nil
 }
 
 // persistenceDogrunPlaceId: DBにないplaceIdをDBへ保存して、PKを発行させる
