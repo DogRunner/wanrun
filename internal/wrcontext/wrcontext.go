@@ -5,6 +5,7 @@ import (
 
 	"github.com/labstack/echo/v4"
 	"github.com/wanrun-develop/wanrun/internal/auth/core/handler"
+	authHandler "github.com/wanrun-develop/wanrun/internal/auth/core/handler"
 	"github.com/wanrun-develop/wanrun/internal/auth/middleware"
 	"github.com/wanrun-develop/wanrun/pkg/errors"
 	"github.com/wanrun-develop/wanrun/pkg/log"
@@ -43,12 +44,47 @@ func GetVerifiedClaims(c echo.Context) (*handler.AccountClaims, error) {
 //
 // return:
 //   - int64:	ユーザーID
-
 func GetLoginUserID(c echo.Context) (int64, error) {
 	logger := log.GetLogger(c).Sugar()
 
 	claims, err := GetVerifiedClaims(c)
 	if err != nil {
+		return 0, err
+	}
+	userID, err := strconv.ParseInt(claims.ID, 10, 64)
+	if err != nil {
+		logger.Error(err)
+		err = errors.NewWRError(
+			nil,
+			"型の形式が異なっています。",
+			errors.NewAuthClientErrorEType(),
+		)
+		return 0, err
+	}
+	return userID, nil
+}
+
+// GetLoginUserId: ログインユーザーのdogownerIDの取得
+// コンテキストのjwt解析済みclaimからユーザーID取得
+// dogownerのみ許容
+// args:
+//   - echo.Context:	コンテキスト
+//
+// return:
+//   - int64:	ユーザーID
+func GetLoginDogownerID(c echo.Context) (int64, error) {
+	logger := log.GetLogger(c).Sugar()
+
+	claims, err := GetVerifiedClaims(c)
+	if err != nil {
+		return 0, err
+	}
+	if claims.Role != authHandler.DOGOWNER_ROLE {
+		err = errors.NewWRError(
+			nil,
+			"このログインユーザーはdogownerではありません。",
+			errors.NewAuthClientErrorEType(),
+		)
 		return 0, err
 	}
 	userID, err := strconv.ParseInt(claims.ID, 10, 64)

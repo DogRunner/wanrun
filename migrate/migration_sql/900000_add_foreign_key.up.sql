@@ -31,3 +31,9 @@ alter table auth_dogrun_managers add constraint dev_auth_dogrun_managers_dogrun_
 
 -- `auth_dogrun_managers`と`dogrun_manager_credentials`のリレーション
 alter table dogrun_manager_credentials add constraint dev_dogrun_manager_credentials_auth_dogrun_manager_id_fkey foreign key (auth_dogrun_manager_id) references auth_dogrun_managers (auth_dogrun_manager_id);
+
+alter table dogrun_checkin add constraint dev_dogrun_checkin_dogrun_id_fkey foreign key (dogrun_id) references dogruns (dogrun_id);
+alter table dogrun_checkin add constraint dev_dogrun_checkin_dog_id_fkey foreign key (dog_id) references dogs (dog_id);
+
+alter table dogrun_checkout add constraint dev_dogrun_checkout_dogrun_id_fkey foreign key (dogrun_id) references dogruns (dogrun_id);
+alter table dogrun_checkout add constraint dev_dogrun_checkout_dog_id_fkey foreign key (dog_id) references dogs (dog_id);
