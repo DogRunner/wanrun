@@ -12,3 +12,7 @@ type FileUploadReq struct {
 type FileUploadRes struct {
 	FileID string `json:"fileId"`
 }
+
+type FileDeleteReq struct {
+	FileID string `json:"fileId" validate:"required"`
+}

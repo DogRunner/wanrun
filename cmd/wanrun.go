@@ -163,6 +163,7 @@ func newRouter(e *echo.Echo, dbConn *gorm.DB) {
 	cmsController := newCms(dbConn)
 	cms := e.Group("cms")
 	cms.POST("/upload/file", cmsController.UploadFile)
+	cms.DELETE("", cmsController.DeleteFile)
 
 	// ヘルスチェック
 	e.GET("/health", func(c echo.Context) error {

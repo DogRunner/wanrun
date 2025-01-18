@@ -23,6 +23,7 @@ const (
 
 type ICmsHandler interface {
 	HandleFileUpload(c echo.Context, fuq dto.FileUploadReq) (dto.FileUploadRes, error)
+	HandleFileDelete(c echo.Context, fdReq dto.FileDeleteReq) error
 }
 
 type cmsHandler struct {
@@ -81,6 +82,62 @@ func (ch *cmsHandler) HandleFileUpload(c echo.Context, fuq dto.FileUploadReq) (d
 	}
 
 	return fuRes, nil
+}
+
+// HandleFileDelete: S3へのファイル削除と対象のDBレコード削除
+//
+// args:
+//   - echo.Context: Echoのコンテキスト。リクエストやレスポンスにアクセスするために使用
+//   - dto.FileDeleteReq: フロントからのリクエスト情報
+//
+// return:
+//   - error: error情報
+func (ch *cmsHandler) HandleFileDelete(c echo.Context, fdReq dto.FileDeleteReq) error {
+	logger := log.GetLogger(c).Sugar()
+
+	// 対象のS3のfile情報があるのか確認
+	s3Files, wrErr := ch.cr.GetS3FileInfoByFileID(c, fdReq.FileID)
+
+	if wrErr != nil {
+		return wrErr
+	}
+
+	// 対象のS3File情報がいない場合
+	if len(s3Files) == 0 {
+		wrErr := wrErrors.NewWRError(
+			nil,
+			"対象のS3File情報が存在しません",
+			wrErrors.NewCmsClientErrorEType(),
+		)
+
+		logger.Errorf("s3File not found: %v", wrErr)
+		return wrErr
+	}
+
+	// 対象のFileIDが重複することがないので複数いる場合は、データの不整合が起きている(基本的に起きない)
+	if len(s3Files) > 1 {
+		wrErr := wrErrors.NewWRError(
+			nil,
+			"データの不整合が起きています",
+			wrErrors.NewCmsServerErrorEType(),
+		)
+		logger.Errorf("Multiple records found: %v", wrErr)
+		return wrErr
+	}
+
+	// 対象のオブジェクトの削除
+	if wrErr := ch.cs3.DeleteObject(c, s3Files[0].S3ObjectKey.String); wrErr != nil {
+		return wrErr
+	}
+
+	logger.Info("Success s3 object delete!!!")
+
+	// 対象のS3file情報をDBから削除
+	if wrErr := ch.cr.DeleteS3FileInfo(c, s3Files[0]); wrErr != nil {
+		return wrErr
+	}
+
+	return nil
 }
 
 // generateS3ObjectKey: S3ObjectKeyの生成
