@@ -18,7 +18,7 @@ type IAuthController interface {
 	// SignUp(c echo.Context) error
 	LogInDogowner(c echo.Context) error
 	LogInDogrunmg(c echo.Context) error
-	Revoke(c echo.Context) error
+	RevokeDogowner(c echo.Context) error
 	RevokeDogrunmg(c echo.Context) error
 	// GoogleOAuth(c echo.Context) error
 }
@@ -148,22 +148,22 @@ func (ac *authController) LogInDogowner(c echo.Context) error {
 	})
 }
 
-// Revoke: dogownerのrevoke機能
+// RevokeDogowner: dogownerのrevoke機能
 //
 // args:
 //   - echo.Context: c Echoのコンテキスト。リクエストやレスポンスにアクセスするために使用されます。
 //
 // return:
 //   - error: error情報
-func (ac *authController) Revoke(c echo.Context) error {
-	// claims情報の取得
-	claims, wrErr := wrcontext.GetVerifiedClaims(c)
+func (ac *authController) RevokeDogowner(c echo.Context) error {
+	// claimsからdogrunmgのID取得
+	dogownerID, wrErr := wrcontext.GetLoginUserID(c)
 
 	if wrErr != nil {
 		return wrErr
 	}
 
-	if wrErr := ac.ah.Revoke(c, claims); wrErr != nil {
+	if wrErr := ac.ah.RevokeDogowner(c, dogownerID); wrErr != nil {
 		return wrErr
 	}
 
