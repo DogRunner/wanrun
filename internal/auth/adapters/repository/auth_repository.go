@@ -15,7 +15,7 @@ import (
 
 type IAuthRepository interface {
 	CreateDogOwner(c echo.Context, doc *model.DogOwnerCredential) (*model.DogOwnerCredential, error)
-	GetDogOwnerByCredential(c echo.Context, adoReq dto.AuthDogOwnerReq) ([]model.DogOwnerCredential, error)
+	GetDogOwnerByCredentials(c echo.Context, adoReq dto.AuthDogOwnerReq) ([]model.DogOwnerCredential, error)
 	// CreateOAuthDogOwner(c echo.Context, dogOwnerCredential *model.DogOwnerCredential) (*model.DogOwnerCredential, error)
 	UpdateDogownerJwtID(c echo.Context, doID int64, ji string) error
 	GetJwtID(c echo.Context, userID int64, modelType any, result any, columnName string) (string, error)
@@ -179,7 +179,7 @@ OAuthユーザーの作成
 // 	return &result, nil
 // }
 
-// GetDogOwnerByCredential: ドッグオーナーのクレデンシャル取得
+// GetDogOwnerByCredentials: ドッグオーナーのクレデンシャル取得
 //
 // args:
 //   - echo.Context: Echoのコンテキスト。リクエストやレスポンスにアクセスするために使用
@@ -188,7 +188,7 @@ OAuthユーザーの作成
 // return:
 //   - *model.DogOwnerCredential: ドッグオーナーのクレデンシャル
 //   - error: error情報
-func (ar *authRepository) GetDogOwnerByCredential(c echo.Context, adoReq dto.AuthDogOwnerReq) ([]model.DogOwnerCredential, error) {
+func (ar *authRepository) GetDogOwnerByCredentials(c echo.Context, adoReq dto.AuthDogOwnerReq) ([]model.DogOwnerCredential, error) {
 	logger := log.GetLogger(c).Sugar()
 
 	var results []model.DogOwnerCredential

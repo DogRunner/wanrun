@@ -96,7 +96,7 @@ func (ah *authHandler) LogInDogowner(c echo.Context, adoReq authDTO.AuthDogOwner
 	logger.Debugf("authDogownerReq: %v, Type: %T", adoReq, adoReq)
 
 	// EmailかPhoneNumberから対象のDogowner情報の取得
-	results, wrErr := ah.ar.GetDogOwnerByCredential(c, adoReq)
+	results, wrErr := ah.ar.GetDogOwnerByCredentials(c, adoReq)
 
 	if wrErr != nil {
 		return "", wrErr
