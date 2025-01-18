@@ -20,15 +20,15 @@ func VUpdatePrimaryKey(fl validator.FieldLevel) bool {
 
 // 性別値
 const (
-	SEX_MALE   = "M"
-	SEX_FEMAIL = "F"
-	SEX_UNKNOW = "U"
-	SEX_OTHER  = "O"
+	SEX_MALE    = "M"
+	SEX_FEMALE  = "F"
+	SEX_UNKNOWN = "U"
+	SEX_OTHER   = "O"
 )
 
-var sex_values []string = []string{SEX_MALE, SEX_FEMAIL, SEX_UNKNOW, SEX_OTHER}
+var sex_values []string = []string{SEX_MALE, SEX_FEMALE, SEX_UNKNOWN, SEX_OTHER}
 
-// 性別のバリデーション
+// 性別のバリデーションs
 func VSex(fl validator.FieldLevel) bool {
 	sex := fl.Field().String()
 
@@ -52,3 +52,5 @@ func VNotEmpty(fl validator.FieldLevel) bool {
 	}
 	return false // スライス以外は無効
 }
+
+// int64スライスの最大値

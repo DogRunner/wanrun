@@ -28,7 +28,8 @@ type centerTarget struct {
 長方形型検索のリクエストボディ
 */
 type SearchAroundRectangleCondition struct {
-	Target rectangleTarget `json:"target" validate:"required"`
+	Target            rectangleTarget `json:"target" validate:"required"`
+	IncludeDogrunTags []int64         `json:"include_dogrunTags" validate:"min=0,max=100"`
 }
 
 /*

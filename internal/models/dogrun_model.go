@@ -91,16 +91,16 @@ func (d *Dogrun) IsSpecialBusinessHoursNotEmpty() bool {
 Dogrun情報としての最低限必要情報のチェック
 */
 func (d *Dogrun) IsSufficientInfo() bool {
-	if d.Name.Valid {
+	if !d.Name.Valid {
 		return false
 	}
-	if d.Address.Valid {
+	if !d.Address.Valid {
 		return false
 	}
-	if d.Latitude.Valid {
+	if !d.Latitude.Valid {
 		return false
 	}
-	if d.Longitude.Valid {
+	if !d.Longitude.Valid {
 		return false
 	}
 
@@ -141,6 +141,13 @@ type RegularBusinessHour struct {
 	IsClosed              sql.NullBool   `gorm:"default:false;column:is_closed"`  // 定休日フラグ（trueの場合。opentime, closetimeより優先されるフラグ）
 	CreatedAt             sql.NullTime   `gorm:"column:created_at;autoCreateTime"`
 	UpdatedAt             sql.NullTime   `gorm:"column:updated_at;autoUpdateTime"`
+}
+
+/*
+RegularBusinessHourの有効チェック
+*/
+func (r *RegularBusinessHour) IsValid() bool {
+	return r.RegularBusinessHourID.Valid && r.DogrunID.Valid && r.Day.Valid
 }
 
 /*

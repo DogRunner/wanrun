@@ -16,8 +16,8 @@ INSERT INTO auth_dog_owners (dog_owner_id, access_token, refresh_token, access_t
 INSERT INTO dog_owner_credentials (auth_dog_owner_id, provider_name, grant_type, email, phone_number, provider_user_id, password, login_at) VALUES
 (1, 'google', 'oauth', 'emily@example.com', NULL, 'google_user_1', NULL, NOW()),
 (1, 'facebook', 'oauth', 'emily@example.com', NULL, 'facebook_user_2', NULL, NOW()),
-(2, NULL, 'password', 'olivia@example.com', NULL, NULL, 'password_hash_2', NOW()),
-(3, NULL, 'password', NULL, '0987654321', NULL, 'password_hash_3', NOW()),
+(2, NULL, 'PASSWORD', 'olivia@example.com', NULL, NULL, '$2a$10$dfdZ5z74pRE2.7RzwSmHtuU7x1Ir8ul0nD/jwakDg/Pd5uE8/f36C', NOW()),
+(3, NULL, 'PASSWORD', NULL, '0987654321', NULL, 'password_hash_3', NOW()),
 (4, 'google', 'oauth', 'dev@example.com', NULL, 'google_user_4', NULL, NOW());
 
 -- dogs テーブルに追加のテストデータを挿入
@@ -30,11 +30,11 @@ INSERT INTO dogs (dog_owner_id, name, dog_type_id, weight, sex, image, reg_at, u
 (4, 'Chloe', 4, 15, 'F', 'https://example.com/images/chloe.jpg', NOW(), NOW());
 
 -- dogruns テーブルに追加のテストデータを挿入
-INSERT INTO dogruns (place_id, dogrun_manager_id, name, address, postcode, latitude, longitude, description, reg_at, upd_at) VALUES
-(null, null, 'City Dog Park', '789 Dog Park Ave, Tokyo', '100-0003', 35.7000, 139.7100, 'A large park in the city for dogs.', NOW(), NOW()),
-(null, null, 'Pawsome Adventure', '321 Woof St, Tokyo', '100-0004', 35.7100, 139.7200, 'Adventure park with various activities for dogs.', NOW(), NOW()),
-(null, null, 'Happy Tails Park', '654 Tail Ave, Tokyo', '100-0005', 35.6800, 139.7500, 'A friendly park for dogs to socialize.', NOW(), NOW()),
-('ChIJB6OcYgCHGGARNVckti3X6RE', null, 'わん!リトルガーデン', '東京都 葛飾区 何まち何丁目', '132-0022', 35.7111899, 139.8757518, 'テストデータ', now(), now());
+INSERT INTO dogruns (place_id, dogrun_manager_id, name, address, postcode, latitude, longitude, description, is_managed, reg_at, upd_at) VALUES
+(null, null, 'City Dog Park', '789 Dog Park Ave, Tokyo', '100-0003', 35.7000, 139.7100, 'A large park in the city for dogs.', true, NOW(), NOW()),
+(null, null, 'Pawsome Adventure', '321 Woof St, Tokyo', '100-0004', 35.7100, 139.7200, 'Adventure park with various activities for dogs.', true, NOW(), NOW()),
+(null, null, 'Happy Tails Park', '654 Tail Ave, Tokyo', '100-0005', 35.6800, 139.7500, 'A friendly park for dogs to socialize.', true, NOW(), NOW()),
+('ChIJB6OcYgCHGGARNVckti3X6RE', null, 'わん!リトルガーデン', '東京都 葛飾区 何まち何丁目', '132-0022', 35.7111899, 139.8757518, 'テストデータ', true, now(), now());
 
 -- regular_business_hours テーブルに追加のテストデータを挿入
 INSERT INTO regular_business_hours (dogrun_id, day, open_time, close_time, is_closed, is_all_day, created_at, updated_at) VALUES

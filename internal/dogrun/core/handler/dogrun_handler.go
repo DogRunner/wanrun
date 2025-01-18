@@ -26,6 +26,7 @@ type IDogrunHandler interface {
 	GetDogrunByID(string)
 	GetDogrunTagMst(echo.Context) ([]dto.TagMstRes, error)
 	SearchAroundDogruns(echo.Context, dto.SearchAroundRectangleCondition) ([]dto.DogrunLists, error)
+	SearchAroundAndTagDogruns(echo.Context, dto.SearchAroundRectangleCondition) ([]dto.DogrunLists, error)
 	getBookmarkedDogrunIDs(echo.Context, chan<- []int64)
 	GetDogrunPhotoSrc(echo.Context, string, string, string) (string, error)
 }
@@ -116,11 +117,11 @@ func (h *dogrunHandler) GetDogrunTagMst(c echo.Context) ([]dto.TagMstRes, error)
 	return mstRes, nil
 }
 
-// SearchAroundDogruns: 指定内（長方形）のドッグランを検索、DB情報と照合して返す
+// SearchAroundDogruns: 指定内（長方形）のドッグランをgoogle検索して、DB情報と照合して返す
 //
 // args:
 //   - echo.Context:	コンテキスト
-//   - dto.SearchAroundRectangleCondition:	指定場所条件
+//   - dto.SearchAroundRectangleCondition:	条件
 //
 // return:
 //   - []dto.DogrunLists:	リストDTO
@@ -157,7 +158,7 @@ func (h *dogrunHandler) SearchAroundDogruns(c echo.Context, condition dto.Search
 	logger.Infof("DBから取得数:%d", len(dogrunsD))
 
 	//ドッグラン情報の過不足フィルター
-	dogrunsD = excludeInsufficientDogrunInfo(dogrunsD)
+	dogrunsD = excludeInsufficientDogrunInfo(c, dogrunsD)
 
 	//検索結果からレスポンスを作成
 	dogrunLists, err := h.integrateDogrunInfos(dogrunsG, dogrunsD)
@@ -173,18 +174,54 @@ func (h *dogrunHandler) SearchAroundDogruns(c echo.Context, condition dto.Search
 	}
 
 	//ブックマーク済みdogrunにフラグ付与
-	bookmarkedDogrunIDs := <-bookmarkedDogrunIDsCH
-	if bookmarkedDogrunIDs == nil {
-		err = errors.NewWRError(nil, "ドッグランのブックーマーク取得に失敗しました。", errors.NewDogrunServerErrorEType())
-		logger.Error(err)
+	dogrunLists, err = setIsBookmarked(c, dogrunLists, bookmarkedDogrunIDsCH)
+	if err != nil {
 		return nil, err
 	}
-	//mapに変換
-	bookmarkedDogrunIDMap := util.ConvertSliceToMap(bookmarkedDogrunIDs, func(i int64) int64 { return i })
-	for i := range dogrunLists {
-		if _, exist := bookmarkedDogrunIDMap[int64(dogrunLists[i].DogrunID)]; exist {
-			dogrunLists[i].IsBookmarked = true
-		}
+
+	return dogrunLists, nil
+}
+
+// SearchAroundAndTagDogruns: 指定内（長方形）とドッグランタグ条件でDB検索して、返す
+// google検索は行わない
+//
+// args:
+//   - echo.Context:	コンテキスト
+//   - dto.SearchAroundRectangleCondition:	条件
+//
+// return:
+//   - []dto.DogrunLists:	リストDTO
+//   - error:	エラー
+func (h *dogrunHandler) SearchAroundAndTagDogruns(c echo.Context, condition dto.SearchAroundRectangleCondition) ([]dto.DogrunLists, error) {
+
+	logger := log.GetLogger(c).Sugar()
+	logger.Debugw("検索条件", "condition", condition)
+
+	//ブックマーク済みを並列で取得
+	bookmarkedDogrunIDsCH := make(chan []int64)
+	go h.getBookmarkedDogrunIDs(c, bookmarkedDogrunIDsCH)
+
+	//DBにある指定場所内のドッグランを取得
+	dogrunsD, err := h.drr.GetDogrunByRectanglePointerAndDogrunTags(c, condition)
+	if err != nil {
+		return nil, err
+	}
+	logger.Infof("DBから取得数:%d", len(dogrunsD))
+
+	//ドッグラン情報の過不足フィルター
+	dogrunsD = excludeInsufficientDogrunInfo(c, dogrunsD)
+
+	dogrunLists := []dto.DogrunLists{}
+
+	for _, dogrun := range dogrunsD {
+		dogrunLists = append(dogrunLists, resolveDogrunListByOnlyDB(dogrun))
+	}
+	logger.Infof("レスポンス件数:%d", len(dogrunLists))
+
+	//ブックマーク済みdogrunにフラグ付与
+	dogrunLists, err = setIsBookmarked(c, dogrunLists, bookmarkedDogrunIDsCH)
+	if err != nil {
+		return nil, err
 	}
 
 	return dogrunLists, nil
@@ -194,7 +231,7 @@ func (h *dogrunHandler) SearchAroundDogruns(c echo.Context, condition dto.Search
 //
 // args:
 //   - echo.Context:	コンテキスト
-//   - chan<- []int64:	受信専用チェネル　ブックマーク済みドッグランIDs
+//   - chan<- []int64:	送信専用チェネル　ブックマーク済みドッグランIDs
 //
 // return:
 func (h *dogrunHandler) getBookmarkedDogrunIDs(c echo.Context, bookmarkedDogrunIdsCH chan<- []int64) {
@@ -206,6 +243,33 @@ func (h *dogrunHandler) getBookmarkedDogrunIDs(c echo.Context, bookmarkedDogrunI
 	}
 	bookmarkedDogrunIdsCH <- dogrunIDs
 	close(bookmarkedDogrunIdsCH) // チャネルを閉じる
+}
+
+// setIsBookmarked: チャネルからブックマーク済みDogrunにフラグをセットする
+//
+// args:
+//   - echo.Context:	コンテキスト
+//   - []dto.DogrunLists:	dogruns
+//   - <-chan []int64:	受信専用チェネル　ブックマーク済みドッグランIDs
+//
+// return:
+func setIsBookmarked(c echo.Context, dogrunLists []dto.DogrunLists, bookmarkedDogrunIDsCH <-chan []int64) ([]dto.DogrunLists, error) {
+	logger := log.GetLogger(c).Sugar()
+	// ブックマーク済みdogrunにフラグ付与
+	bookmarkedDogrunIDs := <-bookmarkedDogrunIDsCH
+	if bookmarkedDogrunIDs == nil {
+		err := errors.NewWRError(nil, "非同期でのドッグランのブックーマーク取得に失敗しました。", errors.NewDogrunServerErrorEType())
+		logger.Error(err)
+		return nil, err
+	}
+	// mapに変換
+	bookmarkedDogrunIDMap := util.ConvertSliceToMap(bookmarkedDogrunIDs, func(i int64) int64 { return i })
+	for i := range dogrunLists {
+		if _, exist := bookmarkedDogrunIDMap[int64(dogrunLists[i].DogrunID)]; exist {
+			dogrunLists[i].IsBookmarked = true
+		}
+	}
+	return dogrunLists, nil
 }
 
 /*
@@ -401,14 +465,20 @@ func resolveNowOpening(dogrunG googleplace.BaseResource, dogrunD model.Dogrun) b
 			closeTimeStr := todaySpecialBusinesshour.CloseTime.String
 			nowOpen = DetermineIsOpen(now, util.ParseStrToTime(openTimeStr), util.ParseStrToTime(closeTimeStr))
 		}
-	} else if !regularBusinessHour.OpenTime.Valid || !regularBusinessHour.CloseTime.Valid {
-		//DB情報がどちらかが無効ならfalse
-		nowOpen = false
-	} else {
-		//通常営業時間より判定
-		openTimeStr := regularBusinessHour.OpenTime.String
-		closeTimeStr := regularBusinessHour.CloseTime.String
-		nowOpen = DetermineIsOpen(now, util.ParseStrToTime(openTimeStr), util.ParseStrToTime(closeTimeStr))
+	} else if regularBusinessHour.IsValid() {
+		if regularBusinessHour.IsClosed.Bool {
+			nowOpen = false
+		} else if regularBusinessHour.IsAllDay.Bool {
+			nowOpen = true
+		} else if !regularBusinessHour.OpenTime.Valid || !regularBusinessHour.CloseTime.Valid {
+			//DB情報がどちらかが無効ならfalse
+			nowOpen = false
+		} else {
+			//通常営業時間より判定
+			openTimeStr := regularBusinessHour.OpenTime.String
+			closeTimeStr := regularBusinessHour.CloseTime.String
+			nowOpen = DetermineIsOpen(now, util.ParseStrToTime(openTimeStr), util.ParseStrToTime(closeTimeStr))
+		}
 	}
 
 	return nowOpen
@@ -639,6 +709,7 @@ func resolveDogrunList(dogrunG googleplace.BaseResource, dogrunD model.Dogrun) d
 		UserRatingCount:   dogrunG.UserRatingCount,
 		Photos:            resolvePlacePhotos(dogrunG),
 		DogrunTags:        resolveDogrunTagInfo(dogrunD), // ドッグランタグ情報
+		IsManaged:         true,
 	}
 
 }
@@ -664,6 +735,7 @@ func resolveDogrunListByOnlyGoogle(dogrunG googleplace.BaseResource) dto.DogrunL
 		GoogleRating:      dogrunG.Rating,
 		UserRatingCount:   dogrunG.UserRatingCount,
 		Photos:            resolvePlacePhotos(dogrunG),
+		IsManaged:         false,
 	}
 
 }
@@ -685,6 +757,7 @@ func resolveDogrunListByOnlyDB(dogrunD model.Dogrun) dto.DogrunLists {
 		ToadyBusinessHour: resolveTodayBusinessHour(emptyDogrunG, dogrunD),
 		Description:       dogrunD.Description.String,
 		DogrunTags:        resolveDogrunTagInfo(dogrunD), // ドッグランタグ情報
+		IsManaged:         true,
 	}
 
 }
@@ -799,11 +872,14 @@ func (h *dogrunHandler) persistenceDogrunPlaceId(c echo.Context, placeId string)
 //
 // return:
 //   - []model.Dogrun:	チェック済みドッグラン情報
-func excludeInsufficientDogrunInfo(dogrunsDParam []model.Dogrun) []model.Dogrun {
+func excludeInsufficientDogrunInfo(c echo.Context, dogrunsDParam []model.Dogrun) []model.Dogrun {
+	logger := log.GetLogger(c).Sugar()
 	dogruns := []model.Dogrun{}
 	for _, dogrun := range dogrunsDParam {
 		if dogrun.IsSufficientInfo() {
 			dogruns = append(dogruns, dogrun)
+		} else {
+			logger.Infof("ドッグラン:%d を情報不足として、dtoから除外", dogrun.DogrunID.Int64)
 		}
 	}
 
