@@ -156,6 +156,9 @@ func (h *dogrunHandler) SearchAroundDogruns(c echo.Context, condition dto.Search
 	}
 	logger.Infof("DBから取得数:%d", len(dogrunsD))
 
+	//ドッグラン情報の過不足フィルター
+	dogrunsD = excludeInsufficientDogrunInfo(dogrunsD)
+
 	//検索結果からレスポンスを作成
 	dogrunLists, err := h.integrateDogrunInfos(dogrunsG, dogrunsD)
 	logger.Infof("レスポンス件数:%d", len(dogrunLists))
@@ -787,4 +790,22 @@ func (h *dogrunHandler) persistenceDogrunPlaceId(c echo.Context, placeId string)
 	}
 	logger.Infof("PKの生成  %s->%s", placeId, id)
 	return id, nil
+}
+
+// excludeIncompleteDogrunInfo:
+//
+// args:
+//   - []dto.Dogrun:	チェック対象のドッグランDB情報
+//
+// return:
+//   - []model.Dogrun:	チェック済みドッグラン情報
+func excludeInsufficientDogrunInfo(dogrunsDParam []model.Dogrun) []model.Dogrun {
+	dogruns := []model.Dogrun{}
+	for _, dogrun := range dogrunsDParam {
+		if dogrun.IsSufficientInfo() {
+			dogruns = append(dogruns, dogrun)
+		}
+	}
+
+	return dogruns
 }

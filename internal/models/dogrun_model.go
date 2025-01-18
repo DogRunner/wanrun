@@ -20,6 +20,7 @@ type Dogrun struct {
 	Latitude        sql.NullFloat64 `gorm:"column:latitude"`
 	Longitude       sql.NullFloat64 `gorm:"column:longitude"`
 	Description     sql.NullString  `gorm:"type:text;column:description"`
+	IsManaged       sql.NullBool    `gorm:"column:is_managed"`
 	CreateAt        sql.NullTime    `gorm:"column:reg_at;not null;autoCreateTime"`
 	UpdateAt        sql.NullTime    `gorm:"column:upd_at;not null;autoUpdateTime"`
 
@@ -83,6 +84,27 @@ func (d *Dogrun) IsSpecialBusinessHoursEmpty() bool {
 */
 func (d *Dogrun) IsSpecialBusinessHoursNotEmpty() bool {
 	return !d.IsSpecialBusinessHoursEmpty()
+}
+
+/*
+データの過不足チェック
+Dogrun情報としての最低限必要情報のチェック
+*/
+func (d *Dogrun) IsSufficientInfo() bool {
+	if d.Name.Valid {
+		return false
+	}
+	if d.Address.Valid {
+		return false
+	}
+	if d.Latitude.Valid {
+		return false
+	}
+	if d.Longitude.Valid {
+		return false
+	}
+
+	return true
 }
 
 /*
