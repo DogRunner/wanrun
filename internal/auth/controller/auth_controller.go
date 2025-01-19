@@ -16,9 +16,9 @@ import (
 
 type IAuthController interface {
 	// SignUp(c echo.Context) error
-	LogIn(c echo.Context) error
+	LogInDogowner(c echo.Context) error
 	LogInDogrunmg(c echo.Context) error
-	Revoke(c echo.Context) error
+	RevokeDogowner(c echo.Context) error
 	RevokeDogrunmg(c echo.Context) error
 	// GoogleOAuth(c echo.Context) error
 }
@@ -114,26 +114,30 @@ GoogleのOAuth認証
 // 	})
 // }
 
-// LogIn: login機能
+// LogInDogowner: dogownerのlogin機能
 //
 // args:
 //   - echo.Context: c Echoのコンテキスト。リクエストやレスポンスにアクセスするために使用されます。
 //
 // return:
 //   - error: error情報
-func (ac *authController) LogIn(c echo.Context) error {
+func (ac *authController) LogInDogowner(c echo.Context) error {
 	logger := log.GetLogger(c).Sugar()
 
-	ador := dto.AuthDogOwnerReq{}
+	adoReq := dto.AuthDogOwnerReq{}
 
-	if err := c.Bind(&ador); err != nil {
-		wrErr := errors.NewWRError(err, "入力項目に不正があります。", errors.NewDogOwnerClientErrorEType())
+	if err := c.Bind(&adoReq); err != nil {
+		wrErr := errors.NewWRError(
+			err,
+			"入力項目に不正があります。",
+			errors.NewAuthClientErrorEType(),
+		)
 		logger.Error(wrErr)
 		return wrErr
 	}
 
 	// LogIn機能
-	token, wrErr := ac.ah.LogIn(c, ador)
+	token, wrErr := ac.ah.LogInDogowner(c, adoReq)
 
 	if wrErr != nil {
 		return wrErr
@@ -144,22 +148,22 @@ func (ac *authController) LogIn(c echo.Context) error {
 	})
 }
 
-// Revoke: dogownerのrevoke機能
+// RevokeDogowner: dogownerのrevoke機能
 //
 // args:
 //   - echo.Context: c Echoのコンテキスト。リクエストやレスポンスにアクセスするために使用されます。
 //
 // return:
 //   - error: error情報
-func (ac *authController) Revoke(c echo.Context) error {
-	// claims情報の取得
-	claims, wrErr := wrcontext.GetVerifiedClaims(c)
+func (ac *authController) RevokeDogowner(c echo.Context) error {
+	// claimsからdogrunmgのID取得
+	dogownerID, wrErr := wrcontext.GetLoginUserID(c)
 
 	if wrErr != nil {
 		return wrErr
 	}
 
-	if wrErr := ac.ah.Revoke(c, claims); wrErr != nil {
+	if wrErr := ac.ah.RevokeDogowner(c, dogownerID); wrErr != nil {
 		return wrErr
 	}
 

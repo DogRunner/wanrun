@@ -15,6 +15,7 @@ import (
 
 type ICmsController interface {
 	UploadFile(c echo.Context) error
+	DeleteFile(c echo.Context) error
 }
 
 type cmsController struct {
@@ -86,4 +87,33 @@ func (cc *cmsController) UploadFile(c echo.Context) error {
 	}
 
 	return c.JSON(http.StatusOK, fuRes)
+}
+
+// DeleteFile: S3データの削除
+//
+// args:
+//   - echo.Context: Echoのコンテキスト。リクエストやレスポンスにアクセスするために使用
+//
+// return:
+//   - error: error情報
+func (cc *cmsController) DeleteFile(c echo.Context) error {
+	logger := log.GetLogger(c).Sugar()
+
+	fdReq := dto.FileDeleteReq{}
+	if err := c.Bind(&fdReq); err != nil {
+		wrErr := errors.NewWRError(
+			err,
+			"入力項目に不正があります。",
+			errors.NewCmsClientErrorEType(),
+		)
+		logger.Error(wrErr)
+		return wrErr
+	}
+
+	// S3データ削除とS3fileデータ情報をDBから削除
+	if wrErr := cc.ch.HandleFileDelete(c, fdReq); wrErr != nil {
+		return wrErr
+	}
+
+	return c.NoContent(http.StatusNoContent)
 }
