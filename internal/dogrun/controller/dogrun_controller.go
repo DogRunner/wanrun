@@ -18,6 +18,7 @@ type IDogrunController interface {
 	GetDogrunTagMst(echo.Context) error
 	SearchAroundDogruns(echo.Context) error
 	GetDogrunPhoto(echo.Context) error
+	CreateQRCode(echo.Context) error
 }
 
 type dogrunController struct {
@@ -144,4 +145,53 @@ func validateMaxPX(px string) error {
 		return errors.NewWRError(nil, "リクエストの画像サイズの指定が不正です。1以上4800以下である必要があります。", errors.NewDogrunClientErrorEType())
 	}
 	return nil
+}
+
+// CreateQRCode: QRコードの作成
+//
+// args:
+//   - echo.Context: Echoのコンテキスト。リクエストやレスポンスにアクセスするために使用
+//
+// return:
+//   - error: error情報
+func (dc *dogrunController) CreateQRCode(c echo.Context) error {
+	logger := log.GetLogger(c).Sugar()
+
+	qcr := dto.QRCodeReq{}
+
+	if err := c.Bind(&qcr); err != nil {
+		wrErr := errors.NewWRError(
+			err,
+			"入力項目に不正があります。",
+			errors.NewDogrunClientErrorEType(),
+		)
+		logger.Error(wrErr)
+		return wrErr
+	}
+
+	// バリデータのインスタンス作成
+	validate := validator.New()
+
+	//リクエストボディのバリデーション
+	if err := validate.Struct(&qcr); err != nil {
+		err = errors.NewWRError(
+			err,
+			"必須の項目に不正があります。",
+			errors.NewDogrunClientErrorEType(),
+		)
+		logger.Error(err)
+		return err
+	}
+
+	// QRコードの生成処理
+	qrCode, wrErr := dc.h.GenerateQRCode(c, qcr)
+
+	if wrErr != nil {
+		return wrErr
+	}
+
+	// レスポンスヘッダーの設定
+	c.Response().Header().Set("Cache-Control", "no-cache") // キャッシュ防止の設定
+
+	return c.Blob(http.StatusOK, "image/png", qrCode)
 }
