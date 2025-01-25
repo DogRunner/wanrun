@@ -39,6 +39,7 @@ type DogrunLists struct {
 	DogrunTags        []int64         `json:"dogrunTagId,omitempty"`
 	Photos            []PhotoInfo     `json:"photos,omitempty"`
 	IsBookmarked      bool            `json:"isBookmarked"`
+	IsManaged         bool            `json:"isManaged"`
 }
 
 // 営業日情報

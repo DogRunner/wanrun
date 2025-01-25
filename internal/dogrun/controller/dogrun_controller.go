@@ -90,11 +90,24 @@ func (dc *dogrunController) SearchAroundDogruns(c echo.Context) error {
 		return err
 	}
 
-	dogruns, err := dc.h.SearchAroundDogruns(c, condition)
-	if err != nil {
-		return err
+	if len(condition.IncludeDogrunTags) == 0 {
+		//ドッグランタグ検索条件がない場合は、google検索を基準とする
+		if resDogruns, err := dc.h.SearchAroundDogruns(c, condition); err != nil {
+			return err
+		} else {
+			return c.JSON(http.StatusOK, resDogruns)
+
+		}
+	} else {
+		//ドッグランタグ検索条件がある場合は、DB検索を基準とする
+		if resDogruns, err := dc.h.SearchAroundAndTagDogruns(c, condition); err != nil {
+			return err
+		} else {
+			return c.JSON(http.StatusOK, resDogruns)
+
+		}
 	}
-	return c.JSON(http.StatusOK, dogruns)
+
 }
 
 // ドッグランの画像nameよりsrcUrlの取得

@@ -7,11 +7,8 @@ CREATE TABLE IF NOT EXISTS dogruns (
     latitude decimal(18, 15),
     longitude decimal(18, 15),
     postcode varchar(8),
-    business_day int,
-    holiday int,
-    open_time time,
-    close_time time,
     description text,
+    is_managed boolean,
     reg_at timestamp not null,
     upd_at timestamp not null
 );
