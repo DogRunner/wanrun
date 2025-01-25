@@ -29,7 +29,7 @@ type centerTarget struct {
 */
 type SearchAroundRectangleCondition struct {
 	Target            rectangleTarget `json:"target" validate:"required"`
-	IncludeDogrunTags []int64         `json:"include_dogrunTags" validate:"min=0,max=100"`
+	IncludeDogrunTags []int64         `json:"includeDogrunTags" validate:"min=0,max=100"`
 }
 
 /*

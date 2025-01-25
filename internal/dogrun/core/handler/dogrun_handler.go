@@ -168,8 +168,7 @@ func (h *dogrunHandler) SearchAroundDogruns(c echo.Context, condition dto.Search
 	}
 
 	//dogrunIDがないデータのメンテしてセット
-	err = h.GenerateSetDogrunIDs(c, dogrunLists)
-	if err != nil {
+	if err = h.GenerateSetDogrunIDs(c, dogrunLists); err != nil {
 		return nil, err
 	}
 

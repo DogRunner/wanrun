@@ -28,7 +28,7 @@ const (
 
 var sex_values []string = []string{SEX_MALE, SEX_FEMALE, SEX_UNKNOWN, SEX_OTHER}
 
-// 性別のバリデーションs
+// 性別のバリデーション
 func VSex(fl validator.FieldLevel) bool {
 	sex := fl.Field().String()
 
