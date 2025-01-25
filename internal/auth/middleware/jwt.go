@@ -10,6 +10,7 @@ import (
 	"github.com/labstack/echo/v4"
 	"github.com/wanrun-develop/wanrun/configs"
 	"github.com/wanrun-develop/wanrun/internal/auth/adapters/repository"
+	"github.com/wanrun-develop/wanrun/internal/auth/core"
 	"github.com/wanrun-develop/wanrun/internal/auth/core/handler"
 	wrErrs "github.com/wanrun-develop/wanrun/pkg/errors"
 	"github.com/wanrun-develop/wanrun/pkg/log"
@@ -28,15 +29,10 @@ func NewAuthJwt(ar repository.IAuthRepository) IAuthJwt {
 	return &authJwt{ar}
 }
 
-const (
-	CONTEXT_KEY   string = "user_info"
-	TOKEN_LOOK_UP string = "header:Authorization:Bearer " // `Bearer `しか切り取れないのでスペースが多い場合は未対応
-)
-
 // スキップ対象のパスを定義
 var skipPaths = []string{
-	"/auth/token/dogowner",
-	"/auth/token/dogrunmg",
+	"/auth/dogowner/token",
+	"/auth/dogrunmg/token",
 	"/dogowner/signUp",
 	"/org/contract",
 	"/health",
@@ -56,8 +52,8 @@ func (aj *authJwt) NewJwtValidationMiddleware() echo.MiddlewareFunc {
 			NewClaimsFunc: func(c echo.Context) jwt.Claims {
 				return &handler.AccountClaims{} // カスタムクレームを設定
 			},
-			TokenLookup: TOKEN_LOOK_UP, // トークンの取得場所
-			ContextKey:  CONTEXT_KEY,   // カスタムキーを設定
+			TokenLookup: core.TOKEN_LOOK_UP, // トークンの取得場所
+			ContextKey:  core.CONTEXT_KEY,   // カスタムキーを設定
 			Skipper: func(c echo.Context) bool { // スキップするパスを指定
 				path := c.Path()
 				return slices.Contains(skipPaths, path)
@@ -73,7 +69,7 @@ func (aj *authJwt) NewJwtValidationMiddleware() echo.MiddlewareFunc {
 				}
 
 				// 全ての検証を終えたclaimsをcontextにセット
-				c.Set(CONTEXT_KEY, claims)
+				c.Set(core.CONTEXT_KEY, claims)
 			},
 		},
 	)
@@ -90,7 +86,7 @@ func (aj *authJwt) extractAndValidateJwtClaims(c echo.Context) (*handler.Account
 	logger := log.GetLogger(c).Sugar()
 
 	// JWTトークンをコンテキストから取得
-	token, ok := c.Get(CONTEXT_KEY).(*jwt.Token)
+	token, ok := c.Get(core.CONTEXT_KEY).(*jwt.Token)
 	if !ok || token == nil {
 		wrErr := wrErrs.NewWRError(
 			nil,
@@ -170,11 +166,11 @@ func (aj *authJwt) jwtIDValid(c echo.Context, ac *handler.AccountClaims) error {
 	getJwtID := func(role int, id int64) (string, error) {
 		switch role {
 		// dogowner
-		case handler.DOGOWNER_ROLE:
+		case core.DOGOWNER_ROLE:
 			// dogownerのjwtID取得
 			return aj.ar.GetDogownerJwtID(c, id)
 		// dogrunmg
-		case handler.DOGRUNMG_ROLE, handler.DOGRUNMG_ADMIN_ROLE:
+		case core.DOGRUNMG_ROLE, core.DOGRUNMG_ADMIN_ROLE:
 			// dogrunmgのjwtID取得
 			return aj.ar.GetDogrunmgJwtID(c, id)
 		default:

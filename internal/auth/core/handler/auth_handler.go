@@ -8,6 +8,7 @@ import (
 	"github.com/labstack/echo/v4"
 	"github.com/wanrun-develop/wanrun/configs"
 	"github.com/wanrun-develop/wanrun/internal/auth/adapters/repository"
+	"github.com/wanrun-develop/wanrun/internal/auth/core"
 	authDTO "github.com/wanrun-develop/wanrun/internal/auth/core/dto"
 	"github.com/wanrun-develop/wanrun/pkg/errors"
 	wrErrors "github.com/wanrun-develop/wanrun/pkg/errors"
@@ -43,12 +44,6 @@ type AccountClaims struct {
 	Role int    `json:"role"`
 	jwt.RegisteredClaims
 }
-
-const (
-	DOGRUNMG_ROLE       int = 1
-	DOGRUNMG_ADMIN_ROLE int = 2
-	DOGOWNER_ROLE       int = 3
-)
 
 // GetDogOwnerIDAsInt64: 共通処理で、int64のDogOwnerのID取得。
 //
@@ -152,7 +147,7 @@ func (ah *authHandler) LogInDogowner(c echo.Context, adoReq authDTO.AuthDogOwner
 	dogownerDetail := authDTO.UserAuthInfoDTO{
 		UserID: results[0].AuthDogOwner.DogOwnerID.Int64,
 		JwtID:  jwtID,
-		RoleID: DOGOWNER_ROLE,
+		RoleID: core.DOGOWNER_ROLE,
 	}
 
 	logger.Infof("dogownerDetail: %v", dogownerDetail)
@@ -254,9 +249,9 @@ func (ah *authHandler) LogInDogrunmg(c echo.Context, admReq authDTO.AuthDogrunmg
 	// dogrunmgがadminかどうかの識別
 	var roleID int
 	if results[0].AuthDogrunmg.IsAdmin.Valid && results[0].AuthDogrunmg.IsAdmin.Bool {
-		roleID = DOGRUNMG_ADMIN_ROLE
+		roleID = core.DOGRUNMG_ADMIN_ROLE
 	} else {
-		roleID = DOGRUNMG_ROLE
+		roleID = core.DOGRUNMG_ROLE
 	}
 
 	// 取得したDogrunmgの情報をdto詰め替え

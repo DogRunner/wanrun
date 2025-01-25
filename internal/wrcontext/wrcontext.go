@@ -4,9 +4,8 @@ import (
 	"strconv"
 
 	"github.com/labstack/echo/v4"
+	"github.com/wanrun-develop/wanrun/internal/auth/core"
 	"github.com/wanrun-develop/wanrun/internal/auth/core/handler"
-	authHandler "github.com/wanrun-develop/wanrun/internal/auth/core/handler"
-	"github.com/wanrun-develop/wanrun/internal/auth/middleware"
 	"github.com/wanrun-develop/wanrun/pkg/errors"
 	"github.com/wanrun-develop/wanrun/pkg/log"
 )
@@ -21,7 +20,7 @@ import (
 func GetVerifiedClaims(c echo.Context) (*handler.AccountClaims, error) {
 	logger := log.GetLogger(c).Sugar()
 
-	claims, ok := c.Get(middleware.CONTEXT_KEY).(*handler.AccountClaims)
+	claims, ok := c.Get(core.CONTEXT_KEY).(*handler.AccountClaims)
 	if !ok || claims == nil {
 		wrErr := errors.NewWRError(
 			nil,
@@ -79,7 +78,7 @@ func GetLoginDogownerID(c echo.Context) (int64, error) {
 	if err != nil {
 		return 0, err
 	}
-	if claims.Role != authHandler.DOGOWNER_ROLE {
+	if claims.Role != core.DOGOWNER_ROLE {
 		err = errors.NewWRError(
 			nil,
 			"このログインユーザーはdogownerではありません。",
@@ -98,4 +97,20 @@ func GetLoginDogownerID(c echo.Context) (int64, error) {
 		return 0, err
 	}
 	return userID, nil
+}
+
+// GetLoginUserRole: ログインユーザー（認証済み）のロールを取得する
+//
+// args:
+//   - echo.Context:	コンテキスト
+//
+// return:
+//   - int:	ロールID
+//   - error:	エラー
+func GetLoginUserRole(c echo.Context) (int, error) {
+	claims, err := GetVerifiedClaims(c)
+	if err != nil {
+		return 0, err
+	}
+	return claims.Role, nil
 }
