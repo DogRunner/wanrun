@@ -1,0 +1,97 @@
+name: Build And Deploy to Amazon ECS
+
+on:
+  push:
+    branches:
+      - hoge
+    #   - develop
+    paths:
+      - "internal/**"
+      - "cmd/**"
+      - "common/**"
+      - "configs/**"
+      - "pkg/**"
+      - "Dockerfile"
+      - "go.mod"
+      - "go.sum"
+
+env:
+  AWS_REGION: ap-northeast-1
+  AWS_ROLE_ARN: 
+
+  ECR_REPOSITORY: wr-${{ vars.ENV }}-wanrun
+  ECS_SERVICE: wr-${{ vars.ENV }}-wanrun
+  ECS_CLUSTER: wr-${{ vars.ENV }}-cluster
+  ECS_TASK_DEFINITION: wr-${{ vars.ENV }}-wanrun 
+  CONTAINER_NAME: wanrun
+
+jobs:
+  deploy:
+    name: Build and Deploy
+    runs-on: ubuntu-latest
+    environment: develop
+    permissions: 
+      id-token: write
+      contents: read
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4.2.2
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4.0.2
+        with:
+          role-to-assume: ${{ env.AWS_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Cache Docker layers
+        uses: actions/cache@v4.2.0
+        with:
+          path: /tmp/.buildx-cache
+          key: ${{ github.ref }}-${{ github.sha }}
+          restore-keys: |
+            ${{ github.ref }}-${{ github.sha }}
+            ${{ github.ref }}
+            refs/head/${{ vars.ENV }}
+
+      - name: Set up buildx
+        id: buildx
+        uses: docker/setup-buildx-action@v3.8.0
+
+      - name: Login to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v2.0.1
+        with:
+          mask-password: 'true'
+
+      - name: Build and push
+        id: docker-build-and-push
+        uses: docker/build-push-action@v6.13.0
+        with:
+            context: ./
+            file: ./Dockerfile
+            builder: ${{ steps.buildx.outputs.name }}
+            push: true
+            tags: ${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_REPOSITORY }}:${{ github.sha }}
+            cache-from: type=local,src=/tmp/.buildx-cache
+            cache-to: type=local,dest=/tmp/.buildx-cache
+
+      - name: Logout from Amazon ECR
+        if: always()
+        run: docker logout ${{ steps.login-ecr.outputs.registry }}
+
+      - name: Fill in the new image ID in the Amazon ECS task definition
+        id: task-def
+        uses: aws-actions/amazon-ecs-render-task-definition@v1.6.2
+        with:
+          task-definition: ${{ env.ECS_TASK_DEFINITION }}
+          container-name: ${{ env.CONTAINER_NAME }}
+          image: ${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_REPOSITORY }}:${{ github.sha }}
+
+      - name: Deploy Amazon ECS task definition
+        uses: aws-actions/amazon-ecs-deploy-task-definition@v2.2.0
+        with:
+          task-definition: ${{ steps.task-def.outputs.task-definition }}
+          service: ${{ env.ECS_SERVICE }}
+          cluster: ${{ env.ECS_CLUSTER }}
+          wait-for-service-stability: true
