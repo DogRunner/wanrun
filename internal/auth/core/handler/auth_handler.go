@@ -39,9 +39,8 @@ func NewAuthHandler(ar repository.IAuthRepository) IAuthHandler {
 
 // JWTのClaims
 type AccountClaims struct {
-	ID   string `json:"id"`
-	JTI  string `json:"jti"`
-	Role int    `json:"role"`
+	UserID string `json:"userId"`
+	Role   int    `json:"role"`
 	jwt.RegisteredClaims
 }
 
@@ -57,7 +56,7 @@ func (claims *AccountClaims) GetDogOwnerIDAsInt64(c echo.Context) (int64, error)
 	logger := log.GetLogger(c).Sugar()
 
 	// IDをstringからint64に変換
-	dogOwnerID, err := strconv.ParseInt(claims.ID, 10, 64)
+	dogOwnerID, err := strconv.ParseInt(claims.UserID, 10, 64)
 	if err != nil {
 		wrErr := errors.NewWRError(
 			nil,
@@ -398,15 +397,15 @@ func createToken(
 
 	// JWTのペイロード
 	claims := AccountClaims{
-		ID:   strconv.FormatInt(uaDTO.UserID, 10), // stringにコンバート
-		JTI:  uaDTO.JwtID,
-		Role: uaDTO.RoleID,
+		UserID: strconv.FormatInt(uaDTO.UserID, 10), // stringにコンバート
+		Role:   uaDTO.RoleID,
 		RegisteredClaims: jwt.RegisteredClaims{
 			ExpiresAt: jwt.NewNumericDate( // 有効時間
 				time.Now().Add(
 					time.Hour * time.Duration(expTime),
 				),
 			),
+			ID: uaDTO.JwtID,
 		},
 	}
 

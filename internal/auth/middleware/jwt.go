@@ -151,7 +151,7 @@ func (aj *authJwt) jwtIDValid(c echo.Context, ac *handler.AccountClaims) error {
 	logger := log.GetLogger(c).Sugar()
 
 	// 共通処理: IDのパース
-	id, err := strconv.ParseInt(ac.ID, 10, 64)
+	id, err := strconv.ParseInt(ac.UserID, 10, 64)
 	if err != nil {
 		wrErr := wrErrs.NewWRError(
 			nil,
@@ -191,7 +191,7 @@ func (aj *authJwt) jwtIDValid(c echo.Context, ac *handler.AccountClaims) error {
 	}
 
 	// JTIの一致確認
-	if jwtID != ac.JTI {
+	if jwtID != ac.ID {
 		wrErr := wrErrs.NewWRError(
 			nil,
 			"jwt_idが一致しません。",

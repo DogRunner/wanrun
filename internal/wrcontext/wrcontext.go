@@ -50,7 +50,7 @@ func GetLoginUserID(c echo.Context) (int64, error) {
 	if err != nil {
 		return 0, err
 	}
-	userID, err := strconv.ParseInt(claims.ID, 10, 64)
+	userID, err := strconv.ParseInt(claims.UserID, 10, 64)
 	if err != nil {
 		logger.Error(err)
 		err = errors.NewWRError(
@@ -86,7 +86,7 @@ func GetLoginDogownerID(c echo.Context) (int64, error) {
 		)
 		return 0, err
 	}
-	userID, err := strconv.ParseInt(claims.ID, 10, 64)
+	userID, err := strconv.ParseInt(claims.UserID, 10, 64)
 	if err != nil {
 		logger.Error(err)
 		err = errors.NewWRError(
