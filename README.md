@@ -74,6 +74,7 @@ MIGRATION_DIRECTION=force MIGRATION_VERSION={対象のバージョン番号} go 
 DBが起動している前提
 1. cd ./migrate/dogful
 2. go run migrate.go
+
 下記が出れば成功
 件数は、2025/1/26時点
 ```
