@@ -1,6 +1,7 @@
 package main
 
 import (
+	"compress/gzip"
 	"database/sql"
 	"encoding/json"
 	"fmt"
@@ -14,21 +15,29 @@ import (
 dog-fulからのマイグレート
 */
 type DogFulJson struct {
-	Name             string `json:"name"`
-	PrefectureID     int    `json:"prefecture_id"`
-	Address1         string `json:"address1"`
-	Address2         string `json:"address2"`
-	Tel              string `json:"tel"`
-	Url              string `json:"url"`
-	BusinessHourDesc string `json:"open_hour_free_text"`
-	Catch            string `json:"catch"`
-	Content          string `json:"content"`
-	Lonlat           Lonlat `json:"lonlat"`
+	ID               int         `json:"id"`
+	Name             string      `json:"name"`
+	PrefectureID     int         `json:"prefecture_id"`
+	Address1         string      `json:"address1"`
+	Address2         string      `json:"address2"`
+	Tel              string      `json:"tel"`
+	Url              string      `json:"url"`
+	BusinessHourDesc string      `json:"open_hour_free_text"`
+	Catch            string      `json:"catch"`
+	Content          string      `json:"content"`
+	Lonlat           Lonlat      `json:"lonlat"`
+	DogrunTags       []DogrunTag `json:"dog_run_feature_tags"`
 }
 
 type Lonlat struct {
 	X float64 `json:"x"`
 	Y float64 `json:"y"`
+}
+
+type DogrunTag struct {
+	ID     int    `json:"id"`
+	Name   string `json:"name"`
+	NameEn string `json:"slug"`
 }
 
 var prefectures = map[int]string{
@@ -81,31 +90,57 @@ var prefectures = map[int]string{
 	47: "沖縄県",
 }
 
-func main() {
+// [dogfulTagId] : wanrunTagId
+var tagMapping = map[int]int{
+	12: 20,
+	21: 7,
+	22: 21,
+	23: 15,
+	24: 18,
+	25: 26,
+	26: 17,
+	27: 2,
+	28: 13,
+	29: 12,
+	30: 24,
+	31: 19,
+	32: 25,
+	37: 10,
+	46: 14,
+}
 
-	// JSONファイルを開く
-	file, err := os.Open("./dogruns.json")
+func main() {
+	// JSON gzipファイルを開く
+	srcGzFile, err := os.Open("./dogruns.json.gz")
 	if err != nil {
 		fmt.Println("Error:", err)
 		return
 	}
-	defer file.Close()
+	defer srcGzFile.Close()
+
+	// gzipリーダーを作成
+	gzReader, err := gzip.NewReader(srcGzFile)
+	if err != nil {
+		fmt.Printf("Failed to create gzip reader: %v\n", err)
+		return
+	}
+	defer gzReader.Close()
 
 	// JSONを構造体にデコード
 	var dogruns []DogFulJson
-	decoder := json.NewDecoder(file)
-	if err := decoder.Decode(&dogruns); err != nil {
+	if err := json.NewDecoder(gzReader).Decode(&dogruns); err != nil {
 		fmt.Println("Error:", err)
 		return
 	}
-	fmt.Println("dog ful dogrun %w", dogruns[0])
 
-	sql := `INSERT INTO dogruns (place_id, dogrun_manager_id, name, address, tel, url, latitude, longitude, business_hour_desc, description, reg_at, upd_at) VALUES
-	(null, null, $1, $2, $3, $4, $5, $6, $7, $8,  NOW(), NOW())`
-	exec(sql, dogruns)
+	exec(dogruns)
 }
 
-func exec(sqlStr string, dogruns []DogFulJson) {
+var dogrunsInsertSql = `INSERT INTO dogruns (place_id, dogrun_manager_id, name, address, tel, url, latitude, longitude, business_hour_desc, description, is_managed, reg_at, upd_at) VALUES
+	(null, null, $1, $2, $3, $4, $5, $6, $7, $8, false, NOW(), NOW()) RETURNING dogrun_id;`
+var dogrunTagsInsertSql = "INSERT INTO dogrun_tags (dogrun_id, tag_id) VALUES ($1, $2);"
+
+func exec(dogruns []DogFulJson) {
 	// PostgreSQL接続文字列
 	postgresUrl := fmt.Sprintf("postgres://%s:%s@%s:%s/%s?sslmode=disable",
 		os.Getenv("POSTGRES_USER"),
@@ -113,8 +148,6 @@ func exec(sqlStr string, dogruns []DogFulJson) {
 		"localhost", // hostOSから実行する想定のため明示的に指定
 		"5555",      // host portを明示的に指定
 		os.Getenv("POSTGRES_DB"))
-
-	fmt.Println(postgresUrl)
 
 	// データベース接続
 	db, err := sql.Open("postgres", postgresUrl)
@@ -129,7 +162,8 @@ func exec(sqlStr string, dogruns []DogFulJson) {
 	}
 
 	for _, dogrun := range dogruns {
-		_, err = tx.Exec(sqlStr,
+		var dogrunID int
+		err := tx.QueryRow(dogrunsInsertSql,
 			dogrun.Name,
 			prefectures[dogrun.PrefectureID]+dogrun.Address1+dogrun.Address2,
 			dogrun.Tel,
@@ -138,19 +172,43 @@ func exec(sqlStr string, dogruns []DogFulJson) {
 			dogrun.Lonlat.Y,
 			dogrun.BusinessHourDesc,
 			dogrun.Catch+"\n"+dogrun.Content,
-		)
+		).Scan(&dogrunID)
 		if err != nil {
-			fmt.Printf("エラーのためロールバック")
-			_ = tx.Rollback() // エラー時にロールバック
-			log.Fatalf("Failed to insert data: %v", err)
+			errExit(tx, err)
+		}
+
+		fmt.Printf("insert is success. dogrun id :%d\n", dogrunID)
+
+		if err != nil {
+			errExit(tx, err)
+		}
+
+		for _, tag := range dogrun.DogrunTags {
+			if tagMapping[tag.ID] == 0 {
+				continue
+			}
+			_, err = tx.Exec(dogrunTagsInsertSql,
+				dogrunID,
+				tagMapping[tag.ID],
+			)
+			if err != nil {
+				fmt.Printf("dogful_dogrun_id:%d, dogful_tag_id:%d, wanrun_tag_id:%d\n", dogrun.ID, tag.ID, tagMapping[tag.ID])
+				errExit(tx, err)
+			}
 		}
 
 	}
 
-	fmt.Printf("コミットします")
+	fmt.Printf("コミットします\n")
 	if err := tx.Commit(); err != nil {
-		log.Fatalf("Failed to commit transaction: %v", err)
+		log.Fatalf("Failed to commit transaction: %v\n", err)
 	}
 
-	fmt.Printf("Inserted new record ")
+	fmt.Printf("Inserted new record. total count :%d\n", len(dogruns))
+}
+
+func errExit(tx *sql.Tx, err error) {
+	fmt.Printf("エラーのためロールバック\n")
+	_ = tx.Rollback() // エラー時にロールバック
+	log.Fatalf("Failed to insert data: %v\n", err)
 }
