@@ -3,6 +3,7 @@ package handler
 import (
 	"github.com/labstack/echo/v4"
 	authRepository "github.com/wanrun-develop/wanrun/internal/auth/adapters/repository"
+	"github.com/wanrun-develop/wanrun/internal/auth/core"
 	authDTO "github.com/wanrun-develop/wanrun/internal/auth/core/dto"
 	authFacade "github.com/wanrun-develop/wanrun/internal/auth/core/facade"
 	authHandler "github.com/wanrun-develop/wanrun/internal/auth/core/handler"
@@ -151,7 +152,7 @@ func (oh *orgHandler) OrgSignUp(
 	dogrunmgrDetail := authDTO.UserAuthInfoDTO{
 		UserID: orgInfo.AuthDogrunmg.DogrunmgID.Int64,
 		JwtID:  orgInfo.AuthDogrunmg.JwtID.String,
-		RoleID: authHandler.DOGRUNMG_ADMIN_ROLE,
+		RoleID: core.DOGRUNMG_ADMIN_ROLE,
 	}
 
 	logger.Infof("dogrunmgDetail: %v", dogrunmgrDetail)
