@@ -8,3 +8,11 @@ type FileUploadReq struct {
 	Src        multipart.File // ファイルの内容
 	DogOwnerID int64
 }
+
+type FileUploadRes struct {
+	FileID string `json:"fileId"`
+}
+
+type FileDeleteReq struct {
+	FileID string `json:"fileId" validate:"required"`
+}

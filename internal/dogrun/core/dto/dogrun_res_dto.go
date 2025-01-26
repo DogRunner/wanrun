@@ -6,8 +6,8 @@ import (
 
 // ドッグラン詳細画面での表示情報
 type DogrunDetail struct {
-	DogrunID        int          `json:"dogrunId,omitempty"`
-	DogrunManagerID int          `json:"dogrunManagerId,omitempty"`
+	DogrunID        int64        `json:"dogrunId,omitempty"`
+	DogrunManagerID int64        `json:"dogrunManagerId,omitempty"`
 	PlaceId         string       `json:"placeId,omitempty"`
 	Name            string       `json:"name"`
 	Address         Address      `json:"address"`
@@ -25,7 +25,7 @@ type DogrunDetail struct {
 
 // ドッグラン一覧での表示情報
 type DogrunLists struct {
-	DogrunID          int             `json:"dogrunId,omitempty"`
+	DogrunID          int64           `json:"dogrunId,omitempty"`
 	PlaceId           string          `json:"placeId,omitempty"`
 	Name              string          `json:"name"`
 	Address           Address         `json:"address"`
@@ -38,6 +38,8 @@ type DogrunLists struct {
 	UserRatingCount   int             `json:"userRatingCount,omitempty"`
 	DogrunTags        []int64         `json:"dogrunTagId,omitempty"`
 	Photos            []PhotoInfo     `json:"photos,omitempty"`
+	IsBookmarked      bool            `json:"isBookmarked"`
+	IsManaged         bool            `json:"isManaged"`
 }
 
 // 営業日情報

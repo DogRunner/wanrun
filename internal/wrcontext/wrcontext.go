@@ -1,9 +1,11 @@
 package wrcontext
 
 import (
+	"strconv"
+
 	"github.com/labstack/echo/v4"
+	"github.com/wanrun-develop/wanrun/internal/auth/core"
 	"github.com/wanrun-develop/wanrun/internal/auth/core/handler"
-	"github.com/wanrun-develop/wanrun/internal/auth/middleware"
 	"github.com/wanrun-develop/wanrun/pkg/errors"
 	"github.com/wanrun-develop/wanrun/pkg/log"
 )
@@ -18,7 +20,7 @@ import (
 func GetVerifiedClaims(c echo.Context) (*handler.AccountClaims, error) {
 	logger := log.GetLogger(c).Sugar()
 
-	claims, ok := c.Get(middleware.CONTEXT_KEY).(*handler.AccountClaims)
+	claims, ok := c.Get(core.CONTEXT_KEY).(*handler.AccountClaims)
 	if !ok || claims == nil {
 		wrErr := errors.NewWRError(
 			nil,
@@ -30,4 +32,85 @@ func GetVerifiedClaims(c echo.Context) (*handler.AccountClaims, error) {
 	}
 
 	return claims, nil
+}
+
+// GetLoginUserId: ログインユーザーIDの取得
+//
+//	コンテキストのjwt解析済みclaimからユーザーID取得
+//
+// args:
+//   - echo.Context:	コンテキスト
+//
+// return:
+//   - int64:	ユーザーID
+func GetLoginUserID(c echo.Context) (int64, error) {
+	logger := log.GetLogger(c).Sugar()
+
+	claims, err := GetVerifiedClaims(c)
+	if err != nil {
+		return 0, err
+	}
+	userID, err := strconv.ParseInt(claims.UserID, 10, 64)
+	if err != nil {
+		logger.Error(err)
+		err = errors.NewWRError(
+			nil,
+			"型の形式が異なっています。",
+			errors.NewAuthClientErrorEType(),
+		)
+		return 0, err
+	}
+	return userID, nil
+}
+
+// GetLoginUserId: ログインユーザーのdogownerIDの取得
+// コンテキストのjwt解析済みclaimからユーザーID取得
+// dogownerのみ許容
+// args:
+//   - echo.Context:	コンテキスト
+//
+// return:
+//   - int64:	ユーザーID
+func GetLoginDogownerID(c echo.Context) (int64, error) {
+	logger := log.GetLogger(c).Sugar()
+
+	claims, err := GetVerifiedClaims(c)
+	if err != nil {
+		return 0, err
+	}
+	if claims.Role != core.DOGOWNER_ROLE {
+		err = errors.NewWRError(
+			nil,
+			"このログインユーザーはdogownerではありません。",
+			errors.NewAuthClientErrorEType(),
+		)
+		return 0, err
+	}
+	userID, err := strconv.ParseInt(claims.UserID, 10, 64)
+	if err != nil {
+		logger.Error(err)
+		err = errors.NewWRError(
+			nil,
+			"型の形式が異なっています。",
+			errors.NewAuthClientErrorEType(),
+		)
+		return 0, err
+	}
+	return userID, nil
+}
+
+// GetLoginUserRole: ログインユーザー（認証済み）のロールを取得する
+//
+// args:
+//   - echo.Context:	コンテキスト
+//
+// return:
+//   - int:	ロールID
+//   - error:	エラー
+func GetLoginUserRole(c echo.Context) (int, error) {
+	claims, err := GetVerifiedClaims(c)
+	if err != nil {
+		return 0, err
+	}
+	return claims.Role, nil
 }

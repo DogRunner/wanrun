@@ -11,6 +11,7 @@ CREATE TABLE IF NOT EXISTS dogruns (
     url varchar(256),
     business_hour_desc varchar(512),
     description text,
+    is_managed boolean,
     reg_at timestamp not null,
     upd_at timestamp not null
 );

@@ -20,6 +20,7 @@ type Dogrun struct {
 	Latitude        sql.NullFloat64 `gorm:"column:latitude"`
 	Longitude       sql.NullFloat64 `gorm:"column:longitude"`
 	Description     sql.NullString  `gorm:"type:text;column:description"`
+	IsManaged       sql.NullBool    `gorm:"column:is_managed"`
 	CreateAt        sql.NullTime    `gorm:"column:reg_at;not null;autoCreateTime"`
 	UpdateAt        sql.NullTime    `gorm:"column:upd_at;not null;autoUpdateTime"`
 
@@ -86,6 +87,27 @@ func (d *Dogrun) IsSpecialBusinessHoursNotEmpty() bool {
 }
 
 /*
+データの過不足チェック
+Dogrun情報としての最低限必要情報のチェック
+*/
+func (d *Dogrun) IsSufficientInfo() bool {
+	if !d.Name.Valid {
+		return false
+	}
+	if !d.Address.Valid {
+		return false
+	}
+	if !d.Latitude.Valid {
+		return false
+	}
+	if !d.Longitude.Valid {
+		return false
+	}
+
+	return true
+}
+
+/*
 対象のドッグランの通常営業時時間データから、指定されたの曜日(数値:0~6)の営業時間データを返す
 */
 func (d *Dogrun) FetchTargetRegularBusinessHour(day int) RegularBusinessHour {
@@ -119,6 +141,13 @@ type RegularBusinessHour struct {
 	IsClosed              sql.NullBool   `gorm:"default:false;column:is_closed"`  // 定休日フラグ（trueの場合。opentime, closetimeより優先されるフラグ）
 	CreatedAt             sql.NullTime   `gorm:"column:created_at;autoCreateTime"`
 	UpdatedAt             sql.NullTime   `gorm:"column:updated_at;autoUpdateTime"`
+}
+
+/*
+RegularBusinessHourの有効チェック
+*/
+func (r *RegularBusinessHour) IsValid() bool {
+	return r.RegularBusinessHourID.Valid && r.DogrunID.Valid && r.Day.Valid
 }
 
 /*

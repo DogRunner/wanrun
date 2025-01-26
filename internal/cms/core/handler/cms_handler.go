@@ -22,15 +22,16 @@ const (
 )
 
 type ICmsHandler interface {
-	HandleFileUpload(c echo.Context, fuq dto.FileUploadReq) error
+	HandleFileUpload(c echo.Context, fuq dto.FileUploadReq) (dto.FileUploadRes, error)
+	HandleFileDelete(c echo.Context, fdReq dto.FileDeleteReq) error
 }
 
 type cmsHandler struct {
-	cs3 aws.IS3Client
+	cs3 aws.IS3Provider
 	cr  repository.ICmsRepository
 }
 
-func NewCmsHandler(cs3 aws.IS3Client, cr repository.ICmsRepository) ICmsHandler {
+func NewCmsHandler(cs3 aws.IS3Provider, cr repository.ICmsRepository) ICmsHandler {
 	return &cmsHandler{cs3, cr}
 }
 
@@ -42,40 +43,97 @@ func NewCmsHandler(cs3 aws.IS3Client, cr repository.ICmsRepository) ICmsHandler 
 //
 // return:
 //   - error: error情報
-func (ch *cmsHandler) HandleFileUpload(c echo.Context, fuq dto.FileUploadReq) error {
+func (ch *cmsHandler) HandleFileUpload(c echo.Context, fuq dto.FileUploadReq) (dto.FileUploadRes, error) {
 	// fileIDの生成
-	fileID, wrErr := generateFileID(c, 10)
+	fileID, wrErr := generateFileID(c)
 
 	if wrErr != nil {
-		return wrErr
+		return dto.FileUploadRes{}, wrErr
 	}
 
 	// s3オブジェクトキーの生成
 	s3ObjectKey := generateS3ObjectKey(fileID, fuq)
 
 	// s3へのアップロード
-	s3MetaData, wrErr := ch.cs3.PutObject(c, s3ObjectKey, fuq.Src)
-
-	if wrErr != nil {
-		return wrErr
+	if wrErr := ch.cs3.PutObject(c, s3ObjectKey, fuq.Src); wrErr != nil {
+		return dto.FileUploadRes{}, wrErr
 	}
 
 	// fileのサイズ取得
 	fileSize, wrErr := getFileSize(c, fuq.Src)
 	if wrErr != nil {
-		return wrErr
+		return dto.FileUploadRes{}, wrErr
 	}
 
 	s3FI := model.S3FileInfo{
 		FileID:      wrUtil.NewSqlNullString(fileID),
 		FileSize:    wrUtil.NewSqlNullInt64(fileSize),
-		S3ETag:      wrUtil.NewSqlNullString(wrUtil.ConvertStringPointer(s3MetaData.ETag)),
 		S3ObjectKey: wrUtil.NewSqlNullString(s3ObjectKey),
 		DogOwnerID:  wrUtil.NewSqlNullInt64(fuq.DogOwnerID),
 	}
 
 	// S3FileInfoの登録
 	if wrErr := ch.cr.CreateS3FileInfo(c, s3FI); wrErr != nil {
+		return dto.FileUploadRes{}, wrErr
+	}
+
+	fuRes := dto.FileUploadRes{
+		FileID: s3FI.FileID.String,
+	}
+
+	return fuRes, nil
+}
+
+// HandleFileDelete: S3へのファイル削除と対象のDBレコード削除
+//
+// args:
+//   - echo.Context: Echoのコンテキスト。リクエストやレスポンスにアクセスするために使用
+//   - dto.FileDeleteReq: フロントからのリクエスト情報
+//
+// return:
+//   - error: error情報
+func (ch *cmsHandler) HandleFileDelete(c echo.Context, fdReq dto.FileDeleteReq) error {
+	logger := log.GetLogger(c).Sugar()
+
+	// 対象のS3のfile情報があるのか確認
+	s3Files, wrErr := ch.cr.GetS3FileInfoByFileID(c, fdReq.FileID)
+
+	if wrErr != nil {
+		return wrErr
+	}
+
+	// 対象のS3File情報がいない場合
+	if len(s3Files) == 0 {
+		wrErr := wrErrors.NewWRError(
+			nil,
+			"対象のS3File情報が存在しません",
+			wrErrors.NewCmsClientErrorEType(),
+		)
+
+		logger.Errorf("s3File not found: %v", wrErr)
+		return wrErr
+	}
+
+	// 対象のFileIDが重複することがないので複数いる場合は、データの不整合が起きている(基本的に起きない)
+	if len(s3Files) > 1 {
+		wrErr := wrErrors.NewWRError(
+			nil,
+			"データの不整合が起きています",
+			wrErrors.NewCmsServerErrorEType(),
+		)
+		logger.Errorf("Multiple records found: %v", wrErr)
+		return wrErr
+	}
+
+	// 対象のオブジェクトの削除
+	if wrErr := ch.cs3.DeleteObject(c, s3Files[0].S3ObjectKey.String); wrErr != nil {
+		return wrErr
+	}
+
+	logger.Info("Success s3 object delete!!!")
+
+	// 対象のS3file情報をDBから削除
+	if wrErr := ch.cr.DeleteS3FileInfo(c, s3Files[0]); wrErr != nil {
 		return wrErr
 	}
 
@@ -104,12 +162,11 @@ func generateS3ObjectKey(fileID string, fuq dto.FileUploadReq) string {
 //
 // args:
 //   - echo.Context: Echoのコンテキスト。リクエストやレスポンスにアクセスするために使用
-//   - int: 生成されるIDの長さを指定
 //
 // return:
 //   - string: fileID
 //   - error: error情報
-func generateFileID(c echo.Context, l int) (string, error) {
+func generateFileID(c echo.Context) (string, error) {
 	logger := log.GetLogger(c).Sugar()
 
 	// カスタムエラー処理
@@ -124,7 +181,7 @@ func generateFileID(c echo.Context, l int) (string, error) {
 	}
 
 	// UUIDを生成
-	return util.UUIDGenerator(l, handleError)
+	return util.UUIDGenerator(handleError)
 }
 
 // getFileSize: fileサイズの取得

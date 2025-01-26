@@ -1,9 +1,6 @@
 package handler
 
 import (
-	_ "context"
-	"crypto/rand"
-	"encoding/base64"
 	"strconv"
 	"time"
 
@@ -11,22 +8,20 @@ import (
 	"github.com/labstack/echo/v4"
 	"github.com/wanrun-develop/wanrun/configs"
 	"github.com/wanrun-develop/wanrun/internal/auth/adapters/repository"
-	"github.com/wanrun-develop/wanrun/internal/auth/core/dto"
-	docDTO "github.com/wanrun-develop/wanrun/internal/dogOwner/core/dto"
-	model "github.com/wanrun-develop/wanrun/internal/models"
+	"github.com/wanrun-develop/wanrun/internal/auth/core"
+	authDTO "github.com/wanrun-develop/wanrun/internal/auth/core/dto"
 	"github.com/wanrun-develop/wanrun/pkg/errors"
 	wrErrors "github.com/wanrun-develop/wanrun/pkg/errors"
 	"github.com/wanrun-develop/wanrun/pkg/log"
-	wrUtil "github.com/wanrun-develop/wanrun/pkg/util"
+	"github.com/wanrun-develop/wanrun/pkg/util"
 	"golang.org/x/crypto/bcrypt"
 )
 
 type IAuthHandler interface {
-	CreateDogOwner(c echo.Context, ador dto.AuthDogOwnerReq) (dto.DogOwnerDTO, error)
-	GetSignedJwt(c echo.Context, dod docDTO.DogOwnerDTO) (string, error)
-	GetSignedJwtTemporary(c echo.Context, dod dto.DogOwnerDTO) (string, error)
-	FetchDogOwnerInfo(c echo.Context, ador dto.AuthDogOwnerReq) (dto.DogOwnerDTO, error)
-	Revoke(c echo.Context, claims *AccountClaims) error
+	LogInDogowner(c echo.Context, ador authDTO.AuthDogOwnerReq) (string, error)
+	RevokeDogowner(c echo.Context, dogownerID int64) error
+	LogInDogrunmg(c echo.Context, ador authDTO.AuthDogrunmgReq) (string, error)
+	RevokeDogrunmg(c echo.Context, dmID int64) error
 	// GoogleOAuth(c echo.Context, authorizationCode string, grantType types.GrantType) (dto.ResDogOwnerDto, error)
 }
 
@@ -44,8 +39,8 @@ func NewAuthHandler(ar repository.IAuthRepository) IAuthHandler {
 
 // JWTのClaims
 type AccountClaims struct {
-	ID  string `json:"id"`
-	JTI string `json:"jti"`
+	UserID string `json:"userId"`
+	Role   int    `json:"role"`
 	jwt.RegisteredClaims
 }
 
@@ -61,7 +56,7 @@ func (claims *AccountClaims) GetDogOwnerIDAsInt64(c echo.Context) (int64, error)
 	logger := log.GetLogger(c).Sugar()
 
 	// IDをstringからint64に変換
-	dogOwnerID, err := strconv.ParseInt(claims.ID, 10, 64)
+	dogOwnerID, err := strconv.ParseInt(claims.UserID, 10, 64)
 	if err != nil {
 		wrErr := errors.NewWRError(
 			nil,
@@ -74,162 +69,220 @@ func (claims *AccountClaims) GetDogOwnerIDAsInt64(c echo.Context) (int64, error)
 	return dogOwnerID, nil
 }
 
-// CreateDogOwner: DogOwnerの作成
+// LogInDogowner: dogownerの存在チェックバリデーションとJWTの更新, 署名済みjwtを返す
 //
 // args:
 //   - echo.Context: Echoのコンテキスト。リクエストやレスポンスにアクセスするために使用
 //   - dto.AuthDogOwnerReq: authDogOwnerのリクエスト情報
 //
 // return:
-//   - dto.DogOwnerDOT: 作成したdogOwner情報
+//   - string: 検証済みのjwt
 //   - error: error情報
-func (ah *authHandler) CreateDogOwner(c echo.Context, ador dto.AuthDogOwnerReq) (dto.DogOwnerDTO, error) {
+func (ah *authHandler) LogInDogowner(c echo.Context, adoReq authDTO.AuthDogOwnerReq) (string, error) {
 	logger := log.GetLogger(c).Sugar()
 
-	// パスワードのハッシュ化
-	hash, err := bcrypt.GenerateFromPassword([]byte(ador.Password), bcrypt.DefaultCost) // 一旦costをデフォルト値
+	// EmailとPhoneNumberのバリデーション
+	if wrErr := validateEmailOrPhoneNumber(adoReq); wrErr != nil {
+		logger.Error(wrErr)
+		return "", wrErr
+	}
 
-	if err != nil {
+	logger.Debugf("authDogownerReq: %v, Type: %T", adoReq, adoReq)
+
+	// EmailかPhoneNumberから対象のDogowner情報の取得
+	results, wrErr := ah.ar.GetDogOwnerByCredentials(c, adoReq)
+
+	if wrErr != nil {
+		return "", wrErr
+	}
+
+	// 対象のdogownerがいない場合
+	if len(results) == 0 {
 		wrErr := wrErrors.NewWRError(
-			err,
-			"パスワードに不正な文字列が入っております。",
-			wrErrors.NewDogOwnerClientErrorEType(),
+			nil,
+			"対象のユーザーが存在しません",
+			wrErrors.NewAuthClientErrorEType(),
 		)
-		logger.Error(wrErr)
-		return dto.DogOwnerDTO{}, wrErr
+		logger.Errorf("Dogowner not found: %v", wrErr)
+		return "", wrErr
 	}
 
-	// EmailとPhoneNumberのバリデーション
-	if wrErr := validateEmailOrPhoneNumber(ador); wrErr != nil {
-		logger.Error(wrErr)
-		return dto.DogOwnerDTO{}, wrErr
-	}
-
-	// JWT IDの生成
-	jwtID, wrErr := createJwtID(c, 15)
-
-	if wrErr != nil {
-		return dto.DogOwnerDTO{}, wrErr
-	}
-
-	// requestからDogOwnerの構造体に詰め替え
-	dogOwnerCredential := model.DogOwnerCredential{
-		Email:       wrUtil.NewSqlNullString(ador.Email),
-		PhoneNumber: wrUtil.NewSqlNullString(ador.PhoneNumber),
-		Password:    wrUtil.NewSqlNullString(string(hash)),
-		GrantType:   wrUtil.NewSqlNullString(model.PASSWORD_GRANT_TYPE), // Password認証
-		AuthDogOwner: model.AuthDogOwner{
-			JwtID: wrUtil.NewSqlNullString(jwtID),
-			DogOwner: model.DogOwner{
-				Name: wrUtil.NewSqlNullString(ador.DogOwnerName),
-			},
-		},
-	}
-
-	logger.Debugf("dogOwnerCredential %v, Type: %T", dogOwnerCredential, dogOwnerCredential)
-
-	// ドッグオーナー作成
-	result, wrErr := ah.ar.CreateDogOwner(c, &dogOwnerCredential)
-
-	if wrErr != nil {
-		return dto.DogOwnerDTO{}, wrErr
-	}
-
-	// 作成したDogOwnerの情報をdto詰め替え
-	dogOwnerDetail := dto.DogOwnerDTO{
-		DogOwnerID: result.AuthDogOwner.DogOwnerID.Int64,
-		JwtID:      result.AuthDogOwner.JwtID.String,
-	}
-
-	logger.Infof("dogOwnerDetail: %v", dogOwnerDetail)
-
-	return dogOwnerDetail, nil
-}
-
-// FetchDogOwnerInfo: リクエストのバリデーションやdogOwnerの情報取得
-//
-// args:
-//   - echo.Context: Echoのコンテキスト。リクエストやレスポンスにアクセスするために使用
-//   - dto.AuthDogOwnerReq: authDogOwnerのリクエスト情報
-//
-// return:
-//   - dto.DogOwnerDOT: 作成したdogOwner情報
-//   - error: error情報
-func (ah *authHandler) FetchDogOwnerInfo(c echo.Context, ador dto.AuthDogOwnerReq) (dto.DogOwnerDTO, error) {
-	logger := log.GetLogger(c).Sugar()
-
-	// EmailとPhoneNumberのバリデーション
-	if wrErr := validateEmailOrPhoneNumber(ador); wrErr != nil {
-		logger.Error(wrErr)
-		return dto.DogOwnerDTO{}, wrErr
-	}
-
-	logger.Debugf("authDogOwnerReq: %v, Type: %T", ador, ador)
-
-	// EmailかPhoneNumberから対象のDogOwner情報の取得
-	result, err := ah.ar.GetDogOwnerByCredential(c, ador)
-
-	if err != nil {
-		logger.Error(err)
-		return dto.DogOwnerDTO{}, err
+	// 対象のdogownerが複数いるため、データの不整合が起きている(基本的に起きない)
+	if len(results) > 1 {
+		wrErr := wrErrors.NewWRError(
+			nil,
+			"データの不整合が起きています",
+			wrErrors.NewAuthServerErrorEType(),
+		)
+		logger.Errorf("Multiple records found: %v", wrErr)
+		return "", wrErr
 	}
 
 	// パスワードの確認
-	err = bcrypt.CompareHashAndPassword([]byte(result.Password.String), []byte(ador.Password))
-
-	if err != nil {
+	if err := bcrypt.CompareHashAndPassword([]byte(results[0].Password.String), []byte(adoReq.Password)); err != nil {
 		wrErr := wrErrors.NewWRError(
 			err,
 			"パスワードが間違っています",
-			wrErrors.NewDogOwnerServerErrorEType())
+			wrErrors.NewAuthServerErrorEType())
 
 		logger.Errorf("Password compare failure: %v", wrErr)
 
-		return dto.DogOwnerDTO{}, wrErr
+		return "", wrErr
 	}
 
 	// 更新用のJWT IDの生成
-	jwtID, wrErr := createJwtID(c, 15)
+	jwtID, wrErr := GenerateJwtID(c)
 
 	if wrErr != nil {
-		return dto.DogOwnerDTO{}, wrErr
+		return "", wrErr
 	}
 
-	// 取得したdogOwnerのjtw_idの更新
-	wrErr = ah.ar.UpdateJwtID(c, result, jwtID)
+	// 取得したdogownerのjtw_idの更新
+	if wrErr := ah.ar.UpdateDogownerJwtID(c, results[0].AuthDogOwner.DogOwner.DogOwnerID.Int64, jwtID); wrErr != nil {
+		return "", wrErr
+	}
+
+	// 作成したDogownerの情報をdto詰め替え
+	dogownerDetail := authDTO.UserAuthInfoDTO{
+		UserID: results[0].AuthDogOwner.DogOwnerID.Int64,
+		JwtID:  jwtID,
+		RoleID: core.DOGOWNER_ROLE,
+	}
+
+	logger.Infof("dogownerDetail: %v", dogownerDetail)
+
+	// 署名済みのjwt token取得
+	token, wrErr := GetSignedJwt(c, dogownerDetail)
 
 	if wrErr != nil {
-		return dto.DogOwnerDTO{}, wrErr
+		return "", wrErr
 	}
 
-	// 作成したDogOwnerの情報をdto詰め替え
-	dogOwnerDetail := dto.DogOwnerDTO{
-		DogOwnerID: result.AuthDogOwner.DogOwnerID.Int64,
-		JwtID:      jwtID,
-	}
-
-	logger.Infof("dogOwnerDetail: %v", dogOwnerDetail)
-
-	return dogOwnerDetail, nil
+	return token, nil
 }
 
-// Revoke: Revoke機能
+// RevokeDogowner: dogownerのRevoke機能
 //
 // args:
 //   - echo.Context: Echoのコンテキスト。リクエストやレスポンスにアクセスするために使用
-//   - *dogMW.AccountClaims: 検証済みのclaims情報
+//   - int64: dogownerのID
 //
 // return:
 //   - error: error情報
-func (ah *authHandler) Revoke(c echo.Context, claims *AccountClaims) error {
-	// dogOwnerIDの取得
-	dogOwnerID, wrErr := claims.GetDogOwnerIDAsInt64(c)
-	if wrErr != nil {
+func (ah *authHandler) RevokeDogowner(c echo.Context, doID int64) error {
+	// 対象のdogownerのIDからJWT IDの削除
+	if wrErr := ah.ar.DeleteDogownerJwtID(c, doID); wrErr != nil {
 		return wrErr
 	}
 
-	// 対象のdogOwnerのIDからJWT IDの削除
-	if wrErr := ah.ar.DeleteJwtID(c, dogOwnerID); wrErr != nil {
+	return nil
+}
+
+// LogInDogrunmg: dogrunmgの存在チェックバリデーションとJWTの更新, 署名済みjwtを返す
+//
+// args:
+//   - echo.Context: Echoのコンテキスト。リクエストやレスポンスにアクセスするために使用
+//   - dto.AuthDogrunmgReq: authDogrunmgのリクエスト情報
+//
+// return:
+//   - string: 検証済みのjwt
+//   - error: error情報
+func (ah *authHandler) LogInDogrunmg(c echo.Context, admReq authDTO.AuthDogrunmgReq) (string, error) {
+	logger := log.GetLogger(c).Sugar()
+
+	logger.Debugf("authDogrunmgReq: %v, Type: %T", admReq, admReq)
+
+	// Email情報を元にdogrunmgのクレデンシャル情報の取得
+	results, err := ah.ar.GetDogrunmgByCredentials(c, admReq.Email)
+
+	if err != nil {
+		return "", err
+	}
+
+	// 対象のdogrunmgがいない場合
+	if len(results) == 0 {
+		wrErr := wrErrors.NewWRError(
+			nil,
+			"対象のユーザーが存在しません",
+			wrErrors.NewAuthClientErrorEType(),
+		)
+		logger.Errorf("Dogrunmg not found: %v", wrErr)
+		return "", wrErr
+	}
+
+	// 対象のdogrunmgが複数いるため、データの不整合が起きている(emailをuniqueにしているため基本的に起きない)
+	if len(results) > 1 {
+		wrErr := wrErrors.NewWRError(
+			nil,
+			"データの不整合が起きています",
+			wrErrors.NewAuthServerErrorEType(),
+		)
+		logger.Errorf("Multiple records found for email (expected unique): %v", wrErr)
+		return "", wrErr
+	}
+
+	// パスワードの確認
+	if err = bcrypt.CompareHashAndPassword([]byte(results[0].Password.String), []byte(admReq.Password)); err != nil {
+		wrErr := wrErrors.NewWRError(
+			err,
+			"パスワードが間違っています",
+			wrErrors.NewAuthServerErrorEType())
+
+		logger.Errorf("Password compare failure: %v", wrErr)
+
+		return "", wrErr
+	}
+
+	// 更新用のJWT IDの生成
+	jwtID, wrErr := GenerateJwtID(c)
+
+	if wrErr != nil {
+		return "", wrErr
+	}
+
+	// 取得したdogrunmgのjwt_idの更新
+	if wrErr = ah.ar.UpdateDogrunmgJwtID(c, results[0].AuthDogrunmg.Dogrunmg.DogrunmgID.Int64, jwtID); wrErr != nil {
+		return "", wrErr
+	}
+
+	// dogrunmgがadminかどうかの識別
+	var roleID int
+	if results[0].AuthDogrunmg.IsAdmin.Valid && results[0].AuthDogrunmg.IsAdmin.Bool {
+		roleID = core.DOGRUNMG_ADMIN_ROLE
+	} else {
+		roleID = core.DOGRUNMG_ROLE
+	}
+
+	// 取得したDogrunmgの情報をdto詰め替え
+	dogrunmgDetail := authDTO.UserAuthInfoDTO{
+		UserID: results[0].AuthDogrunmg.DogrunmgID.Int64,
+		JwtID:  jwtID,
+		RoleID: roleID,
+	}
+
+	logger.Infof("dogrunmgDetail: %v", dogrunmgDetail)
+
+	// 署名済みのjwt token取得
+	token, wrErr := GetSignedJwt(c, dogrunmgDetail)
+
+	if wrErr != nil {
+		return "", wrErr
+	}
+
+	return token, nil
+}
+
+// RevokeDogrunmg: dogrunmgのRevoke機能
+//
+// args:
+//   - echo.Context: Echoのコンテキスト。リクエストやレスポンスにアクセスするために使用
+//   - int64: dogrunmgのID
+//
+// return:
+//   - error: error情報
+func (ah *authHandler) RevokeDogrunmg(c echo.Context, dmID int64) error {
+	// 対象のdogrunmgのIDからJWT IDの削除
+	if wrErr := ah.ar.DeleteDogrunmgJwtID(c, dmID); wrErr != nil {
 		return wrErr
 	}
 
@@ -299,41 +352,22 @@ Google OAuth認証
 // 	return resDogOwner, nil
 // }
 
-/*
-jwt処理
-*/
 // GetSignedJwt: 署名済みのJWT tokenの取得
 //
 // args:
 //   - echo.Context: Echoのコンテキスト。リクエストやレスポンスにアクセスするために使用
-//   - dto.DogOwnerDTO: 作成したdogOwnerの情報
+//   - authDTO.UserAuthInfoDTO: jwtで使用する情報
 //
 // return:
-//  - string: 署名したtoken
-//  - error: error情報
-
-func (ah *authHandler) GetSignedJwt(c echo.Context, dod docDTO.DogOwnerDTO) (string, error) {
+//   - string: 署名したtoken
+//   - error: error情報
+func GetSignedJwt(c echo.Context, uaDTO authDTO.UserAuthInfoDTO) (string, error) {
 	// 秘密鍵取得
 	secretKey := configs.FetchConfigStr("jwt.os.secret.key")
 	jwtExpTime := configs.FetchConfigInt("jwt.exp.time")
 
 	// jwt token生成
-	signedToken, wrErr := createToken(c, secretKey, dod, jwtExpTime)
-
-	if wrErr != nil {
-		return "", wrErr
-	}
-
-	return signedToken, wrErr
-}
-
-func (ah *authHandler) GetSignedJwtTemporary(c echo.Context, dod dto.DogOwnerDTO) (string, error) {
-	// 秘密鍵取得
-	secretKey := configs.FetchConfigStr("jwt.os.secret.key")
-	jwtExpTime := configs.FetchConfigInt("jwt.exp.time")
-
-	// jwt token生成
-	signedToken, wrErr := createTokenTemporary(c, secretKey, dod, jwtExpTime)
+	signedToken, wrErr := createToken(c, secretKey, uaDTO, jwtExpTime)
 
 	if wrErr != nil {
 		return "", wrErr
@@ -347,21 +381,31 @@ func (ah *authHandler) GetSignedJwtTemporary(c echo.Context, dod dto.DogOwnerDTO
 // args:
 //   - echo.Context: Echoのコンテキスト。リクエストやレスポンスにアクセスするために使用
 //   - string: secretKey   トークンの署名に使用する秘密鍵を表す文字列
-//   - dto.DogOwnerDTO:  作成したdogOwnerの情報
+//   - authDTO.UserAuthInfoDTO: jwtで使用する情報
 //   - int: expTime トークンの有効期限を秒単位で指定
 //
 // return:
 //   - string: 生成されたJWTトークンを表す文字列
 //   - error: トークンの生成中に問題が発生したエラー
-func createToken(c echo.Context, secretKey string, dod docDTO.DogOwnerDTO, expTime int) (string, error) {
+func createToken(
+	c echo.Context,
+	secretKey string,
+	uaDTO authDTO.UserAuthInfoDTO,
+	expTime int,
+) (string, error) {
 	logger := log.GetLogger(c).Sugar()
 
 	// JWTのペイロード
 	claims := AccountClaims{
-		ID:  strconv.FormatInt(dod.DogOwnerID, 10), // stringにコンバート
-		JTI: dod.JwtID,
+		UserID: strconv.FormatInt(uaDTO.UserID, 10), // stringにコンバート
+		Role:   uaDTO.RoleID,
 		RegisteredClaims: jwt.RegisteredClaims{
-			ExpiresAt: jwt.NewNumericDate(time.Now().Add(time.Hour * time.Duration(expTime))), // 有効時間
+			ExpiresAt: jwt.NewNumericDate( // 有効時間
+				time.Now().Add(
+					time.Hour * time.Duration(expTime),
+				),
+			),
+			ID: uaDTO.JwtID,
 		},
 	}
 
@@ -374,7 +418,7 @@ func createToken(c echo.Context, secretKey string, dod docDTO.DogOwnerDTO, expTi
 		wrErr := wrErrors.NewWRError(
 			err,
 			"パスワードに不正な文字列が入っています。",
-			wrErrors.NewDogOwnerClientErrorEType(),
+			wrErrors.NewAuthClientErrorEType(),
 		)
 		logger.Error(wrErr)
 		return "", err
@@ -383,59 +427,30 @@ func createToken(c echo.Context, secretKey string, dod docDTO.DogOwnerDTO, expTi
 	return signedToken, nil
 }
 
-func createTokenTemporary(c echo.Context, secretKey string, dod dto.DogOwnerDTO, expTime int) (string, error) {
-	logger := log.GetLogger(c).Sugar()
-
-	// JWTのペイロード
-	claims := AccountClaims{
-		ID:  strconv.FormatInt(dod.DogOwnerID, 10), // stringにコンバート
-		JTI: dod.JwtID,
-		RegisteredClaims: jwt.RegisteredClaims{
-			ExpiresAt: jwt.NewNumericDate(time.Now().Add(time.Hour * time.Duration(expTime))), // 有効時間
-		},
-	}
-
-	// token生成
-	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
-
-	// tokenに署名
-	signedToken, err := token.SignedString([]byte(secretKey))
-	if err != nil {
-		wrErr := wrErrors.NewWRError(
-			err,
-			"パスワードに不正な文字列が入っています。",
-			wrErrors.NewDogOwnerClientErrorEType(),
-		)
-		logger.Error(wrErr)
-		return "", err
-	}
-
-	return signedToken, nil
-}
-
-// createJwtID: JWT IDの生成。引数の数だけランダムの文字列を生成
+// GenerateJwtID: JwtIDの生成。引数の数だけランダムの文字列を生成
 //
 // args:
-//   - int: length 生成したい数
+//   - echo.Context: Echoのコンテキスト。リクエストやレスポンスにアクセスするために使用
 //
 // return:
-//   - string: ランダム文字列
+//   - string: JwtID
 //   - error: error情報
-func createJwtID(c echo.Context, length int) (string, error) {
+func GenerateJwtID(c echo.Context) (string, error) {
 	logger := log.GetLogger(c).Sugar()
 
-	b := make([]byte, length)
-	_, err := rand.Read(b)
-	if err != nil {
+	// カスタムエラー処理
+	handleError := func(err error) error {
 		wrErr := wrErrors.NewWRError(
 			err,
-			"JWT ID生成に失敗しました",
-			wrErrors.NewDogOwnerServerErrorEType(),
+			"JwtID生成に失敗しました",
+			wrErrors.NewAuthServerErrorEType(),
 		)
 		logger.Error(wrErr)
-		return "", wrErr
+		return wrErr
 	}
-	return base64.RawURLEncoding.EncodeToString(b)[:length], nil
+
+	// UUIDを生成
+	return util.UUIDGenerator(handleError)
 }
 
 // validateEmailOrPhoneNumber: EmailかPhoneNumberの識別バリデーション。パスワード認証は、EmailかPhoneNumberで登録するため
@@ -445,7 +460,7 @@ func createJwtID(c echo.Context, length int) (string, error) {
 //
 // return:
 //   - error: err情報
-func validateEmailOrPhoneNumber(doReq dto.AuthDogOwnerReq) error {
+func validateEmailOrPhoneNumber(doReq authDTO.AuthDogOwnerReq) error {
 	// 両方が空の場合はエラー
 	if doReq.Email == "" && doReq.PhoneNumber == "" {
 		wrErr := wrErrors.NewWRError(

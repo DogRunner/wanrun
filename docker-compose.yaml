@@ -39,6 +39,10 @@ services:
       ENV: ${ENV}
       SECRET_KEY: ${SECRET_KEY}
       GOOGLE_PLACE_API_KEY: ${GOOGLE_PLACE_API_KEY}
+      JWT_EXP_TIME: ${JWT_EXP_TIME}
+      AWS_ACCESS_KEY: ${AWS_ACCESS_KEY}
+      AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY}
+      AWS_S3_BUCKET_NAME: ${AWS_S3_BUCKET_NAME}
       STAGE: ${STAGE}
     depends_on:
       postgres:
@@ -57,8 +61,9 @@ services:
     ports:
       - "9000:9000"
       - "9001:9001"
-    volumes:
-      - ./misc/minio/data:/data
+    # cmsでのデータ残しておきたいならコメントアウト外して
+    # volumes:
+    #   - ./misc/minio/data:/data
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]

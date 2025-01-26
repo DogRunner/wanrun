@@ -1,6 +1,10 @@
 package common
 
-import "github.com/go-playground/validator/v10"
+import (
+	"reflect"
+
+	"github.com/go-playground/validator/v10"
+)
 
 // PKカスタムバリデーション（登録時）
 func VCreatePrimaryKey(fl validator.FieldLevel) bool {
@@ -16,13 +20,13 @@ func VUpdatePrimaryKey(fl validator.FieldLevel) bool {
 
 // 性別値
 const (
-	SEX_MALE   = "M"
-	SEX_FEMAIL = "F"
-	SEX_UNKNOW = "U"
-	SEX_OTHER  = "O"
+	SEX_MALE    = "M"
+	SEX_FEMALE  = "F"
+	SEX_UNKNOWN = "U"
+	SEX_OTHER   = "O"
 )
 
-var sex_values []string = []string{SEX_MALE, SEX_FEMAIL, SEX_UNKNOW, SEX_OTHER}
+var sex_values []string = []string{SEX_MALE, SEX_FEMALE, SEX_UNKNOWN, SEX_OTHER}
 
 // 性別のバリデーション
 func VSex(fl validator.FieldLevel) bool {
@@ -35,3 +39,18 @@ func VSex(fl validator.FieldLevel) bool {
 	}
 	return false
 }
+
+// スライスの空バリデーション
+func VNotEmpty(fl validator.FieldLevel) bool {
+	slice := fl.Field()
+
+	field := fl.Field()
+
+	// フィールドがスライスかどうかを確認
+	if field.Kind() == reflect.Slice {
+		return slice.Len() > 0 // スライスの長さが0より大きければOK
+	}
+	return false // スライス以外は無効
+}
+
+// int64スライスの最大値

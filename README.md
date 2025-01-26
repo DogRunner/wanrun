@@ -25,7 +25,7 @@ target: Deploy
 docker compose up -d --build
 ```
 
-### 2.3 コンテナ２台の確認(backend, postgres)
+### 2.3 コンテナの確認(backend, postgres, minio, mc)
 
 ```
 docker ps
@@ -35,7 +35,7 @@ docker ps
 
 https://github.com/air-verse/air
 
----
+
 
 ## Local db migration
 
@@ -45,6 +45,7 @@ https://github.com/golang-migrate/migrate/blob/master/database/postgres/TUTORIAL
 ### SQLファイル作成コマンド
 ```
 *絶対パスで指定ができなかったので注意(ルートフォルダからやって)
+
 migrate create -ext sql -dir migrate/migration_sql -seq {create_table_name}
 ```
 
@@ -99,3 +100,52 @@ https://github.com/golang-standards/project-layout
 
 ## Naming convention
 https://go.dev/doc/effective_go#names
+
+
+## ローカルでS3を立ち上げる方法
+
+### 0.Overview
+dockerで2台のコンテナを立てます。詳細は下記です。
+- コンテナ名: `minio` 
+  - ローカルS3の実体.
+  - portが`9001`
+
+- コンテナ名: `mc`
+  - MinIOサーバーや他のS3互換サービス（例えばAmazon S3）を操作するためのツール.
+  - portが`9000`
+
+※s3にデータを残したかったら、docker-composeの`minio`コンテナ内の下記のコメントアウトを外して。そしたらデータマウントするから保持し続けるよ。
+現状は毎回リセットさせてる。
+
+```
+    # cmsでのデータ残しておきたいならコメントアウト外して
+    # volumes:
+    #   - ./misc/minio/data:/data
+```
+
+### 1. 立ち上げ方
+```
+docker compose up --build -d
+```
+で`db`, `wanrun`, `minio`, `mc`が立ち上がる。
+
+### 2. 接続方法
+ブラウザで下記のURLを打つとコンソール画面が出る。
+```
+http://localhost:9001/
+```
+
+### 3. ログイン詳細
+```
+user: admin
+password: adminpass
+```
+
+### 4. 確認
+minioコンテナ生成時にデフォルトでcmsバケットを作成するshellを流しているため、cmsバケットがあります。
+初期データも入っているので、確認してね。(cocoちゃんの可愛い写真がある。)
+wanrunからcmsサービスをローカルで使えばこのminioを見るようになっているので他の設定は不要です。
+
+### FYI
+- mino: https://github.com/minio/minio
+- 操作方法: https://go-tech.blog/aws/s3-minio/
