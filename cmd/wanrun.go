@@ -102,7 +102,7 @@ func Main() {
 
 	// Router設定
 	newRouter(e, dbConn)
-	e.GET("/test", internal.Test)
+	e.GET("/test", internal.Test, authMW.RoleAuthorization(authMW.ALL))
 
 	// 最大リクエストボディサイズの指定
 	e.Use(middleware.BodyLimit("10M")) // 最大10MB
@@ -114,23 +114,23 @@ func newRouter(e *echo.Echo, dbConn *gorm.DB) {
 	// dog関連
 	dogController := newDog(dbConn)
 	dog := e.Group("dog")
-	dog.GET("/all", dogController.GetAllDogs)
-	dog.GET("/detail/:dogID", dogController.GetDogByID)
-	dog.GET("/owned/:dogOwnerId", dogController.GetDogByDogOwnerID)
-	dog.GET("/mst/dogType", dogController.GetDogTypeMst)
-	dog.POST("", dogController.CreateDog)
-	dog.PUT("", dogController.UpdateDog)
-	dog.DELETE("", dogController.DeleteDog)
+	dog.GET("/all", dogController.GetAllDogs, authMW.RoleAuthorization(authMW.SYSTEM))
+	dog.GET("/detail/:dogID", dogController.GetDogByID, authMW.RoleAuthorization(authMW.DOG_MANAGE))
+	dog.GET("/owned/:dogOwnerId", dogController.GetDogByDogOwnerID, authMW.RoleAuthorization(authMW.DOG_MANAGE))
+	dog.GET("/mst/dogType", dogController.GetDogTypeMst, authMW.RoleAuthorization(authMW.ALL))
+	dog.POST("", dogController.CreateDog, authMW.RoleAuthorization(authMW.DOG_MANAGE))
+	dog.PUT("", dogController.UpdateDog, authMW.RoleAuthorization(authMW.DOG_MANAGE))
+	dog.DELETE("", dogController.DeleteDog, authMW.RoleAuthorization(authMW.DOG_MANAGE))
 	// dog.PUT("/:dogID", dogController.UpdateDog)
 
 	// dogrun関連
 	dogrunController := newDogrun(dbConn)
 	dogrun := e.Group("dogrun")
-	dogrun.GET("/detail/:placeId", dogrunController.GetDogrunDetail)
-	dogrun.GET("/:id", dogrunController.GetDogrun)
-	dogrun.GET("/photo/src", dogrunController.GetDogrunPhoto)
-	dogrun.GET("/mst/tag", dogrunController.GetDogrunTagMst)
-	dogrun.POST("/search", dogrunController.SearchAroundDogruns)
+	dogrun.GET("/detail/:placeId", dogrunController.GetDogrunDetail, authMW.RoleAuthorization(authMW.DOGRUN_REFER))
+	dogrun.GET("/:id", dogrunController.GetDogrun, authMW.RoleAuthorization(authMW.DOGRUN_REFER))
+	dogrun.GET("/photo/src", dogrunController.GetDogrunPhoto, authMW.RoleAuthorization(authMW.DOGRUN_REFER))
+	dogrun.GET("/mst/tag", dogrunController.GetDogrunTagMst, authMW.RoleAuthorization(authMW.ALL))
+	dogrun.POST("/search", dogrunController.SearchAroundDogruns, authMW.RoleAuthorization(authMW.DOGRUN_SEARCH))
 
 	// dogOwner関連
 	dogOwnerController := newDogOwner(dbConn)
@@ -142,28 +142,28 @@ func newRouter(e *echo.Echo, dbConn *gorm.DB) {
 	auth := e.Group("auth")
 	// dogowner
 	auth.POST("/dogowner/token", authController.LogInDogowner)
-	auth.POST("dogowner/revoke", authController.RevokeDogowner)
+	auth.POST("dogowner/revoke", authController.RevokeDogowner, authMW.RoleAuthorization(authMW.DOG_MANAGE))
 	// auth.GET("/google/oauth", authController.GoogleOAuth)
 	// dogrunmg
 	auth.POST("dogrunmg/token", authController.LogInDogrunmg)
-	auth.POST("dogrunmg/revoke", authController.RevokeDogrunmg)
+	auth.POST("dogrunmg/revoke", authController.RevokeDogrunmg, authMW.RoleAuthorization(authMW.DOGRUN_MANAGE))
 
 	//interaction関連
 	interactionController := newInteraction(dbConn)
 	bookmark := e.Group("bookmark")
-	bookmark.POST("/dogrun", interactionController.AddBookmark)
-	bookmark.DELETE("/dogrun", interactionController.DeleteBookmarks)
+	bookmark.POST("/dogrun", interactionController.AddBookmark, authMW.RoleAuthorization(authMW.DOGRUN_SEARCH))
+	bookmark.DELETE("/dogrun", interactionController.DeleteBookmarks, authMW.RoleAuthorization(authMW.DOGRUN_SEARCH))
 
 	access := e.Group("access")
-	access.GET("/today/checkins", interactionController.GetTodayCheckins)
-	access.POST("/checkin", interactionController.CheckinDogrun)
-	access.DELETE("/checkout", interactionController.CheckoutDogrun)
+	access.GET("/today/checkins", interactionController.GetTodayCheckins, authMW.RoleAuthorization(authMW.DOG_MANAGE))
+	access.POST("/checkin", interactionController.CheckinDogrun, authMW.RoleAuthorization(authMW.DOG_MANAGE))
+	access.DELETE("/checkout", interactionController.CheckoutDogrun, authMW.RoleAuthorization(authMW.DOG_MANAGE))
 
 	// cms関連
 	cmsController := newCms(dbConn)
 	cms := e.Group("cms")
-	cms.POST("/upload/file", cmsController.UploadFile)
-	cms.DELETE("", cmsController.DeleteFile)
+	cms.POST("/upload/file", cmsController.UploadFile, authMW.RoleAuthorization(authMW.ALL))
+	cms.DELETE("", cmsController.DeleteFile, authMW.RoleAuthorization(authMW.ALL))
 
 	// ヘルスチェック
 	e.GET("/health", func(c echo.Context) error {
