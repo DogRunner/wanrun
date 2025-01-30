@@ -3,6 +3,7 @@ package handler
 import (
 	"github.com/labstack/echo/v4"
 	authRepository "github.com/wanrun-develop/wanrun/internal/auth/adapters/repository"
+	"github.com/wanrun-develop/wanrun/internal/auth/core"
 	authDTO "github.com/wanrun-develop/wanrun/internal/auth/core/dto"
 	authHandler "github.com/wanrun-develop/wanrun/internal/auth/core/handler"
 	dogOwnerRepository "github.com/wanrun-develop/wanrun/internal/dogowner/adapters/repository"
@@ -143,7 +144,7 @@ func (doh *dogOwnerHandler) DogOwnerSignUp(c echo.Context, doReq doDTO.DogOwnerR
 	dogOwnerDetail := authDTO.UserAuthInfoDTO{
 		UserID: dogOwnerCredential.AuthDogOwner.DogOwnerID.Int64,
 		JwtID:  dogOwnerCredential.AuthDogOwner.JwtID.String,
-		RoleID: authHandler.DOGOWNER_ROLE,
+		RoleID: core.DOGOWNER_ROLE,
 	}
 
 	logger.Infof("dogOwnerDetail: %v", dogOwnerDetail)

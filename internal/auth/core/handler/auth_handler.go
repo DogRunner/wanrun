@@ -8,6 +8,7 @@ import (
 	"github.com/labstack/echo/v4"
 	"github.com/wanrun-develop/wanrun/configs"
 	"github.com/wanrun-develop/wanrun/internal/auth/adapters/repository"
+	"github.com/wanrun-develop/wanrun/internal/auth/core"
 	authDTO "github.com/wanrun-develop/wanrun/internal/auth/core/dto"
 	"github.com/wanrun-develop/wanrun/pkg/errors"
 	wrErrors "github.com/wanrun-develop/wanrun/pkg/errors"
@@ -38,17 +39,10 @@ func NewAuthHandler(ar repository.IAuthRepository) IAuthHandler {
 
 // JWTのClaims
 type AccountClaims struct {
-	ID   string `json:"id"`
-	JTI  string `json:"jti"`
-	Role int    `json:"role"`
+	UserID string `json:"userId"`
+	Role   int    `json:"role"`
 	jwt.RegisteredClaims
 }
-
-const (
-	DOGRUNMG_ROLE       int = 1
-	DOGRUNMG_ADMIN_ROLE int = 2
-	DOGOWNER_ROLE       int = 3
-)
 
 // GetDogOwnerIDAsInt64: 共通処理で、int64のDogOwnerのID取得。
 //
@@ -62,7 +56,7 @@ func (claims *AccountClaims) GetDogOwnerIDAsInt64(c echo.Context) (int64, error)
 	logger := log.GetLogger(c).Sugar()
 
 	// IDをstringからint64に変換
-	dogOwnerID, err := strconv.ParseInt(claims.ID, 10, 64)
+	dogOwnerID, err := strconv.ParseInt(claims.UserID, 10, 64)
 	if err != nil {
 		wrErr := errors.NewWRError(
 			nil,
@@ -152,7 +146,7 @@ func (ah *authHandler) LogInDogowner(c echo.Context, adoReq authDTO.AuthDogOwner
 	dogownerDetail := authDTO.UserAuthInfoDTO{
 		UserID: results[0].AuthDogOwner.DogOwnerID.Int64,
 		JwtID:  jwtID,
-		RoleID: DOGOWNER_ROLE,
+		RoleID: core.DOGOWNER_ROLE,
 	}
 
 	logger.Infof("dogownerDetail: %v", dogownerDetail)
@@ -254,9 +248,9 @@ func (ah *authHandler) LogInDogrunmg(c echo.Context, admReq authDTO.AuthDogrunmg
 	// dogrunmgがadminかどうかの識別
 	var roleID int
 	if results[0].AuthDogrunmg.IsAdmin.Valid && results[0].AuthDogrunmg.IsAdmin.Bool {
-		roleID = DOGRUNMG_ADMIN_ROLE
+		roleID = core.DOGRUNMG_ADMIN_ROLE
 	} else {
-		roleID = DOGRUNMG_ROLE
+		roleID = core.DOGRUNMG_ROLE
 	}
 
 	// 取得したDogrunmgの情報をdto詰め替え
@@ -403,15 +397,15 @@ func createToken(
 
 	// JWTのペイロード
 	claims := AccountClaims{
-		ID:   strconv.FormatInt(uaDTO.UserID, 10), // stringにコンバート
-		JTI:  uaDTO.JwtID,
-		Role: uaDTO.RoleID,
+		UserID: strconv.FormatInt(uaDTO.UserID, 10), // stringにコンバート
+		Role:   uaDTO.RoleID,
 		RegisteredClaims: jwt.RegisteredClaims{
 			ExpiresAt: jwt.NewNumericDate( // 有効時間
 				time.Now().Add(
 					time.Hour * time.Duration(expTime),
 				),
 			),
+			ID: uaDTO.JwtID,
 		},
 	}
 
