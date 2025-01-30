@@ -130,11 +130,6 @@ func (cs3 *s3Provider) DeleteObject(c echo.Context, sok string) error {
 		return wrErr
 	}
 
-	// 対象のS3Objectが削除されたのか確認
-	if wrErr := cs3.checkS3ObjectNotExists(c, sok); wrErr != nil {
-		return wrErr
-	}
-
 	return nil
 }
 
